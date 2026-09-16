@@ -548,6 +548,7 @@ def run(
                         dev,
                         values,
                         display_breakpoints,
+                        provider_params,
                     )
                 )
             elif isinstance(circuit, Iterable):
@@ -558,16 +559,23 @@ def run(
                             dev,
                             values,
                             display_breakpoints,
+                            provider_params,
                         )
                     )
             else:
                 if values is not None:
                     raise ValueError("values must be specified in CircuitBinding")
-                return _run_circuit_binding(circuit, dev, display_breakpoints)
+                result = _run_circuit_binding(circuit, dev, display_breakpoints)
+                if isinstance(result, BatchResult):
+                    results.extend(result.results)
+                else:
+                    results.append(result)
         return BatchResult(results)
     else:
         if isinstance(circuit, QCircuit):
-            return _run_single(circuit, device, values, display_breakpoints)
+            return _run_single(
+                circuit, device, values, display_breakpoints, provider_params
+            )
         elif isinstance(circuit, Iterable):
             results: list[Result] = []
             for i, circ in enumerate(flatten(circuit)):
@@ -577,6 +585,7 @@ def run(
                         device,
                         values,
                         display_breakpoints,
+                        provider_params,
                     )
                 )
             return BatchResult(results)

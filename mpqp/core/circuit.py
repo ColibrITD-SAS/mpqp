@@ -2356,10 +2356,17 @@ class CircuitBinding:
     @overload
     def to_other_device(
         self, device: IBMDevice
-    ) -> list[tuple["EstimatorPubLike", "Job"]]: ...
+    ) -> list[tuple["EstimatorPubLike", list["Job"]]]: ...
     def to_other_device(
         self, device: AvailableDevice
-    ) -> "CircuitBinding | tuple[ProgramSet, list[tuple[Any]]] | list[tuple[EstimatorPubLike, Job]]":
+    ) -> "CircuitBinding | tuple[ProgramSet, list[tuple[Any]]] | list[tuple[EstimatorPubLike, list[Job]]]":
+        """Translate a binding for the selected provider.
+
+        For IBM, return one PUB per distinct circuit object and the ordered
+        list of execution jobs for each PUB. PRODUCT/ZIP combinations are
+        resolved before grouping. PUB fields are circuit, observables, then
+        parameter values; absent trailing fields are omitted.
+        """
         from mpqp.execution.job import Job
         from mpqp.execution.devices import (
             IBMDevice,
@@ -2374,63 +2381,57 @@ class CircuitBinding:
                 )
 
             unrolled = self.unroll()
+            if any(c.transpiled_circuit is None for c, _, _ in unrolled):
+                self.transpiled_circuits(device=device)
 
-            pubs_by_circuit = {}
-            for c, v, m in unrolled:
-                c_id = id(c)
-                if c_id not in pubs_by_circuit:
-                    pubs_by_circuit[c_id] = {"circuit": c, "params": [], "measures": []}
+            grouped = {}
+            for c, values, measure in unrolled:
+                grouped.setdefault(id(c), []).append((c, values, measure))
 
-                params = [str(var) for var in c.variables()]
-                if v:
-                    values = [v[key] for key in params if key in v.keys()]
-                else:
-                    values = []
-                pubs_by_circuit[c_id]["params"].append(values)
-                pubs_by_circuit[c_id]["measures"].append(m)
             pubs_with_context = []
-
-            for c_id, data in pubs_by_circuit.items():
-                original_c = data["circuit"]
-                assert isinstance(original_c, QCircuit)
-                if original_c.transpiled_circuit is None:
-                    self.transpiled_circuits(device=device)
-                q_c = original_c.transpiled_circuit
+            for executions in grouped.values():
+                q_c = executions[0][0].transpiled_circuit
                 if TYPE_CHECKING:
                     assert isinstance(q_c, QuantumCircuit)
-                params = data["params"]
-                measures = data["measures"]
-
+                parameter_names = [p.name for p in q_c.parameters]
+                params = []
                 q_obs = []
-                for m in measures:
-                    if m is not None and hasattr(m, "observables"):
-                        obs_list = [
+                contexts = []
+                for c, values, measure in executions:
+                    normalized_values = {str(k): v for k, v in (values or {}).items()}
+                    missing = [
+                        name
+                        for name in parameter_names
+                        if name not in normalized_values
+                    ]
+                    if missing:
+                        raise ValueError(
+                            f"Missing values for circuit parameters: {missing}"
+                        )
+                    params.append([normalized_values[name] for name in parameter_names])
+                    if not isinstance(measure, ExpectationMeasure):
+                        raise ValueError(
+                            "Observable bindings require expectation measures."
+                        )
+                    q_obs.append(
+                        [
                             (
                                 obs.pre_transpiled
                                 if obs.pre_transpiled is not None
                                 else obs.to_other_language(Language.QISKIT)
                             )
-                            for obs in m.observables
+                            for obs in measure.observables
                         ]
-                        q_obs.append(obs_list)
-                    else:
-                        q_obs.append([])
-
-                if self.mode == BindingMode.ZIP and q_obs and params:
-                    for i in range(len(q_obs)):
-                        c_context = original_c.without_measurements(deep_copy=False)
-                        c_context.add(measures[i])
-                        context_job = Job(self.job_type, c_context, device)
-                        pub = (q_c, q_obs[i], params[i])
-                        pubs_with_context.append((pub, context_job))
-                    continue
+                    )
+                    context = c.without_measurements(deep_copy=False)
+                    context.add(deepcopy(measure))
+                    contexts.append(Job(self.job_type, context, device, values=values))
 
                 if all(len(p) == 0 for p in params):
                     params = None
                 if all(len(o) == 0 for o in q_obs):
                     q_obs = None
                 if q_obs and params:
-
                     pub = (q_c, q_obs, params)
                 elif q_obs:
                     pub = (q_c, q_obs)
@@ -2438,12 +2439,7 @@ class CircuitBinding:
                     pub = (q_c, None, params)
                 else:
                     pub = (q_c,)
-
-                c_context = original_c.without_measurements(deep_copy=False)
-                c_context.add(measures)
-                context_job = Job(self.job_type, c_context, device)
-
-                pubs_with_context.append((pub, context_job))
+                pubs_with_context.append((pub, contexts))
 
             return pubs_with_context
         elif isinstance(device, AWSDevice):

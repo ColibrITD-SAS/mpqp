@@ -51,90 +51,41 @@ m_Z = ExpectationMeasure(Observable(pZ), label="Exp_Z", shots=2024)
 
 
 @pytest.mark.provider("qiskit")
-def test_qiskit_to_other_device_product_shapes():
-
-    binding = CircuitBinding(
-        circuits=c1, values=[v1, v2], measurements=[m_I, m_Z], mode=BindingMode.PRODUCT
-    )
-
+@pytest.mark.parametrize("mode", list(BindingMode))
+def test_qiskit_to_other_device_grouped_shapes(mode):
+    binding = CircuitBinding(c1, values=[v1, v2], measurements=[m_I, m_Z], mode=mode)
     pubs_with_context = binding.to_other_device(IBMDevice.AER_SIMULATOR)
-
     assert len(pubs_with_context) == 1
-
-    pub, _ = pubs_with_context[0]
-    c, m, v = pub  # pyright: ignore[reportAssignmentType, reportGeneralTypeIssues]
-    assert str(c.data) == str(c1.to_other_device(IBMDevice.AER_SIMULATOR).data)
-    assert len(m) == 4  # pyright: ignore[reportArgumentType]
-    assert len(v) == 4
-    assert m[0] == [obs.to_other_language(Language.QISKIT) for obs in m_I.observables]  # type: ignore
-    assert v[0] == list(v1.values())
-    assert m[1] == [obs.to_other_language(Language.QISKIT) for obs in m_Z.observables]  # type: ignore
-    assert v[1] == list(v1.values())
-    assert m[2] == [obs.to_other_language(Language.QISKIT) for obs in m_I.observables]  # type: ignore
-    assert v[2] == list(v2.values())
-    assert m[3] == [obs.to_other_language(Language.QISKIT) for obs in m_Z.observables]  # type: ignore
-    assert v[3] == list(v2.values())
-
-
-@pytest.mark.provider("qiskit")
-def test_qiskit_to_other_device_zip_shapes():
-    values = [v1, v2]
-    measurements = [m_I, m_Z]
-    binding = CircuitBinding(
-        circuits=c1, values=values, measurements=measurements, mode=BindingMode.ZIP
+    pub, contexts = pubs_with_context[0]
+    circuit, observables, parameters = pub
+    expected = (
+        [(v1, m_I), (v2, m_Z)]
+        if mode == BindingMode.ZIP
+        else [(v1, m_I), (v1, m_Z), (v2, m_I), (v2, m_Z)]
     )
-
-    pubs_with_context = binding.to_other_device(IBMDevice.AER_SIMULATOR)
-    print(len(pubs_with_context) == 2)
-
-    for i, (pub, _) in enumerate(pubs_with_context):
-        c, m, v = pub  # pyright: ignore[reportAssignmentType, reportGeneralTypeIssues]
-        assert str(c.data) == str(c1.to_other_device(IBMDevice.AER_SIMULATOR).data)
-        assert m == [
-            obs.to_other_language(Language.QISKIT)
-            for obs in measurements[i].observables
+    assert len(contexts) == len(expected)
+    for row, (values, measure) in enumerate(expected):
+        assert observables[row] == [
+            o.to_other_language(Language.QISKIT) for o in measure.observables
         ]
-        assert v == list(values[i].values())
-
-
-@pytest.mark.provider("qiskit")
-def test_qiskit_to_other_device_zip_broadcasting_rules():
-    values = [v1, v2]
-    measurements = [m_I, m_Z]
-    binding = CircuitBinding(
-        circuits=c1, values=values, measurements=measurements, mode=BindingMode.ZIP
-    )
-
-    pubs_with_context = binding.to_other_device(IBMDevice.AER_SIMULATOR)
-    assert len(pubs_with_context) == 2
-
-    for i, (pub, _) in enumerate(pubs_with_context):
-        c, m, v = pub  # pyright: ignore[reportAssignmentType, reportGeneralTypeIssues]
-        assert str(c.data) == str(c1.to_other_device(IBMDevice.AER_SIMULATOR).data)
-        assert m == [
-            obs.to_other_language(Language.QISKIT)
-            for obs in measurements[i].observables
-        ]
-        assert v == list(values[i].values())
+        assert parameters[row] == [values[p.name] for p in circuit.parameters]
+        assert contexts[row].values == values
 
 
 @pytest.mark.provider("qiskit")
 def test_qiskit_to_other_device_recursive_bindings():
-    inner_binding = CircuitBinding(circuits=c1, measurements=m1)
-    outer_binding = CircuitBinding(circuits=inner_binding, values=[v1, v2])
-
-    pubs_with_context = outer_binding.to_other_device(IBMDevice.AER_SIMULATOR)
+    inner = CircuitBinding(c1, measurements=m1)
+    binding = CircuitBinding(inner, values=[v1, v2])
+    pubs_with_context = binding.to_other_device(IBMDevice.AER_SIMULATOR)
     assert len(pubs_with_context) == 1
-
-    pub, _ = pubs_with_context[0]
-    c, m, v = pub  # pyright: ignore[reportAssignmentType, reportGeneralTypeIssues]
-    assert str(c.data) == str(c1.to_other_device(IBMDevice.AER_SIMULATOR).data)
-    assert len(m) == 2  # type: ignore
-    assert len(v) == 2
-    assert m[0] == [obs.to_other_language(Language.QISKIT) for obs in m_I.observables]  # type: ignore
-    assert v[0] == list(v1.values())
-    assert m[1] == [obs.to_other_language(Language.QISKIT) for obs in m_I.observables]  # type: ignore
-    assert v[1] == list(v2.values())
+    pub, contexts = pubs_with_context[0]
+    circuit, observables, parameters = pub
+    for row, values in enumerate([v1, v2]):
+        assert observables[row] == [
+            o.to_other_language(Language.QISKIT) for o in m1.observables
+        ]
+        assert parameters[row] == [values[p.name] for p in circuit.parameters]
+        assert contexts[row].values == values
 
 
 @pytest.fixture
