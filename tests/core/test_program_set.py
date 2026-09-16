@@ -38,6 +38,18 @@ o = [
         ),
         (
             CircuitBinding(
+                [
+                    CircuitBinding(
+                        c1, measurements=o
+                    )
+                ],
+                values=[{"t": 1.0, "r": 0.0}, {"t": 0.0, "r": 1.0}],
+                mode=BindingMode.ZIP,
+            ),
+            4,
+        ),
+        (
+            CircuitBinding(
                 c1,
                 values=[{"t": 1.0, "r": 0.0}, {"t": 0.0, "r": 1.0}],
                 measurements=o,

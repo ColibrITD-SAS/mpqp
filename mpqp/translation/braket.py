@@ -750,13 +750,30 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                     executables += list(product([c], obs or [None], var or [None]))
             else:
                 for circuits in c.circuits:
-                    executables += list(
-                        zip(
-                            [circuits] * len(obs or var),
-                            obs or [None] * len(var),
-                            var or [None] * len(obs),
+                    if c._translated_variables and obs:  # pyright: ignore[reportPrivateUsage]
+                        executables += list(
+                            product(
+                                [circuits],
+                                obs,
+                                c._translated_variables,  # pyright: ignore[reportPrivateUsage]
+                            )
                         )
-                    )
+                    elif c._translated_observables and var:  # pyright: ignore[reportPrivateUsage]
+                        executables += list(
+                            product(
+                                [circuits],
+                                c._translated_observables,  # pyright: ignore[reportPrivateUsage]
+                                var,
+                            )
+                        )
+                    else:
+                        executables += list(
+                            zip(
+                                [circuits] * len(obs or var),
+                                obs or [None] * len(var),
+                                var or [None] * len(obs),
+                            )
+                        )
 
         from braket.circuits.observables import Sum
 
