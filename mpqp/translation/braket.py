@@ -750,7 +750,9 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                     executables += list(product([c], obs or [None], var or [None]))
             else:
                 for circuits in c.circuits:
-                    if c._translated_variables and obs:  # pyright: ignore[reportPrivateUsage]
+                    if (
+                        c._translated_variables and obs
+                    ):  # pyright: ignore[reportPrivateUsage]
                         executables += list(
                             product(
                                 [circuits],
@@ -758,7 +760,9 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                                 c._translated_variables,  # pyright: ignore[reportPrivateUsage]
                             )
                         )
-                    elif c._translated_observables and var:  # pyright: ignore[reportPrivateUsage]
+                    elif (
+                        c._translated_observables and var
+                    ):  # pyright: ignore[reportPrivateUsage]
                         executables += list(
                             product(
                                 [circuits],
