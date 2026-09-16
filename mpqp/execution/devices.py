@@ -191,39 +191,41 @@ class IBMDevice(AvailableDevice):
         }
 
     def compatible_gates(self, native_set: bool = False) -> set[type[Gate]]:
-        if self == IBMDevice.AER_SIMULATOR_STABILIZER:
-            warnings.warn(
-                UserWarning(
-                    f"For {self} the gates Rx, Ry and Rz are allowed but only at angles 0, π, π/2 and 3*π/2"
+        if native_set:
+            if self == IBMDevice.AER_SIMULATOR_STABILIZER:
+                warnings.warn(
+                    UserWarning(
+                        f"For {self} the gates Rx, Ry and Rz are allowed but only at angles 0, π, π/2 and 3*π/2"
+                    )
                 )
-            )
-            return {Rx, Ry, Rz, X, Y, Z, H, CNOT, CZ, S, S_dagger, SWAP}
-        elif self == IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER:
-            warnings.warn(
-                UserWarning(
-                    f"For {self} the gates Rx, Ry and Rz are allowed but only at angles 0, π, π/2 and 3*π/2"
+                return {Rx, Ry, Rz, X, Y, Z, H, CNOT, CZ, S, S_dagger, SWAP}
+            elif self == IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER:
+                warnings.warn(
+                    UserWarning(
+                        f"For {self} the gates Rx, Ry and Rz are allowed but only at angles 0, π, π/2 and 3*π/2"
+                    )
                 )
-            )
-            return {Rx, Ry, Rz, X, Y, Z, H, CNOT, CZ, S, S_dagger, SWAP}
-        else:
-            compatibilities: dict[IBMDeviceFamily, set[type[Gate]]] = {
-                IBMDeviceFamily.HERON: {CZ, Id, Rx, Rz, X},  # add Rzz
-                IBMDeviceFamily.NIGHTHAWK: {CZ, Id, Rx, Rz, X},
-            }
-            family = {
-                IBMDevice.IBM_MIAMI: IBMDeviceFamily.HERON,
-                IBMDevice.IBM_BERLIN: IBMDeviceFamily.HERON,
-                IBMDevice.IBM_BOSTON: IBMDeviceFamily.NIGHTHAWK,
-                IBMDevice.IBM_KINGSTON: IBMDeviceFamily.NIGHTHAWK,
-                IBMDevice.IBM_PITTSBURGH: IBMDeviceFamily.NIGHTHAWK,
-                IBMDevice.IBM_FEZ: IBMDeviceFamily.NIGHTHAWK,
-                IBMDevice.IBM_MARRAKESH: IBMDeviceFamily.NIGHTHAWK,
-                IBMDevice.IBM_AACHEN: IBMDeviceFamily.NIGHTHAWK,
-            }
-            if self in family and family[self] in compatibilities:
-                return compatibilities[family[self]]
+                return {Rx, Ry, Rz, X, Y, Z, H, CNOT, CZ, S, S_dagger, SWAP}
             else:
-                return set()
+                compatibilities: dict[IBMDeviceFamily, set[type[Gate]]] = {
+                    IBMDeviceFamily.HERON: {CZ, Id, Rx, Rz, X},  # add Rzz
+                    IBMDeviceFamily.NIGHTHAWK: {CZ, Id, Rx, Rz, X},
+                }
+                family = {
+                    IBMDevice.IBM_MIAMI: IBMDeviceFamily.HERON,
+                    IBMDevice.IBM_BERLIN: IBMDeviceFamily.HERON,
+                    IBMDevice.IBM_BOSTON: IBMDeviceFamily.NIGHTHAWK,
+                    IBMDevice.IBM_KINGSTON: IBMDeviceFamily.NIGHTHAWK,
+                    IBMDevice.IBM_PITTSBURGH: IBMDeviceFamily.NIGHTHAWK,
+                    IBMDevice.IBM_FEZ: IBMDeviceFamily.NIGHTHAWK,
+                    IBMDevice.IBM_MARRAKESH: IBMDeviceFamily.NIGHTHAWK,
+                    IBMDevice.IBM_AACHEN: IBMDeviceFamily.NIGHTHAWK,
+                }
+                if self in family and family[self] in compatibilities:
+                    return compatibilities[family[self]]
+                else:
+                    return set()
+        return set()
 
 
 class IBMDeviceFamily(Enum):

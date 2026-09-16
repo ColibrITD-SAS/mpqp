@@ -298,6 +298,7 @@ def execute_and_validate(
     device: AvailableDevice,
 ):
     for binding, validator in bindings_and_validators:
+        print(binding)
         result = run(binding, device=device)
         validator(result)
 

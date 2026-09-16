@@ -362,10 +362,12 @@ class Result:
                     f"{self.job=} has no measure, making the counting impossible"
                 )
             nb_qubits = (
-                self.job.measure.nb_qubits
-                if self.job.measure
-                else self.job.measurement.nb_qubits  # pyright: ignore[reportOptionalMemberAccess]
+                self.job.measurement.nb_qubits
+                if self.job.measurement
+                else self.job.measure.nb_qubits  # pyright: ignore[reportOptionalMemberAccess]
             )
+            if nb_qubits == 0:
+                nb_qubits = self.job.circuit.nb_qubits
             shots = (
                 self.job.measure.shots
                 if self.job.measure

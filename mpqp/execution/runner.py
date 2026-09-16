@@ -77,7 +77,10 @@ def adjust_measure(measure: ExpectationMeasure, nb_qubits: int):
         the full register.
     """
     # TODO: use this only for specific provider
-
+    if measure.nb_qubits > nb_qubits:
+        raise ValueError(
+            f"Number of provided qubits: {nb_qubits} is more than the number of qubits of the measure: {measure.nb_qubits}"
+        )
     if measure.targets == list(range(nb_qubits)):
         return measure
 
