@@ -749,35 +749,59 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                 else:
                     executables += list(product([c], obs or [None], var or [None]))
             else:
-                for circuits in c.circuits:
-                    if (
-                        c._translated_variables and obs
-                    ):  # pyright: ignore[reportPrivateUsage]
+                if c._translated_variables and c._translated_observables:  # type: ignore
+                    if c.mode == BindingMode.ZIP:
                         executables += list(
+                            zip(
+                                c.circuits,
+                                c._translated_variables  # type: ignore
+                                or [None] * len(c._translated_observables),  # type: ignore
+                                c._translated_observables  # type: ignore
+                                or [None] * len(c._translated_variables),  # type: ignore
+                            )
+                        )
+                    else:
+                        executables += list(
+                            product(
+                                c.circuits,
+                                c._translated_observables,  # pyright: ignore[reportPrivateUsage]
+                                c._translated_variables,  # pyright: ignore[reportPrivateUsage]
+                            )
+                        )
+                local_executables = []
+                for circuits in c.circuits:
+                    local_executables = []
+                    if (
+                        c._translated_variables  # pyright: ignore[reportPrivateUsage]
+                        and obs
+                    ):
+                        local_executables += list(
                             product(
                                 [circuits],
                                 obs,
                                 c._translated_variables,  # pyright: ignore[reportPrivateUsage]
                             )
                         )
-                    elif (
-                        c._translated_observables and var
-                    ):  # pyright: ignore[reportPrivateUsage]
-                        executables += list(
+                    if (
+                        c._translated_observables  # pyright: ignore[reportPrivateUsage]
+                        and var
+                    ):
+                        local_executables += list(
                             product(
                                 [circuits],
                                 c._translated_observables,  # pyright: ignore[reportPrivateUsage]
                                 var,
                             )
                         )
-                    else:
-                        executables += list(
+                    if obs and var or local_executables == []:
+                        local_executables += list(
                             zip(
                                 [circuits] * len(obs or var),
                                 obs or [None] * len(var),
                                 var or [None] * len(obs),
                             )
                         )
+                    executables += local_executables
 
         from braket.circuits.observables import Sum
 
@@ -789,11 +813,13 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
             if isinstance(circuit, CircuitBinding):
                 mpqp_obs, braket_obs = circuit._translated_observables[0]  # type: ignore
                 circuit = circuit.circuits[0]
+
             if TYPE_CHECKING:
                 assert isinstance(circuit, QCircuit)
             if not isinstance(circuit.transpiled_circuit, braket_Circuit):
                 circuit.transpiled_circuit = circuit.to_other_device(device=device)
             c = circuit.transpiled_circuit
+
             if TYPE_CHECKING:
                 assert isinstance(c, braket_Circuit)
             if binding.job_type == JobType.SAMPLE:
