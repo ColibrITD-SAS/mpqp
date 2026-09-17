@@ -535,7 +535,7 @@ class ExpectationMeasure(Measure):
             self.current_grouping = (
                 pauli_grouping,
                 GroupingMethods.GREEDY,
-                self.commuting_type.__copy__(),
+                self.commuting_type,
             )
             return pauli_grouping
 
@@ -567,7 +567,7 @@ class ExpectationMeasure(Measure):
             self.current_grouping = (  # pyright: ignore[reportAttributeAccessIssue]
                 grouped_monomials,
                 GroupingMethods.QISKIT_COLORING_GREEDY,
-                self.commuting_type.__copy__(),
+                self.commuting_type,
             )
             return grouped_monomials  # pyright: ignore[reportReturnType]
 
