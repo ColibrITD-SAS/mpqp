@@ -106,7 +106,7 @@ def test_local_tket_state_vector(device: QUANTINUUMDevice):
                 QCircuit([ExpectationMeasure(Observable(pX), shots=0)]),
                 QUANTINUUMDevice.H1_EMULATOR,
             ),
-            "positive number of shots",
+            "does not handle ideal observable job",
         ),
         (
             Job(
@@ -222,24 +222,10 @@ def test_remote_quantinuum_jobs():
         np.array([2**-0.5, 0, 0, 2**-0.5]),
     )
 
-    exact_circuit = QCircuit(
-        [
-            H(0),
-            ExpectationMeasure(Observable(pX, label="X"), shots=0),
-        ]
-    )
-    _, exact_job = submit(
-        exact_circuit,
-        QUANTINUUMDevice.NEXUS_AER_STATEVECTOR_SIMULATOR,
-    )
-    exact_result = get_remote_result(exact_job)
-    assert isinstance(exact_result.expectation_values, float)
-    assert np.isclose(exact_result.expectation_values, 1)
-
     sampled_circuit = QCircuit(
         [
             H(0),
-            ExpectationMeasure(Observable(pX + pZ), shots=100),
+            ExpectationMeasure(Observable(pX + 2 * pZ), shots=100),
         ]
     )
     _, sampled_job = submit(
