@@ -413,12 +413,14 @@ def _run_single(
     elif isinstance(device, AZUREDevice):
         return run_azure(job)
     elif isinstance(device, QUANTINUUMDevice):
-        if provider_params is None or isinstance(provider_params, QuantinuumParams):
-            return run_quantinuum(job, provider_params)
-        else:
-            raise ValueError(
-                f"provider_params should be TketParams not {type(provider_params)}"
+        if provider_params is not None and not isinstance(
+            provider_params, QuantinuumParams
+        ):
+            raise TypeError(
+                "`provider_params` must be a `QuantinuumParams` instance, "
+                f"not `{type(provider_params).__name__}`."
             )
+        return run_quantinuum(job, provider_params)
     else:
         raise NotImplementedError(f"Device {device} not handled")
 
@@ -622,6 +624,13 @@ def submit(
     elif isinstance(device, AZUREDevice):
         job_id, _ = submit_job_azure(job)
     elif isinstance(device, QUANTINUUMDevice):
+        if provider_params is not None and not isinstance(
+            provider_params, QuantinuumParams
+        ):
+            raise TypeError(
+                "`provider_params` must be a `QuantinuumParams` instance, "
+                f"not `{type(provider_params).__name__}`."
+            )
         job_id, _ = submit_job_nexus(job, provider_params)
     else:
         raise NotImplementedError(f"Device {device} not handled")

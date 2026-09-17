@@ -8,7 +8,7 @@ if TYPE_CHECKING:
 
 
 class ProviderParams:
-    """Abstract class meant to regroup a set of provider specific parameters needed at runtime."""
+    """Base class meant to regroup a set of provider specific parameters needed at runtime."""
 
     pass
 
