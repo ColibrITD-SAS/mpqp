@@ -1,11 +1,14 @@
 """This file regroups all provider specific parametrization needed
 to configure more precisely the run on local or remote devices."""
 
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
+
+if TYPE_CHECKING:
+    from pytket.partition import PauliPartitionStrat
 
 
 class ProviderParams:
-    """Abstract class meant to regroup a set of provider specific parameters needed at runtime."""
+    """Base class meant to regroup a set of provider specific parameters needed at runtime."""
 
     pass
 
@@ -21,3 +24,21 @@ class QiskitParams(ProviderParams):
 
     def __init__(self, instance: Optional[str] = None):
         self.instance = instance
+
+
+class QuantinuumParams(ProviderParams):
+    """
+    Class meant to regroup all Quantinuum Nexus specific parameters for remote execution.
+
+    Args:
+        optimisation_level: Optimisation level with which the circuit should be compiled (default at 0)
+        commutation_strategy: TODO docstring
+    """
+
+    def __init__(
+        self,
+        optimisation_level: int = 0,
+        commutation_strategy: Optional["PauliPartitionStrat"] = None,
+    ):
+        self.optimisation_level = optimisation_level
+        self.commutation_strategy = commutation_strategy

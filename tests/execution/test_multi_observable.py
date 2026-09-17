@@ -7,6 +7,7 @@ from mpqp import (
     AWSDevice,
     ExpectationMeasure,
     GOOGLEDevice,
+    QUANTINUUMDevice,
     H,
     IBMDevice,
     Observable,
@@ -116,6 +117,14 @@ def optimized_devices_braket():
     ]
 
 
+def optimized_devices_quantinuum() -> list[AvailableDevice]:
+    return [
+        QUANTINUUMDevice.TKET_AER_SIMULATOR,
+        QUANTINUUMDevice.TKET_QULACS_SIMULATOR,
+        QUANTINUUMDevice.TKET_AER_STATEVECTOR_SIMULATOR,
+    ]
+
+
 @pytest.mark.provider("qiskit")
 @pytest.mark.parametrize(
     "observable, device",
@@ -144,6 +153,17 @@ def test_pauli_grouping_optimization_cirq(
     [(i, j) for i in pauliObservables() for j in optimized_devices_braket()],
 )
 def test_pauli_grouping_optimization_braket(
+    observable: list[Observable], device: AvailableDevice
+):
+    exec_pauli_grouping_optimization(observable, device)
+
+
+@pytest.mark.provider("quantinuum")
+@pytest.mark.parametrize(
+    "observable, device",
+    [(i, j) for i in pauliObservables() for j in optimized_devices_quantinuum()],
+)
+def test_pauli_grouping_optimization_quantinuum(
     observable: list[Observable], device: AvailableDevice
 ):
     exec_pauli_grouping_optimization(observable, device)
@@ -216,7 +236,10 @@ def test_expectation_value_all_devices_qiskit(
 ):
     for expectation_value, circuit, observable in list_expect_v_circ_obs:
         exec_expectation_value_all_devices(
-            expectation_value, circuit, observable, IBMDevice.AER_SIMULATOR
+            expectation_value,
+            circuit,
+            observable,
+            [IBMDevice.AER_SIMULATOR, IBMDevice.AER_SIMULATOR_STATEVECTOR],
         )
 
 
@@ -229,7 +252,7 @@ def test_expectation_value_all_devices_braket(
             expectation_value,
             circuit,
             observable,
-            AWSDevice.BRAKET_LOCAL_SIMULATOR,
+            [AWSDevice.BRAKET_LOCAL_SIMULATOR],
         )
 
 
@@ -239,7 +262,7 @@ def test_expectation_value_all_devices_cirq(
 ):
     for expectation_value, circuit, observable in list_expect_v_circ_obs:
         exec_expectation_value_all_devices(
-            expectation_value, circuit, observable, GOOGLEDevice.CIRQ_LOCAL_SIMULATOR
+            expectation_value, circuit, observable, [GOOGLEDevice.CIRQ_LOCAL_SIMULATOR]
         )
 
 
@@ -249,7 +272,20 @@ def test_expectation_value_all_devices_myqlm(
 ):
     for expectation_value, circuit, observable in list_expect_v_circ_obs:
         exec_expectation_value_all_devices(
-            expectation_value, circuit, observable, ATOSDevice.MYQLM_PYLINALG
+            expectation_value,
+            circuit,
+            observable,
+            [ATOSDevice.MYQLM_PYLINALG, ATOSDevice.MYQLM_CLINALG],
+        )
+
+
+@pytest.mark.provider("quantinuum")
+def test_expectation_value_all_devices_quantinuum(
+    list_expect_v_circ_obs: list[tuple[float, QCircuit, Observable]],
+):
+    for expectation_value, circuit, observable in list_expect_v_circ_obs:
+        exec_expectation_value_all_devices(
+            expectation_value, circuit, observable, optimized_devices_quantinuum()
         )
 
 
@@ -257,16 +293,17 @@ def exec_expectation_value_all_devices(
     expectation_value: float,
     circuit: QCircuit,
     observable: Observable,
-    device: AvailableDevice,
+    devices: list[AvailableDevice],
 ):
     circuit.add(ExpectationMeasure(observable, shots=0, optimize_measurement=True))
 
-    assert (
-        round(  # pyright: ignore[reportCallIssue]
-            run(
-                circuit, device
-            ).expectation_values,  # pyright: ignore[reportArgumentType]
-            7,
+    for device in devices:
+        assert (
+            round(  # pyright: ignore[reportCallIssue]
+                run(
+                    circuit, device
+                ).expectation_values,  # pyright: ignore[reportArgumentType]
+                7,
+            )
+            == expectation_value
         )
-        == expectation_value
-    )
