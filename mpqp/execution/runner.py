@@ -280,32 +280,37 @@ def _run_diagonal_observables(
     adapted_circuit = circuit.without_measurements(deep_copy=False)
     adapted_circuit.add(BasisMeasure(exp_measure.targets, shots=exp_measure.shots))
 
-    result = _run_single(adapted_circuit, device, values, False)
-    probas = result.probabilities
+    adapted_result = _run_single(adapted_circuit, device, values, False)
+    probas = adapted_result.probabilities
 
     error = 0 if exp_measure.shots == 0 else None
     if exp_measure.nb_observables == 1:
         exp_value = float(probas.dot(exp_measure.observables[0].diagonal_elements))
-        return Result(
+        result = Result(
             observable_job,
             exp_value,
             error,
             exp_measure.shots,
         )
+    else:
+        exp_values = dict()
+        errors = dict()
+        for obs in exp_measure.observables:
+            # 3M-TODO: replace this dot product with copy, apparently more optim
+            exp_values[obs.label] = float(probas.dot(obs.diagonal_elements))
+            errors[obs.label] = error
 
-    exp_values = dict()
-    errors = dict()
-    for obs in exp_measure.observables:
-        # 3M-TODO: replace this dot product with copy, apparently more optim
-        exp_values[obs.label] = float(probas.dot(obs.diagonal_elements))
-        errors[obs.label] = error
+        result = Result(
+            observable_job,
+            exp_values,
+            errors,
+            exp_measure.shots,
+        )
 
-    return Result(
-        observable_job,
-        exp_values,
-        errors,
-        exp_measure.shots,
-    )
+    observable_job.id = adapted_result.job.id
+    observable_job.status = JobStatus.DONE
+
+    return result
 
 
 def _run_single(
@@ -369,8 +374,12 @@ def _run_single(
                 ):
                     from warnings import warn
 
+                    required_job_type = (
+                        JobType.STATE_VECTOR if measure.shots == 0 else JobType.SAMPLE
+                    )
                     warn(
-                        f"The diagonal observable(s) cannot be optimized on the device: {device} due to the optimization process changing the jobtype to an incompatible one."
+                        f"Cannot optimize diagonal observables on {device}: "
+                        f"a {required_job_type.name} job is required but not supported."
                     )
                 else:
                     return _run_diagonal_observables(
