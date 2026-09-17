@@ -937,7 +937,6 @@ class PauliString:
                 for monom in self.simplify().monomials:
                     local_targets = []
                     mapped_obs = []
-                    atoms = monom.atoms
                     for i, atom in enumerate(monom.atoms):
                         if atom != pI:
                             local_targets.append(qubits[i])

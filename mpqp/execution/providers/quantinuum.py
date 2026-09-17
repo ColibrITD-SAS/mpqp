@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 import math
-import numpy as np
 from collections import Counter
 from numbers import Complex
 from typing import TYPE_CHECKING, Optional
 from warnings import warn
 
+import numpy as np
+
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.measurement import BasisMeasure, ExpectationMeasure
+from mpqp.core.instruction.measurement.pauli_string import CommutingTypes
 from mpqp.core.languages import Language
 from mpqp.execution.connection.quantinuum_connection import get_quantinuum_config
 from mpqp.execution.devices import QUANTINUUMDevice
@@ -20,24 +22,17 @@ from mpqp.tools.errors import (
     ModifiedShotsNumberWarning,
     NumberQubitsWarning,
 )
-from mpqp.core.instruction.measurement.pauli_string import CommutingTypes
 
 if TYPE_CHECKING:
     import numpy as np
     import numpy.typing as npt
-    from mpqp.core.instruction.measurement.pauli_string import (
-        CommutingTypes,
-        PauliStringMonomial,
-    )
-
-    from pytket.circuit import Circuit as tket_Circuit
     from pytket.backends.backend import Backend
     from pytket.backends.backendresult import BackendResult
+    from pytket.circuit import Circuit as tket_Circuit
     from qnexus.models.references import (
         CircuitRef,
         CompilationResultRef,
         ExecuteJobRef,
-        ExecutionResultRef,
     )
 
 
@@ -162,6 +157,8 @@ def run_tket_local(
         tket_circuit = job.circuit.to_other_device(job.device)
     else:
         tket_circuit = job.circuit.transpiled_circuit
+        if TYPE_CHECKING:
+            assert isinstance(tket_circuit, tket_Circuit)
 
     if job.device == QUANTINUUMDevice.TKET_AER_SIMULATOR:
         from pytket.extensions.qiskit.backends.aer import AerBackend
@@ -212,10 +209,10 @@ def run_tket_observable(
 
     Returns:
     """
-    nb_shots = job.measure.shots
-
     if TYPE_CHECKING:
         assert isinstance(job.measure, ExpectationMeasure)
+
+    nb_shots = job.measure.shots
 
     if nb_shots == 0 or not job.measure.optimize_measurement:
         optimisation_strat = None
@@ -234,7 +231,7 @@ def run_tket_observable(
                 else PauliPartitionStrat.CommutingSets
             )
 
-    from pytket.utils import get_operator_expectation_value
+    from pytket.utils.expectations import get_operator_expectation_value
 
     expectation_values = {}
     errors = {}
@@ -301,7 +298,10 @@ def fetch_nexus_results(execute_job_ref: "ExecuteJobRef") -> list["BackendResult
             f"with status '{status}', but no result was returned."
         )
 
-    return [ref.download_result() for ref in result_refs]
+    return [  # pyright: ignore[reportReturnType]
+        ref.download_result()  # pyright: ignore[reportAttributeAccessIssue]
+        for ref in result_refs
+    ]
     # TODO test that the circuits and results are orderered in the same way, critical for pauli groups
 
 
@@ -469,6 +469,9 @@ def submit_job_nexus(
         provider_params=provider_params,
     )
 
+    if TYPE_CHECKING:
+        assert job.id is not None
+
     return job.id, execute_job_ref
 
 
@@ -530,6 +533,9 @@ def submit_nexus_observable(
         provider_params=provider_params,
     )
 
+    if TYPE_CHECKING:
+        assert job.id is not None
+
     return job.id, execute_job_ref
 
 
@@ -538,7 +544,7 @@ def submit_circuits_to_nexus(
     circuits: list[QCircuit],
     n_shots: int | list[None],
     name: str,
-    description: Optional[str] = None,
+    description: str = "",
     provider_params: Optional[QuantinuumParams] = None,
 ) -> "ExecuteJobRef":
     """This function compiles the inputted circuit(s) and send them as one Job to Nexus.
@@ -648,6 +654,9 @@ def extract_remote_observable_grouped_result(
 
     from mpqp.tools.pauli_grouping import pauli_monomial_eigenvalues
 
+    if TYPE_CHECKING:
+        assert isinstance(job.measure, ExpectationMeasure)
+
     job.status = JobStatus.DONE
 
     grouping = job.measure.get_pauli_grouping()
@@ -676,6 +685,9 @@ def extract_remote_observable_grouped_result(
         )
         # TODO: implement when we precise the targets, the mapping of the counts and basis state indices can be wrong.
 
+    # TODO: Keep the received shot count for each Pauli group instead of
+    # keeping only the count from the last group.
+    received_shots = job.measure.shots
     for index, backend_result in enumerate(backend_results):
         raw_counts = backend_result.get_counts()
         received_shots = sum(raw_counts.values())
@@ -721,7 +733,7 @@ def extract_remote_observable_grouped_result(
             job,
             next(iter(result_dict.values())),
             next(iter(errors.values())),
-            shots=job.measure.shots,
+            shots=received_shots,
         )
 
     return Result(job, result_dict, errors, received_shots)

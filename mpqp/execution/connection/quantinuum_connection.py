@@ -1,8 +1,5 @@
-from typing import Optional
-
 from termcolor import colored
 
-from mpqp.execution.job import JobType
 from mpqp.environment.env_manager import get_env_variable, save_env_variable
 from mpqp.execution.devices import QUANTINUUMDevice
 

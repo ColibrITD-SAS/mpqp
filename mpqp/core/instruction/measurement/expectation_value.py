@@ -462,8 +462,8 @@ class ExpectationMeasure(Measure):
         """See parameter description."""
         self.pre_transpiled = None
         """See parameter description."""
-        self.current_grouping: tuple[
-            list[list[PauliStringMonomial]], GroupingMethods, CommutingTypes
+        self.current_grouping: Optional[
+            tuple[list[list[PauliStringMonomial]], GroupingMethods, CommutingTypes]
         ] = None
         """Stores the last computed Pauli grouping to avoid recomputing it."""
 
@@ -564,7 +564,7 @@ class ExpectationMeasure(Measure):
                 ]
                 for pauli in grouped
             ]
-            self.current_grouping = (
+            self.current_grouping = (  # pyright: ignore[reportAttributeAccessIssue]
                 grouped_monomials,
                 GroupingMethods.QISKIT_COLORING_GREEDY,
                 self.commuting_type.__copy__(),

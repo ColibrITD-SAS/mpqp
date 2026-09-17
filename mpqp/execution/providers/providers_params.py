@@ -37,7 +37,7 @@ class QuantinuumParams(ProviderParams):
 
     def __init__(
         self,
-        optimisation_level: Optional[int] = 0,
+        optimisation_level: int = 0,
         commutation_strategy: Optional["PauliPartitionStrat"] = None,
     ):
         self.optimisation_level = optimisation_level
