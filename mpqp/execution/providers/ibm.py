@@ -145,6 +145,7 @@ def compute_expectation_value(
 
     job.status = JobStatus.RUNNING
     job_expectation = estimator.run([(ibm_circuit, qiskit_observables)])
+    job.id = job_expectation.job_id()
     estimator_result = job_expectation.result()
 
     if TYPE_CHECKING:
@@ -467,6 +468,7 @@ def run_aer(job: Job):
         qiskit_circuit.save_statevector()  # pyright: ignore[reportAttributeAccessIssue]
         job.status = JobStatus.RUNNING
         job_sim = backend_sim.run(qiskit_circuit, shots=0)
+        job.id = job_sim.job_id()
         result_sim = job_sim.result()
         if TYPE_CHECKING:
             assert isinstance(job.device, IBMDevice)
@@ -479,6 +481,7 @@ def run_aer(job: Job):
         job.status = JobStatus.RUNNING
 
         job_sim = backend_sim.run(qiskit_circuit, shots=job.measure.shots)
+        job.id = job_sim.job_id()
         result_sim = job_sim.result()
         if TYPE_CHECKING:
             assert isinstance(job.device, (IBMDevice, StaticIBMSimulatedDevice))
@@ -491,6 +494,7 @@ def run_aer(job: Job):
         raise ValueError(f"Job type {job.job_type} not handled.")
 
     job.status = JobStatus.DONE
+
     return result
 
 
@@ -575,9 +579,10 @@ def submit_remote_ibm(
             f"{job.job_type} not handled by remote remote IBM devices."
         )
 
-    job.id = ibm_job.job_id()
+    job_id = ibm_job.job_id()
+    job.id = job_id
 
-    return job.id, ibm_job
+    return job_id, ibm_job
 
 
 def run_remote_ibm(job: Job, qiskit_params: Optional[QiskitParams] = None) -> Result:
@@ -596,7 +601,8 @@ def run_remote_ibm(job: Job, qiskit_params: Optional[QiskitParams] = None) -> Re
         This function is not meant to be used directly, please use
         :func:`~mpqp.execution.runner.run` instead.
     """
-    _, remote_job = submit_remote_ibm(job, qiskit_params)
+    job_id, remote_job = submit_remote_ibm(job, qiskit_params)
+    job.id = job_id
     ibm_result = remote_job.result()
     if TYPE_CHECKING:
         assert isinstance(job.device, IBMDevice)
@@ -842,7 +848,10 @@ def get_result_from_ibm_job_id(job_id: str) -> Result:
         assert isinstance(backend, BackendV2)
     ibm_device = IBMDevice(backend.name)
 
-    return extract_result(result, None, ibm_device)
+    parsed_result = extract_result(result, None, ibm_device)
+    parsed_result.job.id = job_id
+    parsed_result.job.status = JobStatus.DONE
+    return parsed_result
 
 
 def extract_samples(job: Job, result: QiskitResult) -> list[Sample]:

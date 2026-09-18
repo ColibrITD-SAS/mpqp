@@ -4,7 +4,7 @@ import numpy as np
 import numpy.typing as npt
 import pytest
 
-from mpqp import Observable, pI, pX, pY, pZ
+from mpqp import Language, Observable, pI, pX, pY, pZ
 from mpqp.measures import PauliString
 from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import matrix_eq
@@ -135,6 +135,14 @@ def test_pauli_to_matrix(
     for matrix, ps in list_matrix_pauli_string:
         assert matrix_eq(ps.to_matrix(), matrix)
         assert matrix_eq(Observable(ps).matrix, matrix)
+
+
+@pytest.mark.provider("braket")
+@pytest.mark.parametrize("pauli_string", [pX, 2 * pX, pX @ pZ, pX + pZ])
+def test_pauli_observable_to_braket_is_sum(pauli_string: PauliString):
+    from braket.circuits.observables import Sum
+
+    assert isinstance(Observable(pauli_string).to_other_language(Language.BRAKET), Sum)
 
 
 def test_matrix_to_pauli_to_matrix(

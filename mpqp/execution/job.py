@@ -119,11 +119,10 @@ class Job:
         """See parameter description."""
         self.device = device
         """See parameter description."""
-        self.id: Optional[str] = None
-        """Contains the id of the remote job, used to retrieve the result from 
-        the remote provider.  ``None`` if the job is local. It can take a little
-        while before it is set to the right value (For instance, a job
-        submission can require handshake protocols to conclude before
+        self.id: Optional[str | list[str]] = None
+        """Contains the job id or ids assigned by the execution provider. It can
+        take a little while before it is set to the right value (for instance,
+        a job submission can require handshake protocols to conclude before
         attributing an id to the job)."""
         self.status_message: Optional[str] = None
         """Optional message associated with the current job status, especially
@@ -150,20 +149,39 @@ class Job:
             # in the remote case, we need to check the current status of the job.
             # in the local case, it is updated automatically after each step
             if self.device.is_remote():
-                if TYPE_CHECKING:
-                    assert isinstance(self.id, str)
-                if isinstance(self.device, ATOSDevice):
-                    self._status = get_qlm_job_status(self.id)
-                elif isinstance(self.device, IBMDevice):
-                    self._status = get_ibm_job_status(self.id)
-                elif isinstance(self.device, AWSDevice):
-                    self._status = get_aws_job_status(self.id)
-                elif isinstance(self.device, AZUREDevice):
-                    self._status = get_azure_job_status(self.id)
+                job_ids = self.id if isinstance(self.id, list) else [self.id]
+                if not job_ids or job_ids[0] is None:
+                    return self._status
+
+                statuses: list[JobStatus] = []
+                for job_id in job_ids:
+                    if TYPE_CHECKING:
+                        assert isinstance(job_id, str)
+                    if isinstance(self.device, ATOSDevice):
+                        statuses.append(get_qlm_job_status(job_id))
+                    elif isinstance(self.device, IBMDevice):
+                        statuses.append(get_ibm_job_status(job_id))
+                    elif isinstance(self.device, AWSDevice):
+                        statuses.append(get_aws_job_status(job_id))
+                    elif isinstance(self.device, AZUREDevice):
+                        statuses.append(get_azure_job_status(job_id))
+                    else:
+                        raise NotImplementedError(
+                            f"Cannot update job status for the device {self.device} yet"
+                        )
+
+                if all(status == JobStatus.DONE for status in statuses):
+                    self._status = JobStatus.DONE
+                elif JobStatus.ERROR in statuses:
+                    self._status = JobStatus.ERROR
+                elif JobStatus.CANCELLED in statuses:
+                    self._status = JobStatus.CANCELLED
+                elif JobStatus.RUNNING in statuses:
+                    self._status = JobStatus.RUNNING
+                elif JobStatus.QUEUED in statuses:
+                    self._status = JobStatus.QUEUED
                 else:
-                    raise NotImplementedError(
-                        f"Cannot update job status for the device {self.device} yet"
-                    )
+                    self._status = JobStatus.INIT
         return self._status
 
     @status.setter

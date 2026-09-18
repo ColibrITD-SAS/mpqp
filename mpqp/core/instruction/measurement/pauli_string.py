@@ -11,7 +11,7 @@ from enum import Enum, auto
 from functools import reduce
 from numbers import Real
 from operator import mul
-from typing import TYPE_CHECKING, Any, Literal, Optional, Union, overload
+from typing import TYPE_CHECKING, Any, Literal, Optional, Union, cast, overload
 
 import numpy as np
 import numpy.typing as npt
@@ -1089,14 +1089,15 @@ class PauliStringMonomial(PauliString):
         return f"PauliStringMonomial({coef}{atoms})"
 
     def to_matrix(self) -> Matrix:
-        return (  # pyright: ignore[reportOperatorIssue,reportReturnType]
+        matrix = np.asarray(
             reduce(
                 np.kron,
-                map(lambda a: a.to_matrix(), self.atoms),
-                np.eye(1, dtype=np.complex128).tolist(),
-            )
-            * self.coef
+                map(lambda atom: atom.to_matrix(), self.atoms),
+                np.eye(1, dtype=np.complex128),
+            ),
+            dtype=np.complex128,
         )
+        return np.asarray(matrix * cast(Any, self.coef))
 
     def __iadd__(self, other: "PauliString"):
         for mono in other.monomials:
@@ -1357,10 +1358,7 @@ class PauliStringMonomial(PauliString):
                 atom.to_other_language(Language.CIRQ, target=all_qubits[index])
                 for index, atom in enumerate(self.atoms)
             ]
-            return (  # pyright: ignore[reportOperatorIssue]
-                reduce(mul, cirq_atoms)  # pyright: ignore[reportArgumentType]
-                * self.coef
-            )
+            return reduce(mul, cirq_atoms) * self.coef
         else:
             raise NotImplementedError(f"Unsupported language: {language}")
 

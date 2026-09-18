@@ -753,7 +753,7 @@ def run_myQLM(job: Job) -> Result:
     return result
 
 
-def submit_QLM(job: Job) -> tuple[str, list["AsyncResult"]]:
+def submit_QLM(job: Job) -> tuple[str | list[str], list["AsyncResult"]]:
     """Submits the job on the remote QLM machine.
 
     Args:
@@ -771,7 +771,7 @@ def submit_QLM(job: Job) -> tuple[str, list["AsyncResult"]]:
         :func:`~mpqp.execution.runner.run` instead.
     """
 
-    myqlm_job = None
+    myqlm_jobs = None
     qpu = None
 
     myqlm_circuit = job_pre_processing(job)
@@ -781,30 +781,34 @@ def submit_QLM(job: Job) -> tuple[str, list["AsyncResult"]]:
     qpu = get_remote_qpu(job.device, job)
 
     if job.job_type == JobType.STATE_VECTOR:
-        myqlm_job = generate_state_vector_job(myqlm_circuit)
+        myqlm_jobs = generate_state_vector_job(myqlm_circuit)
 
     elif job.job_type == JobType.SAMPLE:
-        myqlm_job = generate_sample_job(myqlm_circuit, job)
+        myqlm_jobs = generate_sample_job(myqlm_circuit, job)
 
     elif job.job_type == JobType.OBSERVABLE:
         # TODO: update this to take into account the case when we have list of Observables
-        myqlm_job = generate_observable_job(myqlm_circuit, job)
+        myqlm_jobs = generate_observable_job(myqlm_circuit, job)
 
     else:
         raise ValueError(f"Job type {job.job_type} not handled")
 
     # TODO: update this to take into account the case when we have list of Observables
     job.status = JobStatus.RUNNING
-    if isinstance(myqlm_job, list):
+    if isinstance(myqlm_jobs, list):
         result = []
-        job_id = ""
-        for job in myqlm_job:
-            async_result = qpu.submit(job)
+        job_ids: list[str] = []
+        for myqlm_job in myqlm_jobs:
+            async_result = qpu.submit(myqlm_job)
             job_id = async_result.get_info().id
-            job.id = job_id
+            if TYPE_CHECKING:
+                assert isinstance(job_id, str)
+            job_ids.append(job_id)
             result.append(async_result)
-        return job_id, result
-    async_result: "AsyncResult" = qpu.submit(myqlm_job)
+        bound_job_ids: str | list[str] = job_ids[0] if len(job_ids) == 1 else job_ids
+        job.id = bound_job_ids
+        return bound_job_ids, result
+    async_result: "AsyncResult" = qpu.submit(myqlm_jobs)
     job_id: str = async_result.get_info().id
     job.id = job_id
     return (job_id, [async_result])
@@ -834,13 +838,15 @@ def run_QLM(job: Job) -> Result:
         )
 
     # TODO: update this to take into account the case when we have list of Observables
-    _, results = submit_QLM(job)
+    job.id, results = submit_QLM(job)
     qlm_results = []
     for result in results:
         async_result = result
         qlm_results.append(async_result.join())
 
-    return extract_result(qlm_results, job, job.device)
+    result = extract_result(qlm_results, job, job.device)
+    result.job.status = JobStatus.DONE
+    return result
 
 
 def get_result_from_qlm_job_id(job_id: str) -> Result:
@@ -888,4 +894,7 @@ def get_result_from_qlm_job_id(job_id: str) -> Result:
 
     qlm_qpu_name = qlm_job.get_info().resources.qpu.split(":")[1]
 
-    return extract_result(qlm_result, None, ATOSDevice.from_str_remote(qlm_qpu_name))
+    result = extract_result(qlm_result, None, ATOSDevice.from_str_remote(qlm_qpu_name))
+    result.job.id = job_id
+    result.job.status = JobStatus.DONE
+    return result

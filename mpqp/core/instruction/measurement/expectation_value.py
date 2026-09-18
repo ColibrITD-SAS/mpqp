@@ -332,12 +332,10 @@ class Observable:
             return QLMObservable(self.nb_qubits, matrix=self.matrix)
         elif language == Language.BRAKET:
             if self._pauli_string:
-                from braket.circuits.observables import Sum, TensorProduct
+                from braket.circuits.observables import Sum
 
                 obs = self.pauli_string.to_other_language(Language.BRAKET)
-                if isinstance(obs, TensorProduct):
-                    return Sum([obs])
-                return obs
+                return obs if isinstance(obs, Sum) else Sum([obs])
             else:
                 from braket.circuits.observables import Hermitian
 
