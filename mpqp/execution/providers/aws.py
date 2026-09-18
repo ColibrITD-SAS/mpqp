@@ -191,7 +191,10 @@ def run_braket_observable(job: Job):
                 QCircuit(find_qubitwise_rotations(group)) for group in grouping
             ]
             for circuit in pre_measure:
-                for instr in circuit.instructions:
+                instructions = (
+                    circuit._instructions  # pyright: ignore[reportPrivateUsage]
+                )
+                for instr in instructions:
                     instr.targets = [job.measure.targets[t] for t in instr.targets]
             transpiled_pre_measures = [
                 pre_m.to_other_language(Language.BRAKET) for pre_m in pre_measure
