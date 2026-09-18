@@ -7,14 +7,17 @@ from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import cos, exp, matrix_eq, sin
 
 theta: Expr
+phi: Expr
 k: Expr
-theta, k = symbols("θ k")
+theta, phi, k = symbols("θ φ k")
+
 c, s, e = cos(theta), sin(theta), exp(1.0 * I * theta)
 c2, s2, e2 = (
     cos(theta / 2),
     sin(theta / 2),
     exp(1.0 * I * theta / 2),
 )
+e_phi = exp(1.0 * I * phi)
 
 
 @pytest.mark.parametrize(
@@ -114,6 +117,115 @@ def test_Ry(angle: float, result_matrix: Matrix):
 )
 def test_Rz(angle: float, result_matrix: Matrix):
     assert matrix_eq(Rz(angle, 0).to_matrix(), result_matrix)
+
+
+@pytest.mark.parametrize(
+    "angle, result_matrix",
+    [
+        (0, np.eye(4)),
+        (
+            np.pi,
+            np.array(
+                [
+                    [0, 0, 0, -1j],
+                    [0, 0, -1j, 0],
+                    [0, -1j, 0, 0],
+                    [-1j, 0, 0, 0],
+                ]
+            ),
+        ),
+        (
+            theta,
+            np.array(
+                [
+                    [c2, 0, 0, -1j * s2],
+                    [0, c2, -1j * s2, 0],
+                    [0, -1j * s2, c2, 0],
+                    [-1j * s2, 0, 0, c2],
+                ]
+            ),
+        ),
+    ],
+)
+def test_Rxx(angle: float, result_matrix: Matrix):
+    assert matrix_eq(Rxx(angle, 0, 1).to_matrix(), result_matrix)
+
+
+@pytest.mark.parametrize(
+    "angle, result_matrix",
+    [
+        (0, np.eye(4)),
+        (
+            np.pi,
+            np.array(
+                [
+                    [0, 0, 0, 1j],
+                    [0, 0, -1j, 0],
+                    [0, -1j, 0, 0],
+                    [1j, 0, 0, 0],
+                ]
+            ),
+        ),
+        (
+            theta,
+            np.array(
+                [
+                    [c2, 0, 0, 1j * s2],
+                    [0, c2, -1j * s2, 0],
+                    [0, -1j * s2, c2, 0],
+                    [1j * s2, 0, 0, c2],
+                ]
+            ),
+        ),
+    ],
+)
+def test_Ryy(angle: float, result_matrix: Matrix):
+    assert matrix_eq(Ryy(angle, 0, 1).to_matrix(), result_matrix)
+
+
+@pytest.mark.parametrize(
+    "angle, result_matrix",
+    [
+        (0, np.eye(4)),
+        (np.pi, np.diag([-1j, 1j, 1j, -1j])),
+        (
+            np.pi / 3,
+            np.diag(
+                [
+                    np.exp(-1j * np.pi / 6),
+                    np.exp(1j * np.pi / 6),
+                    np.exp(1j * np.pi / 6),
+                    np.exp(-1j * np.pi / 6),
+                ]
+            ),
+        ),
+        (theta, np.diag([1 / e2, e2, e2, 1 / e2])),  # pyright: ignore
+    ],
+)
+def test_Rzz(angle: float, result_matrix: Matrix):
+    assert matrix_eq(Rzz(angle, 0, 1).to_matrix(), result_matrix)
+
+
+@pytest.mark.parametrize(
+    "theta, phi, result_matrix",
+    [
+        (0, 0, np.eye(2)),
+        (np.pi, 0, np.array([[0, -1j], [-1j, 0]])),
+        (np.pi, np.pi / 2, np.array([[0, -1], [1, 0]])),
+        (
+            theta,
+            phi,
+            np.array(
+                [
+                    [c2, -1j * s2 / e_phi],
+                    [-1j * s2 * e_phi, c2],
+                ]
+            ),
+        ),
+    ],
+)
+def test_PRX(theta: float, phi: float, result_matrix: Matrix):
+    assert matrix_eq(PRX(theta, phi, 0).to_matrix(), result_matrix)
 
 
 @pytest.mark.parametrize(

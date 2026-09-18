@@ -178,7 +178,14 @@ sampling_devices_myqlm: list[AvailableDevice] = [
 @pytest.mark.provider("qiskit")
 @pytest.mark.parametrize("device", sampling_devices_qiskit)
 def test_sample_nb_shot_handle_qiskit(device: AvailableDevice):
-    exec_sample_nb_shot_handle(device)
+    if device in {
+        IBMDevice.AER_SIMULATOR_STABILIZER,
+        IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER,
+    }:
+        with pytest.warns(UserWarning, match=rf"For {device}"):
+            exec_sample_nb_shot_handle(device)
+    else:
+        exec_sample_nb_shot_handle(device)
 
 
 @pytest.mark.provider("braket")
