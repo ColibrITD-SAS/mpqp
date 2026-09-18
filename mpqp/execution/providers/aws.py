@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 
-from mpqp.core.circuit import CircuitBinding, QCircuit
+from mpqp.core.circuitbinding import CircuitBinding, QCircuit
 from mpqp.core.instruction.gates import CRk
 from mpqp.core.instruction.measurement import (
     BasisMeasure,
@@ -145,6 +145,24 @@ def run_braket(job: Job) -> Result | BatchResult:
 
 
 def run_circuit_binding(job: Job) -> BatchResult:
+    """Execute a circuit binding through an AWS Braket ``ProgramSet``.
+
+    The binding is translated into a Braket program set, submitted as a single
+    task, and its provider results are converted back into an ordered MPQP
+    batch. The translation context preserves the original circuit,
+    measurement and parameter values for each result.
+
+    Args:
+        job: Observable or sample job whose circuit is a
+            :class:`~mpqp.core.circuit.CircuitBinding` and whose device is an
+            :class:`~mpqp.execution.devices.AWSDevice`.
+
+    Returns:
+        The individual execution results in binding order.
+
+    Raises:
+        ValueError: If the job does not target an AWS device.
+    """
 
     circuitBinding = job.circuit
     assert isinstance(circuitBinding, CircuitBinding)

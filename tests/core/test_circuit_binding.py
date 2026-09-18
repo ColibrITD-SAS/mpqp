@@ -5,7 +5,7 @@ from typing import Any, Callable
 import numpy as np
 import pytest
 
-from mpqp.core.circuit import BindingMode, CircuitBinding
+from mpqp.core.circuitbinding import BindingMode, CircuitBinding
 from mpqp.execution.devices import (
     AvailableDevice,
     IBMDevice,

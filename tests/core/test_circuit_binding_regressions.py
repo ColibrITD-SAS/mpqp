@@ -19,7 +19,7 @@ from mpqp import (
     pZ,
     run,
 )
-from mpqp.core.circuit import BindingMode, CircuitBinding
+from mpqp.core.circuitbinding import BindingMode, CircuitBinding
 from mpqp.execution.providers.providers_params import QiskitParams
 from mpqp.execution.result import BatchResult
 

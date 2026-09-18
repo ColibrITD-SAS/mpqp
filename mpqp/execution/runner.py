@@ -25,7 +25,8 @@ from typing import TYPE_CHECKING, Iterable, Optional, Sequence, overload
 
 import numpy as np
 
-from mpqp.core.circuit import CircuitBinding, QCircuit
+from mpqp.core.circuitbinding import CircuitBinding
+from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.breakpoint import Breakpoint
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
 from mpqp.core.instruction.measurement.expectation_value import (
@@ -250,6 +251,18 @@ def _compute_result_diagonal_observables(
     exp_measure: ExpectationMeasure,
     observable_job: Job,
 ) -> Result:
+    """Compute diagonal-observable expectation values from sample probabilities.
+
+    Args:
+        result: Sampling result containing the computational-basis
+            probabilities.
+        exp_measure: Diagonal expectation measurement to evaluate.
+        observable_job: Original observable job attached to the returned result.
+
+    Returns:
+        A result containing either one expectation value or a mapping from
+        observable labels to expectation values.
+    """
 
     probas = result.probabilities
 
@@ -375,7 +388,24 @@ def _run_circuit_binding(
     device: AvailableDevice,
     display_breakpoints: bool = True,
 ) -> BatchResult:
-    """ """
+    """Execute every expansion of a circuit binding on one device.
+
+    Args:
+        circuit_binding: Lazy collection of circuits, parameter values and
+            measurements to execute.
+        device: Device on which all binding executions are run.
+        display_breakpoints: Whether breakpoints should be displayed. Breakpoint
+            display for bindings is currently not implemented.
+
+    Returns:
+        A batch containing one result per resolved binding execution.
+
+    Raises:
+        DeviceJobIncompatibleError: If a noisy binding targets a device that
+            cannot simulate noise.
+        NotImplementedError: If circuit bindings are unsupported by the
+            selected provider.
+    """
     from mpqp.execution.simulated_devices import (
         SimulatedDevice,
         StaticIBMSimulatedDevice,

@@ -5,7 +5,8 @@ import warnings
 from copy import deepcopy
 from typing import TYPE_CHECKING, Optional
 
-from mpqp.core.circuit import CircuitBinding, QCircuit
+from mpqp import QCircuit
+from mpqp.core.circuitbinding import CircuitBinding
 from mpqp.core.instruction.gates import ControlledGate, Gate, Id
 from mpqp.core.instruction.gates.native_gates import NativeGate
 from mpqp.core.instruction.measurement import BasisMeasure
@@ -103,18 +104,24 @@ def compute_expectation_value(
         context_jobs_to_run = pubs_contexts
 
         for pub in pubs:
-            circ = pub[0]
-            obs_array = pub[1] if len(pub) > 1 else None
-            params = pub[2] if len(pub) > 2 else None
+            circ = pub[0]  # pyright: ignore[reportIndexIssue]
+            obs_array = pub[1] if len(pub) > 1 else None  # pyright: ignore
+            params = pub[2] if len(pub) > 2 else None  # pyright: ignore
 
             if obs_array is not None:
                 if params is not None:
                     params = [
                         values
-                        for observables, values in zip(obs_array, params)
+                        for observables, values in zip(
+                            obs_array, params  # pyright: ignore[reportArgumentType]
+                        )
                         for _ in observables
                     ]
-                obs_array = [obs for observables in obs_array for obs in observables]
+                obs_array = [
+                    obs
+                    for observables in obs_array  # pyright: ignore[reportGeneralTypeIssues]
+                    for obs in observables
+                ]
 
             if obs_array is not None and circ.layout is not None:
                 obs_array = [obs.apply_layout(circ.layout) for obs in obs_array]
@@ -771,6 +778,25 @@ def submit_remote_ibm(
 
 
 def submit_remote_ibm_pubs(jobs: list[Job]):
+    """Submit several observable jobs as Qiskit estimator PUBs.
+
+    Each job is translated to a Qiskit circuit and observable collection, then
+    added to the estimator payload submitted in an IBM Runtime session.
+
+    Args:
+        jobs: Observable jobs targeting the same IBM backend.
+
+    Returns:
+        The IBM Runtime job identifier and the submitted runtime job.
+
+    Raises:
+        DeviceJobIncompatibleError: If a job is incompatible with its device.
+        NotImplementedError: If one of the jobs is not an observable job.
+
+    Note:
+        This low-level helper is intended for provider integration. Prefer
+        :func:`~mpqp.execution.runner.run` for normal execution.
+    """
     from qiskit import QuantumCircuit
     from qiskit_ibm_runtime import EstimatorV2 as Runtime_Estimator
     from qiskit_ibm_runtime import Session

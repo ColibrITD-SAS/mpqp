@@ -11,7 +11,8 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
         from braket.circuits import Circuit as braket_Circuit
         from braket.program_sets import ProgramSet
         from mpqp.core.instruction.gates.native_gates import NativeGate
-        from mpqp.core.circuit import QCircuit, CircuitBinding
+        from mpqp.core import QCircuit
+        from mpqp.core.circuitbinding import CircuitBinding
         from mpqp.execution.devices import AvailableDevice
 
     def braket_to_mpqp(qcircuit: "braket_Circuit") -> "QCircuit":
@@ -207,10 +208,30 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
         device: "AvailableDevice",
         depth: Literal[0, 1, 2] = 0,
     ) -> "tuple[ProgramSet, list[tuple[Any]]] | CircuitBinding":
+        """Translate a binding to a Braket program set using Pauli grouping.
+
+        Nested bindings are translated recursively and retain their translated
+        circuits, observables and variables until the root binding assembles
+        the final program set.
+
+        Args:
+            binding: Circuit binding to translate.
+            device: AWS device targeted by the translated circuits.
+            depth: Nesting depth of ``binding``. Zero denotes the root binding.
+
+        Returns:
+            At the root, the Braket ``ProgramSet`` and the context required to
+            rebuild MPQP results. At a nested depth, the binding populated with
+            its translated provider data.
+
+        Raises:
+            ValueError: If both a nested binding and its parent define values
+                or observables for the same execution axis.
+        """
         from braket.program_sets import ProgramSet
         from braket.circuits import Circuit as braket_Circuit
         from mpqp.core import Language, QCircuit
-        from mpqp.core.circuit import CircuitBinding, BindingMode
+        from mpqp.core.circuitbinding import CircuitBinding, BindingMode
 
         # translate inner circuits to braket and CB's elements to Braket
         translated: list[CircuitBinding | braket_Circuit] = []
@@ -570,12 +591,25 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
         device: "AvailableDevice",
         depth: int = 0,
     ) -> "tuple[ProgramSet, list[tuple[Any]]]":
+        """Translate a circuit binding into Braket program-set executables.
+
+        Args:
+            binding: Circuit binding to translate.
+            device: AWS device targeted by the translated circuits.
+            depth: Current recursion depth. Nested calls cache translated data;
+                the root call builds the final program set.
+
+        Returns:
+            At depth zero, the Braket ``ProgramSet`` and ordered MPQP context
+            tuples used to reconstruct results. Nested invocations return an
+            internal sentinel despite the root-oriented return annotation.
+        """
         from braket.program_sets import ProgramSet
         from braket.circuits import Circuit as braket_Circuit
         from mpqp.execution.job import JobType
 
         from mpqp.core import Language
-        from mpqp.core.circuit import CircuitBinding, QCircuit
+        from mpqp.core.circuitbinding import CircuitBinding, QCircuit
 
         binding._translated_circuits = None  # pyright: ignore[reportPrivateUsage]
         binding._translated_observables = None  # pyright: ignore[reportPrivateUsage]
@@ -638,7 +672,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
         result = []
         context = []  # this list holds information to sort the results afterwards
         # This list helps differentiate exp_values later because braket creates 1 job per pauli MONOMIALS so we will need to group them afterwards.
-        from mpqp.core.circuit import BindingMode
+        from mpqp.core.circuitbinding import BindingMode
         from itertools import product
 
         special_zip = binding.mode == BindingMode.ZIP and len(binding.circuits) == 1
@@ -843,6 +877,17 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
     def circuitbinding_to_programset(
         binding: "CircuitBinding", device: "AvailableDevice"
     ) -> "tuple[ProgramSet, list[tuple[Any]]]":
+        """Convert an MPQP circuit binding to an AWS Braket ``ProgramSet``.
+
+        Args:
+            binding: Binding containing the circuits, values and measurements
+                to translate.
+            device: AWS device targeted by the program set.
+
+        Returns:
+            The translated program set together with ordered context tuples
+            used by the AWS result adapter.
+        """
 
         # Will be used when pauli grouping is implemented
         """
