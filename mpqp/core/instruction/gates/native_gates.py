@@ -17,7 +17,7 @@ import inspect
 import sys
 from abc import abstractmethod
 from numbers import Integral
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from qiskit.circuit.library import (
     CCXGate,
@@ -37,6 +37,8 @@ from qiskit.circuit.library import (
     YGate,
     ZGate,
 )
+
+from mpqp import gates
 
 if TYPE_CHECKING:
     from sympy import Expr
@@ -2371,6 +2373,90 @@ class TOF(InvolutionGate, ControlledGate, NoParameterGate):
         3
     )
     """Size of the gate."""
+
+
+class GPi(RotationGate, SingleQubitGate, ComposedGate):
+    """Braket specific single qubit gate.
+    This gate is only used on IONQ hardware.
+
+    GPi(φ) = Rz(φ) X Rz(-φ)
+
+    Equivalent to this matrix:  
+    `\begin{pmatrix}
+        0 & e^{-iφ}\\
+        e^{iφ} & 0
+    \end{pmatrix}`
+
+    Args:
+        phi: Parameter for the Z axis rotation
+        target: Target qubit.
+    
+    Example:
+        >>> pprint(GPi(np.pi, 0).to_matrix())
+        [[0  , -1j],
+         [-1j, 0  ]]
+    
+    """
+
+    qlm_aqasm_keyword = "GPi"
+
+    @classproperty
+    def braket_gate(cls):
+        from braket.circuits import gates
+
+        return gates.GPi
+
+    def __init__(self, phi: Expr | float, target: int):
+        self.targets = [target]
+        super().__init__([phi], self.targets)
+
+    def to_canonical_matrix(self):
+        return np.matrix(
+            [
+                [
+                    0,
+                    np.exp(
+                        -1j * self.parameters[0]  # pyright: ignore[reportOperatorIssue]
+                    ),
+                ],
+                [
+                    np.exp(
+                        1j * self.parameters[0]  # pyright: ignore[reportOperatorIssue]
+                    ),
+                    0,
+                ],
+            ]
+        )
+
+    def to_matrix(self, desired_gate_size: int = 0):
+        return self.to_canonical_matrix()
+
+    def decompose(self) -> list[Gate]:
+        return [
+            Rz(-self.parameters[0], self.targets[0]),
+            X(self.targets[0]),
+            Rz(self.parameters[0], self.targets[0]),
+        ]
+
+    def inverse(self) -> Gate:
+        return self.__class__(-self.parameters[0], self.targets[0])
+
+    def __repr__(self):
+        return f"GPi({self.parameters[0]}, {self.targets[0]})"
+
+    def to_other_language(
+        self,
+        language: Language = Language.QISKIT,
+        qiskit_parameters: Optional[set["Parameter"]] = None,
+    ):
+        if language == Language.BRAKET:
+            from braket.circuits import Instruction
+
+            return Instruction(
+                operator=self.braket_gate(_sympy_to_braket_param(self.parameters[0])),
+                target=self.targets,
+            )
+        return super().to_other_language(language, qiskit_parameters)
 
 
 NATIVE_GATES = [
