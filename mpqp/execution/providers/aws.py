@@ -182,13 +182,18 @@ def run_circuit_binding(job: Job) -> BatchResult:
         from braket.circuits import Circuit as braket_Circuit
 
         assert isinstance(braket_circuit, braket_Circuit)
-    task = device.run(braket_circuit, shots=None, inputs=None).result()
+    task = device.run(braket_circuit, shots=None, inputs=None)
+    task_result = task.result()
+
+    job.id = task.id
+    job.status = JobStatus.DONE
+
     if TYPE_CHECKING:
         from braket.tasks.program_set_quantum_task_result import (
             ProgramSetQuantumTaskResult,
         )
 
-        assert isinstance(task, ProgramSetQuantumTaskResult)
+        assert isinstance(task_result, ProgramSetQuantumTaskResult)
     results = []
     if job.job_type == JobType.OBSERVABLE:
         index = 0
@@ -253,7 +258,7 @@ def run_circuit_binding(job: Job) -> BatchResult:
                 index += 1
         else:  # 1 run per monomials"""
         index = 0
-        for execution in task:
+        for execution in task_result:
             exp_value = 0
             for result in execution:
                 exp_value += result.expectation  # pyright: ignore[reportOperatorIssue]
@@ -263,7 +268,7 @@ def run_circuit_binding(job: Job) -> BatchResult:
             index += 1
     else:
         i = 0
-        for res in task:
+        for res in task_result:
             for execution in res:
                 counts = execution.counts
                 sample_info = []
@@ -284,6 +289,8 @@ def run_circuit_binding(job: Job) -> BatchResult:
                     measurement=measure,
                     values=values,
                 )
+                local_job.id = job.id
+                local_job.status = JobStatus.DONE
                 results.append(
                     Result(
                         local_job,
