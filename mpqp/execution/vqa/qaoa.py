@@ -26,7 +26,6 @@ from mpqp.execution import AvailableDevice, Result, run
 from mpqp.execution.vqa import Optimizer, minimize
 from mpqp.execution.vqa.qubo import Qubo
 from mpqp.execution.vqa.vqa import OptimizerInput
-from mpqp.gates import CustomGate, H
 from mpqp.measures import BasisMeasure, ExpectationMeasure, Observable
 
 if TYPE_CHECKING:
@@ -302,6 +301,7 @@ def _apply_unitary(circuit: QCircuit, operator: Matrix, parameter: float):
         parameter: The parameter controlling the application of the (cost/mixer) Hamiltonian, used to create the unitary matrix.
     """
     import scipy.linalg
+    from mpqp.gates import CustomGate
 
     unitary = scipy.linalg.expm(-1j * parameter * operator)
     unitary_gate = CustomGate(
@@ -330,6 +330,7 @@ def _generate_ansatz(
     """
     ansatz = QCircuit(qubits)
     num_layers = len(parameters) // 2
+    from mpqp.gates import H
 
     for i in range(qubits):
         ansatz.add(H(i))

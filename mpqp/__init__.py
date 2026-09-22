@@ -47,6 +47,7 @@ from .gates import (
     CustomGate,
     Gate,
     GateDefinition,
+    GPi,
     H,
     Id,
     P,

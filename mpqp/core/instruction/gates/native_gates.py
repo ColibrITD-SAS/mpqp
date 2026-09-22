@@ -38,8 +38,6 @@ from qiskit.circuit.library import (
     ZGate,
 )
 
-from mpqp import gates
-
 if TYPE_CHECKING:
     from sympy import Expr
     from qiskit._accelerate.circuit import Parameter
@@ -2405,6 +2403,14 @@ class GPi(RotationGate, SingleQubitGate, ComposedGate):
         from braket.circuits import gates
 
         return gates.GPi
+
+    @classproperty
+    def qiskit_gate(cls):
+        pass
+
+    @classproperty
+    def cirq_gate(cls):
+        pass
 
     def __init__(self, phi: Expr | float, target: int):
         self.targets = [target]

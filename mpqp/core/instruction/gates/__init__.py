@@ -15,6 +15,7 @@ from .native_gates import (
     CRk,
     CRk_dagger,
     H,
+    GPi,
     Id,
     P,
     Rk,

@@ -14,7 +14,6 @@ from mpqp.core.instruction.measurement import (
     Observable,
 )
 from mpqp.core.languages import Language
-from mpqp.gates import CNOT, CRk, Rk
 from mpqp.measures import pI
 from mpqp.noise.noise_model import Depolarizing, NoiseModel
 
@@ -303,6 +302,7 @@ def generate_hardware_model(
         if not isinstance(noise, Depolarizing):
             raise NotImplementedError("So far, only depolarizing noise is supported.")
         this_noise_all_qubits_target = True
+        from mpqp.gates import CNOT, CRk, Rk
 
         if CRk in noise.gates:
             noise.gates.remove(CRk)
