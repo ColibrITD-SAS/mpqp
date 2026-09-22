@@ -252,6 +252,7 @@ class Result:
         errors: Information about the error or the variance in the measurement.
         shots: Number of shots of the experiment (equal to zero if the exact
             value was required).
+        label: Optional string to contextualize the data.
 
     Examples:
         >>> job = Job(JobType.STATE_VECTOR, QCircuit(2), ATOSDevice.MYQLM_CLINALG)
@@ -294,6 +295,7 @@ class Result:
         errors: Optional[float | dict[Any, Any]] = None,
         shots: int = 0,
         g_phase_handling: bool = True,
+        label: Optional[str] = None,
     ):
         self.job = job
         """See parameter description."""
@@ -307,7 +309,19 @@ class Result:
         self.error = errors
         """See parameter description."""
         self._data = data
+        self.label = label
+        from mpqp.core.circuitbinding import CircuitBinding
 
+        if isinstance(job.circuit, CircuitBinding):
+            if len(job.circuit.circuits) == 1:
+                if TYPE_CHECKING:
+                    assert job.circuit.measurements
+                job.measurement = job.circuit.measurements[0]
+                job.circuit = job.circuit.circuits[0]
+            else:
+                raise ValueError(
+                    "The result class should be only use to hold the result of one job. A CircuitBinding should be associated with a BatchResult."
+                )
         if data is None:
             if job.status != JobStatus.ERROR:
                 raise TypeError("Result data cannot be None unless job.status == ERROR")
@@ -331,8 +345,8 @@ class Result:
             else:
                 self._state_vector = data
                 gphase = (
-                    job.circuit.input_g_phase
-                    + job.circuit._generated_g_phase  # pyright: ignore[reportPrivateUsage]
+                    job.circuit.input_g_phase  # type: ignore
+                    + job.circuit._generated_g_phase  # pyright: ignore
                 )
                 if g_phase_handling and gphase != 0:
                     # Reverse the global phase introduced when using CustomGate, due to Qiskit decomposition in QASM2
@@ -343,31 +357,40 @@ class Result:
                 raise TypeError(
                     "Wrong type of data in the result (not a list). Expecting list of Sample"
                 )
-            if self.job.measure is None:
+            if self.job.measure is None and self.job.measurement is None:
                 raise ValueError(
                     f"{self.job=} has no measure, making the counting impossible"
                 )
+            nb_qubits = (
+                self.job.measurement.nb_qubits
+                if self.job.measurement
+                else self.job.measure.nb_qubits  # pyright: ignore[reportOptionalMemberAccess]
+            )
+            if nb_qubits == 0:
+                nb_qubits = self.job.circuit.nb_qubits
+            shots = (
+                self.job.measure.shots
+                if self.job.measure
+                else self.job.measurement.shots  # pyright: ignore[reportOptionalMemberAccess]
+            )
             self._samples = data
             is_counts = all([sample.count is not None for sample in data])
             is_probas = all([sample.probability is not None for sample in data])
             if is_probas:
-                probas = [0.0] * (2**self.job.measure.nb_qubits)
+                probas = [0.0] * (2**nb_qubits)
                 for sample in data:
                     probas[sample.index] = sample.probability
                 self._probabilities = np.array(probas, dtype=float)
 
                 if not is_counts:
                     counts = [
-                        int(count)
-                        for count in np.round(
-                            self.job.measure.shots * self._probabilities
-                        )
+                        int(count) for count in np.round(shots * self._probabilities)
                     ]
                     self._counts = counts
                     for sample in self._samples:
                         sample.count = self._counts[sample.index]
             if is_counts:
-                counts: list[int] = [0] * (2**self.job.measure.nb_qubits)
+                counts: list[int] = [0] * (2**nb_qubits)
                 for sample in data:
                     if TYPE_CHECKING:
                         assert sample.count is not None
@@ -463,23 +486,29 @@ class Result:
         return self._counts
 
     def __str__(self):
-        label = "" if self.job.circuit.label is None else self.job.circuit.label + ", "
-        header = f"Result: {label}{type(self.device).__name__}, {self.device.name}"
+        from mpqp import QCircuit
 
+        if not isinstance(self.job.circuit, QCircuit):
+            raise ValueError(
+                "Result's job should be made for one individual circuit not a CircuitBinding."
+            )
+
+        label = "" if self.job.circuit.label is None else self.job.circuit.label + ", "
+        val = f"\nVariables' values: {str(self.job.values)}" if self.job.values else ""
+        header = (
+            f"Result: {label}{type(self.device).__name__}, {self.device.name}" + val
+        )
         if self.job.status == JobStatus.ERROR:
             return f"{header}\n  Status: ERROR\n  Message: {self.job.status_message}"
-
         if self.job.job_type == JobType.SAMPLE:
-            measures = self.job.circuit.measurements
-            if not len(measures) == 1:
-                raise ValueError(
-                    "Mismatch between the number of measurements and the job type."
-                )
-            measure = measures[0]
+            measure = (
+                self.job.measure
+                if self.job.measure is not None
+                else self.job.measurement
+            )
+
             if not isinstance(measure, BasisMeasure):
                 raise ValueError("Mismatch between measurements type and job type.")
-
-            # assert all(sample.probability is not None for sample in self.samples)
 
             probabilities = [
                 sample.probability
@@ -510,17 +539,24 @@ class Result:
 
         if self.job.job_type == JobType.OBSERVABLE:
             if isinstance(self.expectation_values, float):
+                if self.job.measurement:
+                    from mpqp import ExpectationMeasure
+
+                    assert isinstance(self.job.measurement, ExpectationMeasure)
+                    observables = f"\nWith observables: {[o.pauli_string for o in self.job.measurement.observables]}"
+                else:
+                    observables = ""
                 return f"""{header}
   Expectation value: {self.expectation_values}
-  Error/Variance: {self.error}"""
+  Error/Variance: {self.error}""" + observables
             else:
                 if TYPE_CHECKING:
                     assert isinstance(self.expectation_values, dict)
                     assert isinstance(self.error, dict)
                 expectation_str = "\n".join(
                     f"  {label}:\n"
-                    f"    Expectation value: {self.expectation_values[label]}\n"
-                    f"    Error/Variance: {self.error[label]}"
+                    f"Expectation value: {self.expectation_values[label]}\n"
+                    f"Error/Variance: {self.error[label]}"
                     for label in self.expectation_values
                 )
                 return header + "\n" + expectation_str
@@ -563,7 +599,16 @@ class Result:
         plt.xlabel("State")
         plt.ylabel("Counts")
         device = self.job.device
-        plt.title(f"{self.job.circuit.label}, {type(device).__name__}\n{device.name}")
+        from mpqp import QCircuit
+
+        if not self.label is None:
+            label = self.label
+        else:
+            if isinstance(self.job.circuit, QCircuit):
+                label = "" if self.job.circuit.label is None else self.job.circuit.label
+            else:
+                label = ""
+        plt.title(f"{label}, {type(device).__name__}\n{device.name}")
 
         if show:
             plt.show()
@@ -579,11 +624,15 @@ class Result:
             raise NotImplementedError(
                 f"{self.job.job_type} not handled, only {JobType.SAMPLE} is handled for now."
             )
-        if self.job.measure is None:
+        if self.job.measure is None and self.job.measurement is None:
             raise ValueError(
                 f"{self.job=} has no measure, making the counting impossible"
             )
-        n = self.job.measure.nb_qubits
+        n = (
+            self.job.measure.nb_qubits
+            if self.job.measure
+            else self.job.measurement.nb_qubits  # pyright: ignore[reportOptionalMemberAccess]
+        )
         x_array = [f"|{bin(i)[2:].zfill(n)}⟩" for i in range(2**n)]
         y_array = self.counts
         return x_array, y_array
@@ -802,7 +851,7 @@ class BatchResult:
         body = "\n".join(
             "    " + line
             for result in self.results
-            for line in str(result).splitlines()
+            for line in str(result).splitlines() + ["\n"]
         )
         return header + body
 
@@ -811,6 +860,9 @@ class BatchResult:
 
     def __getitem__(self, index: int):
         return self.results[index]
+
+    def __len__(self) -> int:
+        return len(self.results)
 
     def plot(self, show: bool = True):
         """Display the result(s) using ``matplotlib.pyplot``.

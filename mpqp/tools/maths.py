@@ -176,12 +176,13 @@ def is_diagonal(matrix: npt.NDArray[Any]) -> bool:
     return not np.any(test[:, 1:])
 
 
-def closest_unitary(matrix: Matrix) -> Matrix:
+def closest_unitary(matrix: Matrix, check_unitary: bool = False) -> Matrix:
     """Calculate the unitary matrix that is closest with respect to the operator
     norm distance to the general matrix in parameter.
 
     Args:
         matrix: Matrix for which we want to determine the closest unitary matrix.
+        check_unitary: If True, we check whether the input matrix is unitary, and return it if so.
 
     Returns:
         The closest unitary matrix.
@@ -197,6 +198,8 @@ def closest_unitary(matrix: Matrix) -> Matrix:
         True
 
     """
+    if check_unitary and is_unitary(matrix):
+        return matrix
     from scipy.linalg import svd
 
     V, _, Wh = svd(matrix)
@@ -512,6 +515,19 @@ def rearrange_matrix(m: Matrix, targets: list[int], do_copy: bool = True) -> Mat
      [0, 3, 0, 0],
      [0, 0, 2, 0],
      [0, 0, 0, 4]]
+    >>> I = np.eye(2)
+    >>> X = np.array([[0,1], [1,0]])
+    >>> matrix = np.kron(I, X)
+    >>> pprint(matrix)
+    [[0, 1, 0, 0],
+     [1, 0, 0, 0],
+     [0, 0, 0, 1],
+     [0, 0, 1, 0]]
+    >>> pprint(rearrange_matrix(matrix, [1,0]))
+    [[0, 0, 1, 0],
+     [0, 0, 0, 1],
+     [1, 0, 0, 0],
+     [0, 1, 0, 0]]
     """
 
     if do_copy:

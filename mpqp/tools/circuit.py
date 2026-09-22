@@ -34,7 +34,7 @@ from mpqp.noise.noise_model import (
 from mpqp.tools.maths import closest_unitary
 
 if TYPE_CHECKING:
-    from qiskit import QuantumCircuit
+    from qiskit.circuit import QuantumCircuit
     from qiskit._accelerate.circuit import CircuitInstruction
 
 
@@ -44,7 +44,7 @@ def random_circuit(
     nb_gates: Optional[int] = None,
     use_all_qubits: bool = False,
     seed: Optional[int] = None,
-):
+) -> QCircuit:
     """This function creates a QCircuit with a specified number of qubits and gates.
     The gates are chosen randomly from the provided list of native gate classes.
 
@@ -175,7 +175,6 @@ def random_gate(
 
     gate_class = rng.choice(np.array(gate_classes))
     target = rng.choice(qubits).item()
-
     if issubclass(gate_class, SingleQubitGate):
         if issubclass(gate_class, ParametrizedGate):
             if issubclass(gate_class, U):
@@ -305,7 +304,9 @@ def compute_expected_matrix(qcircuit: QCircuit):
 
 
 def replace_custom_gate(
-    custom_unitary: "CircuitInstruction", nb_qubits: int, targets: list[int]
+    custom_unitary: "CircuitInstruction | QuantumCircuit",
+    nb_qubits: int,
+    targets: list[int],
 ) -> "tuple[QuantumCircuit, float]":
     """Decompose and replace the (custom) qiskit unitary given in parameter by a
     qiskit `QuantumCircuit` composed of ``U`` and ``CX`` gates.
@@ -330,8 +331,13 @@ def replace_custom_gate(
     from qiskit.exceptions import QiskitError
     from qiskit.circuit.library import UnitaryGate
 
-    transpilation_circuit = QuantumCircuit(nb_qubits)
-    transpilation_circuit.append(custom_unitary)
+    if not isinstance(custom_unitary, QuantumCircuit):
+        transpilation_circuit = QuantumCircuit(nb_qubits)
+        transpilation_circuit.append(custom_unitary)
+        matrix = custom_unitary.matrix
+    else:
+        transpilation_circuit = custom_unitary
+        matrix = custom_unitary.data[0].matrix
     try:
         transpiled = transpile(
             transpilation_circuit, basis_gates=['u3', 'cx'], optimization_level=0
@@ -340,7 +346,7 @@ def replace_custom_gate(
         # if the error is arising from TwoQubitWeylDecomposition, we replace the
         # matrix by the closest unitary
         if "TwoQubitWeylDecomposition" in str(e):
-            custom_closest_unitary = UnitaryGate(closest_unitary(custom_unitary.matrix))
+            custom_closest_unitary = UnitaryGate(closest_unitary(matrix))
             transpilation_circuit = QuantumCircuit(nb_qubits)
             transpilation_circuit.unitary(
                 custom_closest_unitary, list(reversed(targets))

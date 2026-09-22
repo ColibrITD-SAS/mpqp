@@ -8,7 +8,7 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING
 
-from mpqp.qasm.open_qasm_2_and_3 import open_qasm_hard_includes
+from mpqp.translation.qasm.open_qasm_2_and_3 import open_qasm_hard_includes
 
 if TYPE_CHECKING:
     from qat.core.wrappers.circuit import Circuit

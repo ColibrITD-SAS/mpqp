@@ -39,7 +39,7 @@ on the current available SDKs:
    execution
    execution-extras
    vqa
-   qasm
+   translation
    tools
    local_storage
    changelog

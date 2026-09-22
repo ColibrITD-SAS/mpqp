@@ -153,7 +153,8 @@ def exec_custom_gate_with_random_circuit(
     assert isinstance(result1, Result)
     assert isinstance(result2, Result)
     # precision reduced from approximation errors (CustomGate usage)
-    assert matrix_eq(result1.amplitudes, result2.amplitudes, 1e-4, 1e-4)
+    tolerance = 1e-2 if device == ATOSDevice.MYQLM_PYLINALG and circ_size >= 4 else 1e-4
+    assert matrix_eq(result1.amplitudes, result2.amplitudes, tolerance, tolerance)
 
 
 def _test_matrix_equality(

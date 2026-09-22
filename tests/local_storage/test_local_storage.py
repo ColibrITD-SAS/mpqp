@@ -100,6 +100,7 @@ def create_test_local_storage(providers: Optional[list[str]] = None) -> None:
 
     c1 = QCircuit([], nb_qubits=2)
     c2 = QCircuit([Id(0), Id(1)], nb_qubits=2, label="Id")
+
     result12 = run([c1, c2], device=devices)
     insert_results(result12)
     save_env_variable("DB_PATH", save_local_storage)

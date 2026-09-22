@@ -20,12 +20,13 @@ from __future__ import annotations
 
 from copy import copy
 from itertools import pairwise
-from numbers import Complex, Number
+from numbers import Number
 from textwrap import indent
 from typing import TYPE_CHECKING, Optional, Sequence, Union, overload
 
 import numpy as np
 
+from mpqp.core.circuitbinding import CircuitBinding
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.breakpoint import Breakpoint
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
@@ -91,7 +92,7 @@ def prepare_run_batch_inputs(
     )
 
 
-def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
+def adjust_measure(measure: ExpectationMeasure, nb_qubits: int):
     """A measure can be incomplete and not span the entire circuit, but providers
     usually do not support this behavior. To make this work, we tweak the measure
     this function to match the expected behavior.
@@ -105,18 +106,20 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
 
     Args:
         measure: The expectation measure, potentially incomplete.
-        circuit: The circuit defining the full qubit register.
+        nb_qubits: The number of qubits in the circuit.
 
     Returns:
         A measure targeting all circuit qubits, with observables embedded into
         the full register.
     """
     # TODO: use this only for specific provider
-
-    if measure.targets == list(range(circuit.nb_qubits)):
+    if measure.nb_qubits > nb_qubits:
+        raise ValueError(
+            f"Number of provided qubits: {nb_qubits} is more than the number of qubits of the measure: {measure.nb_qubits}"
+        )
+    if measure.targets == list(range(nb_qubits)):
         return measure
 
-    nb_qubits = circuit.nb_qubits
     targets = measure.targets
 
     targets_is_ordered = all(a < b for a, b in pairwise(targets))
@@ -188,7 +191,7 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
 
     tweaked_measure = ExpectationMeasure(
         tweaked_observables,
-        list(range(circuit.nb_qubits)),
+        list(range(nb_qubits)),
         measure.shots,
         measure.commuting_type,
         measure.grouping_method,
@@ -200,7 +203,7 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
 
 
 def generate_job(
-    circuit: QCircuit,
+    circuit: QCircuit | CircuitBinding,
     device: AvailableDevice,
     values: Optional[ValuesDict] = None,
     exec_mode: Optional[ExecutionMode] = None,
@@ -223,20 +226,16 @@ def generate_job(
     """
     exec_mode = exec_mode or ExecutionMode.JOB
     if values is not None:
-        from sympy import Expr
-
-        if circuit.transpiled_circuit[device] is not None:
+        if isinstance(circuit, CircuitBinding):
+            raise ValueError("values must be specified in CircuitBinding")
+        if device in circuit.transpiled_circuit:
             circuit.bind_parameters(device, values)
         else:
-            subs_values: dict[Expr | str, Complex] = {}
-            for k, v in values.items():
-                if isinstance(k, (str, Expr)):
-                    if not isinstance(v, Complex):
-                        raise TypeError(
-                            f"Parameter binding requires numeric values; got {type(v).__name__}."
-                        )
-                    subs_values[k] = v
-            circuit = circuit.subs(subs_values)
+            circuit = circuit.subs(values)  # pyright: ignore[reportArgumentType]
+
+    if isinstance(circuit, CircuitBinding):
+        job = Job(circuit.job_type, circuit, device)
+        return job
 
     m_list = circuit.measurements
     nb_meas = len(m_list)
@@ -255,7 +254,7 @@ def generate_job(
 
         elif isinstance(measurement, ExpectationMeasure):
             if not (measurement.optimize_measurement and isinstance(device, AWSDevice)):
-                m = adjust_measure(measurement, circuit)
+                m = adjust_measure(measurement, circuit.nb_qubits)
                 circuit = circuit.without_measurements(deep_copy=False)
                 circuit.add(m)
             job = Job(
@@ -294,6 +293,27 @@ def _run_diagonal_observables(
     adapted_circuit.add(BasisMeasure(exp_measure.targets, shots=exp_measure.shots))
 
     result = _run_single(adapted_circuit, device, values, False, mode)
+    return _compute_result_diagonal_observables(result, exp_measure, observable_job)
+
+
+def _compute_result_diagonal_observables(
+    result: Result,
+    exp_measure: ExpectationMeasure,
+    observable_job: Job,
+) -> Result:
+    """Compute diagonal-observable expectation values from sample probabilities.
+
+    Args:
+        result: Sampling result containing the computational-basis
+            probabilities.
+        exp_measure: Diagonal expectation measurement to evaluate.
+        observable_job: Original observable job attached to the returned result.
+
+    Returns:
+        A result containing either one expectation value or a mapping from
+        observable labels to expectation values.
+    """
+
     probas = result.probabilities
 
     error = 0 if exp_measure.shots == 0 else None
@@ -375,7 +395,7 @@ def _run_single(
             display_kth_breakpoint(circuit, k, device)
 
     circ_transpile = None
-    if circuit.transpiled_circuit[device] is not None:
+    if device in circuit.transpiled_circuit:
         circ_transpile = copy(circuit.transpiled_circuit[device])
 
     job = generate_job(circuit, device, values, mode)
@@ -402,24 +422,30 @@ def _run_single(
     try:
         if isinstance(device, (IBMDevice, StaticIBMSimulatedDevice)):
             from mpqp.execution.providers.ibm import run_ibm, run_remote_ibm_batch
+
             if provider_params is not None and not isinstance(
-                        provider_params, QiskitParams
-                    ):
-                        raise ValueError(
-                            f"provider_params should be QiskitParam not {type(provider_params)}"
-                        )
-                   
+                provider_params, QiskitParams
+            ):
+                raise ValueError(
+                    f"provider_params should be QiskitParam not {type(provider_params)}"
+                )
 
             if job.mode == ExecutionMode.BATCH and device.is_remote():
                 batch_results = run_remote_ibm_batch([job])
                 return batch_results[0]
 
-            return run_ibm(job, provider_params)
+            result = run_ibm(job, provider_params)
+            if not isinstance(result, Result):
+                raise TypeError("A single circuit execution must return a Result.")
+            return result
 
         elif isinstance(device, ATOSDevice):
             return run_atos(job)
         elif isinstance(device, AWSDevice):
-            return run_braket(job, reservation_arn=reservation_arn)
+            result = run_braket(job, reservation_arn=reservation_arn)
+            if not isinstance(result, Result):
+                raise TypeError("A single circuit execution must return a Result.")
+            return result
         elif isinstance(device, GOOGLEDevice):
             return run_google(job)
         elif isinstance(device, AZUREDevice):
@@ -432,9 +458,80 @@ def _run_single(
             circuit.transpiled_circuit[device] = circ_transpile
 
 
+def _run_circuit_binding(
+    circuit_binding: CircuitBinding,
+    device: AvailableDevice,
+    display_breakpoints: bool = True,
+) -> BatchResult:
+    """Execute every expansion of a circuit binding on one device.
+
+    Args:
+        circuit_binding: Lazy collection of circuits, parameter values and
+            measurements to execute.
+        device: Device on which all binding executions are run.
+        display_breakpoints: Whether breakpoints should be displayed. Breakpoint
+            display for bindings is currently not implemented.
+
+    Returns:
+        A batch containing one result per resolved binding execution.
+
+    Raises:
+        DeviceJobIncompatibleError: If a noisy binding targets a device that
+            cannot simulate noise.
+        NotImplementedError: If circuit bindings are unsupported by the
+            selected provider.
+    """
+    from mpqp.execution.simulated_devices import (
+        SimulatedDevice,
+        StaticIBMSimulatedDevice,
+    )
+
+    if display_breakpoints:
+        pass
+        # TODO: implement display breakpoints for CircuitBinding
+        # raise ValueError(
+        #    "display_breakpoints is not supported with CircuitBinding"
+        # )
+
+    if circuit_binding.is_noisy:
+        if not device.is_noisy_simulator():
+            raise DeviceJobIncompatibleError(
+                f"Device {device} cannot simulate circuits containing NoiseModels."
+            )
+        elif not isinstance(
+            device,
+            (ATOSDevice, AWSDevice, IBMDevice, GOOGLEDevice, SimulatedDevice),
+        ):
+            raise NotImplementedError(f"Noisy simulations not supported on {device}.")
+
+    job = generate_job(circuit_binding, device)
+
+    if isinstance(device, (IBMDevice, StaticIBMSimulatedDevice)):
+        from mpqp.execution.providers.ibm import run_ibm
+
+        result = run_ibm(job)
+    elif isinstance(device, ATOSDevice):
+        raise NotImplementedError(f"Device {device} not handled")
+    elif isinstance(device, AWSDevice):
+        result = run_braket(job)
+    elif isinstance(device, GOOGLEDevice):
+        raise NotImplementedError(f"Device {device} not handled")
+    elif isinstance(device, AZUREDevice):
+        raise NotImplementedError(f"Device {device} not handled")
+    else:
+        raise NotImplementedError(f"Device {device} not handled")
+
+    # for i, (exp_measure, job) in run_diagonal_observables.items():
+    #    result.results[i] = _compute_result_diagonal_observables(
+    #        result[i], exp_measure, job
+    #    )
+
+    return result if isinstance(result, BatchResult) else BatchResult([result])
+
+
 @overload
 def run(
-    circuit: OneOrMany[QCircuit],
+    circuit: CircuitBinding | OneOrMany[QCircuit],
     device: Sequence[AvailableDevice],
     values: BatchValuesInput = None,
     display_breakpoints: bool = True,
@@ -450,7 +547,7 @@ def run(
 
 @overload
 def run(
-    circuit: Sequence[QCircuit],
+    circuit: CircuitBinding,
     device: OneOrMany[AvailableDevice],
     values: Optional[ValuesDict] = None,
     display_breakpoints: bool = True,
@@ -463,7 +560,7 @@ def run(
 
 @overload
 def run(
-    circuit: QCircuit,
+    circuit: OneOrMany[QCircuit],
     device: AvailableDevice,
     values: Optional[ValuesDict] = None,
     display_breakpoints: bool = True,
@@ -475,7 +572,7 @@ def run(
 
 
 def run(
-    circuit: OneOrMany[QCircuit],
+    circuit: OneOrMany[QCircuit] | CircuitBinding,
     device: OneOrMany[AvailableDevice],
     values: BatchValuesInput = None,
     display_breakpoints: bool = True,
@@ -563,13 +660,24 @@ def run(
         circ.label = f"circuit {i}" if circ.label is None else circ.label
         return circ
 
-    circuits = [circuit] if isinstance(circuit, QCircuit) else list(circuit)
     devices = [device] if isinstance(device, AvailableDevice) else list(device)
-
     exec_mode = mode or ExecutionMode.JOB
 
     if values_batch is not None and exec_mode != ExecutionMode.BATCH:
-        raise ValueError("values_batch is only supported when mode == VQAMode.BATCH")
+        raise ValueError("values_batch is only supported when mode == ExecutionMode.BATCH")
+
+    if isinstance(circuit, CircuitBinding):
+        if values is not None or values_batch is not None:
+            raise ValueError("values must be specified inside CircuitBinding")
+        results: list[Result] = []
+        for target_device in devices:
+            batch = _run_circuit_binding(
+                circuit, target_device, display_breakpoints
+            )
+            results.extend(batch.results)
+        return BatchResult(results)
+
+    circuits = [circuit] if isinstance(circuit, QCircuit) else list(circuit)
 
     if exec_mode == ExecutionMode.BATCH:
         if len(devices) != 1:
@@ -578,22 +686,20 @@ def run(
                 f"{len(devices)} devices."
             )
 
-        if values_batch is not None and len(values_batch) != len(circuits):
-            raise ValueError("values_batch must have the same length as circuits.")
-
+        batch_values: BatchValuesInput = (
+            values_batch if values_batch is not None else values
+        )
+        per_run_circuits, per_run_values = prepare_run_batch_inputs(
+            circuits, batch_values
+        )
         target_device = devices[0]
-        per_run_circuits, per_run_values = prepare_run_batch_inputs(circuits, values)
-
-        jobs = []
-        for i, circ in enumerate(per_run_circuits):
-            jobs.append(
-                generate_job(
-                    namer(circ, i + 1), target_device, per_run_values[i], exec_mode
-                )
+        jobs = [
+            generate_job(
+                namer(circ, i + 1), target_device, per_run_values[i], exec_mode
             )
+            for i, circ in enumerate(per_run_circuits)
+        ]
 
-        # TODO: batch only supported for IBM ? maybe raise an error otherwise.
-        #  And why only observable here ?
         if isinstance(target_device, IBMDevice) and target_device.is_remote():
             from mpqp.execution.providers.ibm import run_remote_ibm_batch
 
@@ -601,30 +707,46 @@ def run(
                 if job.job_type != JobType.OBSERVABLE:
                     raise ValueError(
                         "IBM batch execution supports only observable jobs "
-                        f"(found {job.job_type} in circuit '{job.circuit.label}')."
+                        f"(found {job.job_type} in circuit "
+                        f"'{getattr(job.circuit, 'label', None)}')."
                     )
             return run_remote_ibm_batch(jobs)
 
-        if isinstance(circuit, Iterable) or isinstance(device, Iterable):
-            return BatchResult(
-                [
-                    _run_single(
-                        namer(circ, i + 1),
-                        dev,
-                        values,
-                        display_breakpoints,
-                    )
-                    for i, circ in enumerate(flatten(circuit))
-                    for dev in flatten(device)
-                ]
-            )
-
-        # TODO : remark, remove weird management of multi circuit and multi device, it was already done in a more
-        #  compact way
-    else:
-        return _run_single(
-            circuit, device, values, display_breakpoints, provider_params
+        return BatchResult(
+            [
+                _run_single(
+                    circ,
+                    target_device,
+                    per_run_values[i],
+                    display_breakpoints,
+                    mode=exec_mode,
+                    reservation_arn=reservation_arn,
+                    provider_params=provider_params,
+                )
+                for i, circ in enumerate(per_run_circuits)
+            ]
         )
+
+    if values is not None and not isinstance(values, dict):
+        raise ValueError(
+            "A sequence of parameter mappings requires ExecutionMode.BATCH."
+        )
+    results = [
+        _run_single(
+            namer(circ, i + 1),
+            target_device,
+            values,
+            display_breakpoints,
+            mode=exec_mode,
+            reservation_arn=reservation_arn,
+            provider_params=provider_params,
+        )
+        for target_device in devices
+        for i, circ in enumerate(circuits)
+    ]
+    if len(results) == 1 and isinstance(circuit, QCircuit) and len(devices) == 1:
+        return results[0]
+    return BatchResult(results)
 
 
 def submit(

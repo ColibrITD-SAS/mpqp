@@ -18,7 +18,7 @@ from mpqp import (
     T,
     run,
 )
-from mpqp.qasm import qasm2_to_cirq_Circuit
+from mpqp.translation.qasm.qasm_to_cirq import qasm2_to_cirq_Circuit
 
 if TYPE_CHECKING:
     from cirq.circuits.circuit import Circuit

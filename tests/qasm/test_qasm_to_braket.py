@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from braket.circuits import Operator
 
-from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
+from mpqp.translation.qasm.qasm_to_braket import qasm3_to_braket_Circuit
 from mpqp.tools import UnsupportedBraketFeaturesWarning
 
 

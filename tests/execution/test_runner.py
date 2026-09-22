@@ -36,6 +36,6 @@ def test_adjust_measure(
         np.eye(2**nb_ids_after),
     )
     assert matrix_eq(
-        adjust_measure(measure, circuit).observables[0].matrix,
+        adjust_measure(measure, circuit.nb_qubits).observables[0].matrix,
         adjusted_observable_matrix,
     )

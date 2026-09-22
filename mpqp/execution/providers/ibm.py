@@ -5,9 +5,8 @@ import warnings
 from copy import deepcopy
 from typing import TYPE_CHECKING, Optional, Union
 
-import numpy as np
-
-from mpqp.core.circuit import QCircuit
+from mpqp import QCircuit
+from mpqp.core.circuitbinding import CircuitBinding
 from mpqp.core.instruction.gates import ControlledGate, Gate, Id
 from mpqp.core.instruction.gates.native_gates import NativeGate
 from mpqp.core.instruction.measurement import BasisMeasure
@@ -32,7 +31,6 @@ if TYPE_CHECKING:
     from qiskit import QuantumCircuit
     from qiskit.primitives import (
         EstimatorResult,
-        PrimitiveResult,
         PubResult,
         SamplerPubResult,
     )
@@ -42,11 +40,14 @@ if TYPE_CHECKING:
     from qiskit_aer import AerSimulator
     from qiskit_aer.noise import NoiseModel as Qiskit_NoiseModel
     from qiskit_ibm_runtime import RuntimeJobV2, Session
+    from qiskit.primitives.containers import EstimatorPubLike
 
     from mpqp.execution.simulated_devices import StaticIBMSimulatedDevice
 
 
-def run_ibm(job: Job, qiskit_params: Optional[QiskitParams] = None) -> Result:
+def run_ibm(
+    job: Job, qiskit_params: Optional[QiskitParams] = None
+) -> Result | BatchResult:
     """Executes the job on the right IBM Q device precised in the job in
     parameter.
 
@@ -71,48 +72,100 @@ def run_ibm(job: Job, qiskit_params: Optional[QiskitParams] = None) -> Result:
 
 
 def compute_expectation_value(
-    ibm_circuit: QuantumCircuit, job: Job, simulator: Optional["AerSimulator"]
-) -> Result:
+    job: "Job",
+    simulator: Optional["AerSimulator"],
+    ibm_circuit: Optional["QuantumCircuit"] = None,
+    pubs: Optional[list["EstimatorPubLike"]] = None,
+    pubs_contexts: Optional[list[list["Job"]]] = None,
+    shots: Optional[int] = None,
+) -> Result | BatchResult:
     """Configures observable job and run it locally, and returns the
-    corresponding Result.
+    corresponding Result. Supports both single circuits and batched PUBs.
 
-    Args:
-        ibm_circuit: QuantumCircuit (with its qubits already reversed) for which we want
-            to estimate the expectation value.
-        job: Job containing the execution input data.
-        simulator: AerSimulator to be used to set the EstimatorV2 options.
-
-    Returns:
-        The Result of the job.
-
-    Raises:
-        ValueError: If the job's device is not a
-            :class:`~mpqp.execution.simulated_devices.IBMSimulatedDevice`
-            and ``simulator`` is ``None``.
-
-    Note:
-        This function is not meant to be used directly, please use
-        :func:`~mpqp.execution.runner.run` instead.
+    Each batched PUB has an ordered list of context jobs, one for each
+    parameter/measurement pair resolved by the binding mode.
     """
     from qiskit.quantum_info import SparsePauliOp
-
+    from qiskit.primitives import PubResult
+    from qiskit.primitives.containers import DataBin
     from mpqp.execution.simulated_devices import StaticIBMSimulatedDevice
 
-    if not isinstance(job.measure, ExpectationMeasure):
-        raise ValueError(
-            "Cannot compute expectation value if measure used in job is not of "
-            "type ExpectationMeasure"
-        )
+    pubs_to_run = []
+    context_jobs_to_run = []
 
-    nb_shots = job.measure.shots
+    if pubs is not None:
+        if ibm_circuit is not None:
+            raise ValueError(
+                "Cannot provide both pubs and ibm_circuit. Please provide only one."
+            )
+        if shots is None:
+            raise ValueError("Shots must be provided when using pubs.")
+        if pubs_contexts is None or len(pubs) != len(pubs_contexts):
+            raise ValueError("pubs_contexts must perfectly map 1:1 to pubs.")
 
-    qiskit_observables: list[SparsePauliOp] = []
-    job.measure.pre_transpile_observables(job.device)
-    for obs in job.measure.observables:
-        translated = obs.pre_transpiled[job.device]
-        if TYPE_CHECKING:
-            assert isinstance(translated, SparsePauliOp)
-        qiskit_observables.append(translated)
+        nb_shots = shots
+        context_jobs_to_run = pubs_contexts
+
+        for pub in pubs:
+            circ = pub[0]  # pyright: ignore[reportIndexIssue]
+            obs_array = pub[1] if len(pub) > 1 else None  # pyright: ignore
+            params = pub[2] if len(pub) > 2 else None  # pyright: ignore
+
+            if obs_array is not None:
+                if params is not None:
+                    params = [
+                        values
+                        for observables, values in zip(
+                            obs_array, params  # pyright: ignore[reportArgumentType]
+                        )
+                        for _ in observables
+                    ]
+                obs_array = [
+                    obs
+                    for observables in obs_array  # pyright: ignore[reportGeneralTypeIssues]
+                    for obs in observables
+                ]
+
+            if obs_array is not None and circ.layout is not None:
+                obs_array = [obs.apply_layout(circ.layout) for obs in obs_array]
+
+            if params is not None:
+                pubs_to_run.append((circ, obs_array, params))
+            elif obs_array is not None:
+                pubs_to_run.append((circ, obs_array))
+            else:
+                pubs_to_run.append((circ,))
+
+    else:
+        # Exécution classique 1:1 (sans CircuitBinding)
+        if ibm_circuit is None:
+            raise ValueError("Either pubs or ibm_circuit must be provided.")
+        if not isinstance(job.measure, ExpectationMeasure):
+            raise ValueError(
+                "Cannot compute expectation value if measure used in job is not of "
+                f"type ExpectationMeasure, {job.measure}"
+            )
+        if shots is not None:
+            raise ValueError(
+                "Shots is already specified in the job.measure. Please do not provide it separately."
+            )
+
+        nb_shots = job.measure.shots
+
+        job.measure.pre_transpile_observables(job.device)
+        qiskit_observables: list[SparsePauliOp] = []
+        for obs in job.measure.observables:
+            translated = obs.pre_transpiled[job.device]
+            if TYPE_CHECKING:
+                assert isinstance(translated, SparsePauliOp)
+
+            if ibm_circuit.layout is not None:
+                translated = translated.apply_layout(ibm_circuit.layout)
+
+            qiskit_observables.append(translated)
+
+        pubs_to_run = [(ibm_circuit, qiskit_observables)]
+        context_jobs_to_run = [[job]]
 
     if isinstance(job.device, StaticIBMSimulatedDevice) or nb_shots != 0:
         from qiskit_ibm_runtime import EstimatorV2 as Runtime_Estimator
@@ -122,13 +175,6 @@ def compute_expectation_value(
             if isinstance(job.device, StaticIBMSimulatedDevice)
             else simulator
         )
-
-        if TYPE_CHECKING:
-            assert isinstance(ibm_circuit, QuantumCircuit)
-
-        qiskit_observables = [
-            obs.apply_layout(ibm_circuit.layout) for obs in qiskit_observables
-        ]
         options = {"default_shots": nb_shots}
         estimator = Runtime_Estimator(mode=backend, options=options)
 
@@ -139,19 +185,49 @@ def compute_expectation_value(
             raise ValueError("Simulator is required for noisy simulations.")
 
         simulator.set_options(shots=nb_shots)
-        options = {
-            "backend_options": simulator.options,
-        }
+        options = {"backend_options": simulator.options}
         estimator = Estimator(options=options)
 
     job.status = JobStatus.RUNNING
-    job_expectation = estimator.run([(ibm_circuit, qiskit_observables)])
+    job_expectation = estimator.run(pubs_to_run)
     estimator_result = job_expectation.result()
 
     if TYPE_CHECKING:
         assert isinstance(job.device, (IBMDevice, StaticIBMSimulatedDevice))
+        assert isinstance(estimator_result, list)
 
-    return extract_result(estimator_result, job, job.device)
+    extracted_items = []
+
+    for i, contexts in enumerate(context_jobs_to_run):
+        offset = 0
+        for context_job in contexts:
+            pub_result = estimator_result[i]
+            if pubs is not None:
+                assert isinstance(context_job.measure, ExpectationMeasure)
+                count = len(context_job.measure.observables)
+                data = pub_result.data
+                pub_result = PubResult(
+                    DataBin(
+                        evs=data.evs[offset : offset + count],
+                        stds=data.stds[offset : offset + count],
+                        shape=(count,),
+                    ),
+                    metadata=pub_result.metadata,
+                )
+                offset += count
+            extracted_items.append(
+                extract_result(pub_result, context_job, job.device, experiment_index=0)
+            )
+
+    final_flat_results = []
+    for item in extracted_items:
+        if isinstance(item, BatchResult):
+            final_flat_results.extend(item.results)
+        else:
+            final_flat_results.append(item)
+    if isinstance(job.circuit, QCircuit):
+        return final_flat_results[0]
+    return BatchResult(final_flat_results)
 
 
 def check_job_compatibility(job: Job):
@@ -171,18 +247,28 @@ def check_job_compatibility(job: Job):
     if TYPE_CHECKING:
         assert isinstance(job.device, (IBMDevice, StaticIBMSimulatedDevice))
 
-    if not type(job.measure) in job.job_type.value:
-        raise DeviceJobIncompatibleError(
-            f"An {job.job_type.name} job is valid only if the corresponding circuit has an measure in "
-            f"{list(map(lambda cls: cls.__name__, job.job_type.value))}. "
-            f"{type(job.measure).__name__} was given instead."
-        )
-
     if job.job_type == JobType.STATE_VECTOR and not job.device.supports_state_vector():
         raise DeviceJobIncompatibleError(
             "Cannot reconstruct state vector with this device. Please use "
             "a local device supporting state vector jobs instead (or change the job "
             "type, for example by giving a number of shots to a BasisMeasure)."
+        )
+
+    if job.job_type == JobType.OBSERVABLE and not (
+        job.device.supports_observable_ideal() or job.device.supports_observable()
+    ):
+        raise DeviceJobIncompatibleError(
+            f"Expectation values cannot be computed with {job.device.name} device"
+        )
+
+    if isinstance(job.circuit, CircuitBinding):
+        return
+
+    if type(job.measure) not in job.job_type.value:
+        raise DeviceJobIncompatibleError(
+            f"An {job.job_type.name} job is valid only if the corresponding circuit has an measure in "
+            f"{list(map(lambda cls: cls.__name__, job.job_type.value))}. "
+            f"{type(job.measure).__name__} was given instead."
         )
 
     if (
@@ -194,13 +280,6 @@ def check_job_compatibility(job: Job):
         raise DeviceJobIncompatibleError(
             "Expectation values cannot be computed exactly using IBM remote"
             " simulators and devices. Please use a local simulator instead."
-        )
-
-    if job.job_type == JobType.OBSERVABLE and not (
-        job.device.supports_observable_ideal() or job.device.supports_observable()
-    ):
-        raise DeviceJobIncompatibleError(
-            f"Expectation values cannot be computed with {job.device.name} device"
         )
 
 
@@ -402,7 +481,7 @@ def generate_qiskit_noise_model(
     return noise_model, modified_circuit
 
 
-def run_aer(job: Job):
+def run_aer(job: Job) -> Result | BatchResult:
     """Executes the job on the right AER local simulator precised in the job in
     parameter.
 
@@ -426,60 +505,143 @@ def run_aer(job: Job):
     if TYPE_CHECKING:
         assert isinstance(job.device, (IBMDevice, StaticIBMSimulatedDevice))
 
-    if isinstance(job.device, StaticIBMSimulatedDevice):
-        if len(job.circuit.noises) != 0:
-            warnings.warn(
-                "NoiseModel are ignored when running the circuit on a "
-                "SimulatedDevice"
+    if isinstance(job.circuit, CircuitBinding):
+        binding = job.circuit
+
+        if isinstance(job.device, StaticIBMSimulatedDevice):
+            if binding.is_noisy:
+                warnings.warn(
+                    "NoiseModel are ignored when running the circuit on a SimulatedDevice"
+                )
+            backend_sim = job.device.to_noisy_simulator()
+        else:
+            backend_sim = AerSimulator(method=job.device.value)
+
+        binding.transpiled_circuits(job.device, backend_sim=backend_sim)
+        if binding.transpiled_noise_model is not None:
+            backend_sim = AerSimulator(
+                method=job.device.value,
+                noise_model=binding.transpiled_noise_model,
             )
-            # 3M-TODO: handle case when we put NoiseModel + IBMSimulatedDevice
-            # (grab qiskit NoiseModel from AerSimulator generated below, and add
-            # to it directly)
+
+        if job.job_type == JobType.OBSERVABLE:
+            pubs_with_context = binding.to_other_device(job.device)
+            pubs = [item[0] for item in pubs_with_context]
+            contexts = [item[1] for item in pubs_with_context]
+            return compute_expectation_value(
+                job, backend_sim, pubs=pubs, pubs_contexts=contexts, shots=binding.shots
+            )
+
+        if job.job_type in (JobType.SAMPLE, JobType.STATE_VECTOR):
+            unrolled_items = binding.unroll()
+            bound_circuits: list[QuantumCircuit] = []
+            context_jobs: list[Job] = []
+
+            for c, v, m in unrolled_items:
+                q_c = c.transpiled_circuit[job.device]
+                if TYPE_CHECKING:
+                    assert isinstance(q_c, QuantumCircuit)
+
+                if v:
+                    normalized_values = {str(key): val for key, val in v.items()}
+                    b_c = q_c.assign_parameters(
+                        {p: normalized_values[p.name] for p in q_c.parameters}
+                    )
+                else:
+                    b_c = q_c.copy()
+
+                c_context = c.without_measurements(deep_copy=False)
+                if m is not None:
+                    c_context.add(deepcopy(m))
+                if job.job_type == JobType.STATE_VECTOR:
+                    b_c.save_statevector()  # pyright: ignore[reportAttributeAccessIssue]
+                elif job.job_type == JobType.SAMPLE:
+                    measure = c_context.measurements[0]
+                    assert isinstance(measure, BasisMeasure)
+                    assert measure.c_targets is not None
+                    from qiskit.circuit import ClassicalRegister
+
+                    if b_c.num_clbits < c_context.nb_cbits:
+                        b_c.add_register(
+                            ClassicalRegister(c_context.nb_cbits - b_c.num_clbits)
+                        )
+                    for pre_measure in measure.pre_measure:
+                        qiskit_pre_measure = pre_measure.to_other_language(
+                            Language.QISKIT
+                        )
+                        b_c.append(
+                            qiskit_pre_measure,
+                            list(reversed(pre_measure.targets)),
+                            cargs=[],
+                        )
+                    b_c.append(
+                        measure.to_other_language(Language.QISKIT),
+                        [measure.targets],
+                        [measure.c_targets],
+                    )
+                bound_circuits.append(b_c)
+
+                context_jobs.append(Job(job.job_type, c_context, job.device, values=v))
+
+            job.status = JobStatus.RUNNING
+            if job.job_type == JobType.STATE_VECTOR:
+                job_sim = backend_sim.run(bound_circuits, shots=0)
+            else:
+                shots = binding.shots if binding.shots is not None else 1024
+                job_sim = backend_sim.run(bound_circuits, shots=shots)
+            result_sim = job_sim.result()
+            extracted_items: list[Result] = []
+            for i, context_job in enumerate(context_jobs):
+                extracted = extract_result(
+                    result=result_sim,
+                    job=context_job,
+                    device=job.device,
+                    experiment_index=i,
+                )
+                if not isinstance(extracted, Result):
+                    raise TypeError("A single IBM experiment must return a Result.")
+                extracted_items.append(extracted)
+            job.status = JobStatus.DONE
+            return BatchResult(extracted_items)
+
+        raise ValueError(f"Job type {job.job_type} not handled in CircuitBinding.")
+
+    if isinstance(job.device, StaticIBMSimulatedDevice):
+        if job.circuit.noises:
+            warnings.warn(
+                "NoiseModel are ignored when running the circuit on a SimulatedDevice"
+            )
         backend_sim = job.device.to_noisy_simulator()
+    elif job.circuit.noises:
         qiskit_circuit = job.circuit.transpiled_for_device(job.device)
-
-    elif len(job.circuit.noises) != 0:
-        qiskit_circuit = job.circuit.transpiled_for_device(job.device)
-
         if job.circuit.transpiled_noise_model is None:
             raise InstructionParsingError("transpiled_noise_model is not initialized")
         backend_sim = AerSimulator(
-            method=job.device.value, noise_model=job.circuit.transpiled_noise_model
+            method=job.device.value,
+            noise_model=job.circuit.transpiled_noise_model,
         )
-
     else:
-        qiskit_circuit = job.circuit.transpiled_for_device(job.device)
         backend_sim = AerSimulator(method=job.device.value)
 
+    qiskit_circuit = job.circuit.transpiled_for_device(job.device)
     if TYPE_CHECKING:
         assert isinstance(qiskit_circuit, QuantumCircuit)
 
     if job.job_type == JobType.STATE_VECTOR:
-        # the save_statevector method is patched on qiskit_aer load, meaning
-        # the type checker can't find it. I hate it but it is what it is.
-        # this explains the `type: ignore`. This method is needed to get a
-        # statevector out of the statevector simulator.
         qiskit_circuit.save_statevector()  # pyright: ignore[reportAttributeAccessIssue]
         job.status = JobStatus.RUNNING
-        job_sim = backend_sim.run(qiskit_circuit, shots=0)
-        result_sim = job_sim.result()
-        if TYPE_CHECKING:
-            assert isinstance(job.device, IBMDevice)
+        result_sim = backend_sim.run(qiskit_circuit, shots=0).result()
         result = extract_result(result_sim, job, job.device)
-
     elif job.job_type == JobType.SAMPLE:
         if TYPE_CHECKING:
             assert job.measure is not None
         job.status = JobStatus.RUNNING
-        job_sim = backend_sim.run(qiskit_circuit, shots=job.measure.shots)
-        result_sim = job_sim.result()
-        if TYPE_CHECKING:
-            assert isinstance(job.device, (IBMDevice, StaticIBMSimulatedDevice))
+        result_sim = backend_sim.run(
+            qiskit_circuit, shots=job.measure.shots
+        ).result()
         result = extract_result(result_sim, job, job.device)
-
     elif job.job_type == JobType.OBSERVABLE:
-        result = compute_expectation_value(qiskit_circuit, job, backend_sim)
-
+        result = compute_expectation_value(job, backend_sim, qiskit_circuit)
     else:
         raise ValueError(f"Job type {job.job_type} not handled.")
 
@@ -492,6 +654,7 @@ def run_aer(job: Job):
 def _submit_remote_ibm(
     job: Job,
     qiskit_params: Optional[QiskitParams] = None,
+    *,
     runtime_target: Union[BackendV2, Session],
 ) -> tuple[str, "RuntimeJobV2"]:
     """Submits the job on the remote IBM device (quantum computer or simulator).
@@ -517,6 +680,7 @@ def _submit_remote_ibm(
 
     if TYPE_CHECKING:
         assert isinstance(job.device, IBMDevice)
+        assert isinstance(job.circuit, QCircuit)
 
     instance = qiskit_params.instance if qiskit_params is not None else None
 
@@ -572,7 +736,9 @@ def _submit_remote_ibm(
     return job.id, ibm_job
 
 
-def submit_remote_ibm(job: Job, qiskit_params: Optional[QiskitParams] = None) -> tuple[str, "RuntimeJobV2"]:
+def submit_remote_ibm(
+    job: Job, qiskit_params: Optional[QiskitParams] = None
+) -> tuple[str, "RuntimeJobV2"]:
     # TODO: docs
     if TYPE_CHECKING:
         assert isinstance(job.device, IBMDevice)
@@ -619,10 +785,12 @@ def submit_remote_ibm_batch(jobs: list[Job]) -> tuple[list[str], "RuntimeJobV2"]
         check_job_compatibility(job)
 
         circuit = job.circuit
+        if not isinstance(circuit, QCircuit):
+            raise TypeError("IBM batch jobs must contain QCircuit instances.")
         if job.values is not None:
-            circuit = circuit.bind_parameters(job.device, job.values)
+            circuit.bind_parameters(job.device, job.values)
 
-        qc = job.circuit.transpiled_for_device(job.device)
+        qc = circuit.transpiled_for_device(job.device)
         if TYPE_CHECKING:
             assert isinstance(qc, QuantumCircuit)
 
@@ -662,7 +830,9 @@ def submit_remote_ibm_session(
     return _submit_remote_ibm(job, runtime_target=session)
 
 
-def run_remote_ibm(job: Job, qiskit_params: Optional[QiskitParams] = None) -> Result:
+def run_remote_ibm(
+    job: Job, qiskit_params: Optional[QiskitParams] = None
+) -> Result:
     """Submits the job on the right IBM remote device, precised in the job in
     parameter, and waits until the job is completed.
 
@@ -683,7 +853,10 @@ def run_remote_ibm(job: Job, qiskit_params: Optional[QiskitParams] = None) -> Re
     if TYPE_CHECKING:
         assert isinstance(job.device, IBMDevice)
 
-    return extract_result(ibm_result, job, job.device)
+    result = extract_result(ibm_result, job, job.device)
+    if not isinstance(result, Result):
+        raise TypeError("A single IBM job must return a Result.")
+    return result
 
 
 def run_remote_ibm_session(job: Job) -> Result:
@@ -697,7 +870,10 @@ def run_remote_ibm_session(job: Job) -> Result:
 
     _, remote_job = submit_remote_ibm_session(job, session)
     ibm_result = remote_job.result()
-    return extract_result(ibm_result, job, job.device)
+    result = extract_result(ibm_result, job, job.device)
+    if not isinstance(result, Result):
+        raise TypeError("A single IBM session job must return a Result.")
+    return result
 
 
 def run_remote_ibm_batch(jobs: list[Job]) -> BatchResult:
@@ -714,10 +890,11 @@ def run_remote_ibm_batch(jobs: list[Job]) -> BatchResult:
 
 
 def extract_result(
-    result: "QiskitResult | EstimatorResult | PrimitiveResult[PubResult | SamplerPubResult]",
+    result: "QiskitResult | EstimatorResult | PubResult | SamplerPubResult",
     job: Optional[Job],
     device: "IBMDevice | StaticIBMSimulatedDevice | AZUREDevice",
-) -> Result:
+    experiment_index: int = 0,
+) -> Result | BatchResult:
     """Parses a result from ``IBM`` execution (remote or local) in a ``MPQP``
     :class:`~mpqp.execution.result.Result`.
 
@@ -731,47 +908,108 @@ def extract_result(
     Returns:
         The ``qiskit`` result converted to our format.
     """
-    from qiskit.primitives import EstimatorResult, PrimitiveResult
     from qiskit.result import Result as QiskitResult
+    from qiskit.primitives import PubResult, SamplerPubResult, EstimatorResult
+    import numpy as np
 
     # If this is a PubResult from primitives V2
-    if isinstance(result, PrimitiveResult):
-        # res_data is a DataBin, which means all typechecking is out of the
-        # windows for this specific object
-        res_data = result[0].data
-
+    if isinstance(result, (PubResult | SamplerPubResult)):
+        res_data = result.data
         if hasattr(res_data, "evs"):
             if job is None:
                 job = Job(JobType.OBSERVABLE, QCircuit(0), device)
 
-            exp_values = res_data.evs  # pyright: ignore[reportAttributeAccessIssue]
-            exp_values = np.atleast_1d(exp_values)
+            exp_values = np.array(res_data.evs)  # type: ignore
+            stds = (
+                np.array(res_data.stds)  # type: ignore
+                if hasattr(res_data, "stds")
+                else np.zeros_like(exp_values)
+            )
 
-            stds = res_data.stds  # pyright: ignore[reportAttributeAccessIssue]
-            stds = np.atleast_1d(stds)
             shots = (
                 job.measure.shots
                 if job.device.is_simulator() and job.measure is not None
-                else result[0].metadata["shots"]
+                else result.metadata["shots"]
             )
 
-            # If only one result, we directly return the expectation value
-            if len(exp_values) == 1:
-                return Result(job, float(exp_values[0]), float(stds[0]), shots)
+            measures: list[ExpectationMeasure] = (
+                job.circuit.measurements if job.circuit.measurements else []
+            )  # pyright: ignore[reportAssignmentType]
 
-            # If several results, we construct the dictionary with observable labels
-            exp_values_dict = dict()
-            errors_dict = dict()
-            for i in range(len(exp_values)):
-                label = (
-                    job.measure.observables[i].label
-                    if isinstance(job.measure, ExpectationMeasure)
-                    else f"ibm_obs_{i}"
-                )
-                exp_values_dict[label] = float(exp_values[i])
-                errors_dict[label] = float(stds[i])
+            if exp_values.ndim == 0:
+                val = float(exp_values)
+                std = float(stds) if stds.size > 0 else 0.0
+                return Result(job, val, std, shots)
+            elif exp_values.ndim == 2:
+                N_obs, M_params = exp_values.shape
+                batch_results = []
+                for j in range(M_params):
+                    exp_dict, err_dict = {}, {}
+                    obs_flat_idx = 0
+                    for m in measures:
+                        for obs in m.observables:
+                            label = obs.label
+                            if obs_flat_idx < N_obs:
+                                exp_dict[label] = float(exp_values[obs_flat_idx, j])
+                                err_dict[label] = float(stds[obs_flat_idx, j])
+                            obs_flat_idx += 1
+                    batch_results.append(Result(job, exp_dict, err_dict, shots))
+                return BatchResult(batch_results)
 
-            return Result(job, exp_values_dict, errors_dict, shots)
+            elif exp_values.ndim == 1:
+                total_obs = sum(len(m.observables) for m in measures)
+
+                if len(exp_values) == total_obs and len(measures) == 1:
+                    exp_dict, err_dict = {}, {}
+                    if len(measures[0].observables) == 1:
+                        return Result(job, exp_values[0], stds[0], shots)
+                    for idx, obs in enumerate(measures[0].observables):
+                        label = obs.label
+                        exp_dict[label] = float(exp_values[idx])
+                        err_dict[label] = float(stds[idx])
+                    return Result(job, exp_dict, err_dict, shots)
+
+                else:
+                    batch_results = []
+                    for idx, val in enumerate(exp_values):
+                        std_val = (
+                            float(stds[idx])
+                            if stds.size.item() > 0 and stds.size > idx  # type: ignore
+                            else 0.0
+                        )
+                        m_idx = idx % len(measures) if len(measures) > 0 else 0
+                        m = measures[m_idx] if m_idx < len(measures) else measures[0]
+                        obs = m.observables[0] if m.observables else None
+                        label = obs.label if obs else f"ibm_obs_{idx}"
+                        batch_results.append(Result(job, float(val), std_val, shots))
+                    return BatchResult(batch_results)
+            else:
+                batch_results = []
+                observables = measures[0].observables
+                nb_observables = len(observables)
+                for idx, val in np.ndenumerate(exp_values):
+                    std_val = float(stds[idx]) if stds.size > 0 else 0.0
+                    obs_idx = (
+                        idx[-1] % nb_observables
+                        if len(idx) > 0 and nb_observables > 0
+                        else 0
+                    )
+
+                    if nb_observables <= 1:
+                        batch_results.append(Result(job, float(val), std_val, shots))
+                    else:
+                        label = (
+                            observables[obs_idx].label
+                            if obs_idx < len(observables)
+                            else f"ibm_obs_{obs_idx}"
+                        )
+                        if TYPE_CHECKING:
+                            assert label
+                        batch_results.append(
+                            Result(job, {label: float(val)}, {label: std_val}, shots)
+                        )
+
+                return BatchResult(batch_results)
 
         else:
             if job is None:
@@ -792,18 +1030,33 @@ def extract_result(
             if TYPE_CHECKING:
                 assert job.measure is not None
 
-            counts = getattr(res_data, 'c', None)
-            counts = counts.get_counts() if counts else {}
-            data = [
-                Sample(
-                    bin_str=item[::-1],
-                    count=counts[item],
-                    nb_qubits=job.circuit.nb_qubits,
-                )
-                for item in counts
-            ]
+            bit_array = None
+            for key in dir(res_data):
+                if not key.startswith("_"):
+                    val = getattr(res_data, key)
+                    if hasattr(val, "get_counts"):
+                        bit_array = val
+                        break
 
-            return Result(job, data, None, job.measure.shots)
+            if bit_array is None:
+                raise ValueError("No valid BitArray found in SamplerPubResult data.")
+
+            counts_data = bit_array.get_counts()
+            shots = bit_array.num_shots
+
+            counts_array = np.atleast_1d(counts_data)
+            batch_results = []
+
+            for count_dict in counts_array:
+                data = [
+                    Sample(bin_str=k[::-1], count=v, nb_qubits=job.circuit.nb_qubits)
+                    for k, v in count_dict.items()
+                ]
+                batch_results.append(Result(job, data, None, shots))
+
+            if len(batch_results) == 1:
+                return batch_results[0]
+            return BatchResult(batch_results)
 
     else:
 
@@ -816,7 +1069,6 @@ def extract_result(
             )
 
         if isinstance(result, EstimatorResult):
-
             if job is None:
                 job = Job(JobType.OBSERVABLE, QCircuit(0), device)
 
@@ -888,7 +1140,7 @@ def extract_result(
                         )
 
             if job.job_type == JobType.STATE_VECTOR:
-                vector = np.array(result.get_statevector().reverse_qargs())  # type: ignore[reportUnnecessaryIsInstance]
+                vector = np.array(result.get_statevector(experiment_index).reverse_qargs())  # type: ignore[reportUnnecessaryIsInstance]
                 state_vector = StateVector(
                     vector,
                     job.circuit.nb_qubits,
@@ -897,14 +1149,14 @@ def extract_result(
             elif job.job_type == JobType.SAMPLE:
                 if TYPE_CHECKING:
                     assert job.measure is not None
-                if type(device) == AZUREDevice:
+                if isinstance(device, AZUREDevice):
                     from mpqp.execution.providers.azure import (
                         extract_samples as extract_samples_azure,
                     )
 
                     data = extract_samples_azure(job, result)
                 else:
-                    data = extract_samples(job, result)
+                    data = extract_samples(job, result, experiment_index)
                 return Result(job, data, None, job.measure.shots)
             else:
                 raise NotImplementedError(f"{job.job_type} not handled.")
@@ -951,22 +1203,28 @@ def get_result_from_ibm_job_id(job_id: str) -> Result:
         assert isinstance(backend, BackendV2)
     ibm_device = IBMDevice(backend.name)
 
-    return extract_result(result, None, ibm_device)
+    result = extract_result(result, None, ibm_device)
+    if TYPE_CHECKING:
+        assert isinstance(result, Result)
+    return result
 
 
-def extract_samples(job: Job, result: QiskitResult) -> list[Sample]:
+def extract_samples(
+    job: Job, result: QiskitResult, experiment_index: int = 0
+) -> list[Sample]:
     """Extracts measurement samples from the execution results.
 
     Args:
         job: ``MPQP`` job used to generate the run. Enables a more complete result.
         result: Result returned by IBM after running of the job.
+        experiment_index: Index of the experiment/circuit in the batch.
 
     Returns:
         A list of sample objects representing measurement outcomes.
 
     """
-    counts = result.get_counts(0)
-    job_data = result.data()
+    counts = result.get_counts(experiment_index)
+    job_data = result.data(experiment_index)
     return [
         Sample(
             bin_str=item[::-1],
