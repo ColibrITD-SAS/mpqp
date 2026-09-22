@@ -91,9 +91,7 @@ def apply_noise_to_braket_circuit(
     return noisy_circuit
 
 
-def run_braket(
-    job: Job, reservation_arn: Optional[str] = None
-) -> Result | BatchResult:
+def run_braket(job: Job, reservation_arn: Optional[str] = None) -> Result | BatchResult:
     # TODO: check if we keep just reservation_arn, or if we provide change it to `provider_specific_options` dict,
     #  to be more generic
     """Executes the job on the right AWS Braket device (local or remote)
@@ -299,9 +297,7 @@ def run_circuit_binding(job: Job) -> BatchResult:
     return BatchResult(results)
 
 
-def run_braket_observable(
-    job: Job, reservation_arn: Optional[str] = None
-) -> Result:
+def run_braket_observable(job: Job, reservation_arn: Optional[str] = None) -> Result:
     """Returns the result of an ``OBSERVABLE`` job.
 
     TODO: check that the link bellow is correctly generated.

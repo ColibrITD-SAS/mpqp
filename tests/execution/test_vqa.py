@@ -18,7 +18,11 @@ from mpqp.gates import Ry, Rz
 from mpqp.execution.devices import AvailableDevice
 from mpqp.execution.result import Result
 from mpqp.execution.providers.providers_params import QiskitParams
-from mpqp.execution.vqa.optimizer import OptimizableFunc, OptimizerInput, OptimizerOptions
+from mpqp.execution.vqa.optimizer import (
+    OptimizableFunc,
+    OptimizerInput,
+    OptimizerOptions,
+)
 from mpqp.execution.vqa.vqa import Optimizer, OptimizerData, VQAModule
 
 pytestmark = pytest.mark.provider("qiskit")
@@ -26,7 +30,9 @@ theta, phi, scale = symbols("theta phi scale")
 DEVICE = IBMDevice.AER_SIMULATOR
 
 
-def circuit(angle: Expr = theta, measurement: BasisMeasure | ExpectationMeasure | None = None) -> QCircuit:
+def circuit(
+    angle: Expr = theta, measurement: BasisMeasure | ExpectationMeasure | None = None
+) -> QCircuit:
     return QCircuit([Ry(angle, 0), measurement or ExpectationMeasure(Observable(pZ))])
 
 
@@ -138,7 +144,9 @@ def test_parameter_order_validation() -> None:
 
 
 def test_custom_optimizer_and_objective_override() -> None:
-    def optimizer(fun: OptimizableFunc, initial: OptimizerInput, options: OptimizerOptions) -> tuple[float, OptimizerInput]:
+    def optimizer(
+        fun: OptimizableFunc, initial: OptimizerInput, options: OptimizerOptions
+    ) -> tuple[float, OptimizerInput]:
         options["changed"] = True
         return fun([0.5]), [0.5]
 

@@ -636,9 +636,7 @@ def run_aer(job: Job) -> Result | BatchResult:
         if TYPE_CHECKING:
             assert job.measure is not None
         job.status = JobStatus.RUNNING
-        result_sim = backend_sim.run(
-            qiskit_circuit, shots=job.measure.shots
-        ).result()
+        result_sim = backend_sim.run(qiskit_circuit, shots=job.measure.shots).result()
         result = extract_result(result_sim, job, job.device)
     elif job.job_type == JobType.OBSERVABLE:
         result = compute_expectation_value(job, backend_sim, qiskit_circuit)
@@ -647,8 +645,6 @@ def run_aer(job: Job) -> Result | BatchResult:
 
     job.status = JobStatus.DONE
     return result
-
-
 
 
 def _submit_remote_ibm(
@@ -722,7 +718,7 @@ def _submit_remote_ibm(
     elif job.job_type == JobType.SAMPLE:
         if TYPE_CHECKING:
             assert isinstance(meas, BasisMeasure)
-        #sampler = Runtime_Sampler(mode=runtime_target)
+        # sampler = Runtime_Sampler(mode=runtime_target)
         sampler = Runtime_Sampler(mode=backend)
         ibm_job = sampler.run([qiskit_circ], shots=meas.shots)
 
@@ -830,9 +826,7 @@ def submit_remote_ibm_session(
     return _submit_remote_ibm(job, runtime_target=session)
 
 
-def run_remote_ibm(
-    job: Job, qiskit_params: Optional[QiskitParams] = None
-) -> Result:
+def run_remote_ibm(job: Job, qiskit_params: Optional[QiskitParams] = None) -> Result:
     """Submits the job on the right IBM remote device, precised in the job in
     parameter, and waits until the job is completed.
 

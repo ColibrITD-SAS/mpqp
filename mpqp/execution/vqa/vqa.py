@@ -22,7 +22,11 @@ from mpqp.execution.job import ExecutionMode
 from mpqp.execution.result import Result
 from mpqp.execution.runner import ValuesDict, run
 from mpqp.execution.vqa.optimizer import (
-    OptimizableFunc, Optimizer, OptimizerInput, OptimizerOptions, run_optimizer,
+    OptimizableFunc,
+    Optimizer,
+    OptimizerInput,
+    OptimizerOptions,
+    run_optimizer,
 )
 
 OptimizerCallable = Callable[
@@ -119,7 +123,9 @@ class VQAModule:
             raise ValueError("At least one circuit is required.")
         self.backend = device
         self._circuits = tuple(deepcopy(circ) for circ in source)
-        symbols: set[Basic] = set().union(*(circ.variables() for circ in self._circuits))
+        symbols: set[Basic] = set().union(
+            *(circ.variables() for circ in self._circuits)
+        )
         self.variables: tuple[Basic, ...] = tuple(
             sorted(symbols, key=default_sort_key) if parameters is None else parameters
         )
@@ -133,7 +139,9 @@ class VQAModule:
             raise ValueError("Distinct parameters must have distinct names.")
         self.cost_function = cost_function
         self.result = VQAResult()
-        self._bindings: list[tuple[tuple[str, ...], Callable[..., Sequence[float]]]] = []
+        self._bindings: list[tuple[tuple[str, ...], Callable[..., Sequence[float]]]] = (
+            []
+        )
         self._measurement_templates: dict[int, QCircuit] = {}
         for circ in self._circuits:
             # Providers encode expressions such as 2*theta as named parameters.
@@ -193,9 +201,7 @@ class VQAModule:
         values = self._parameters(current_params)
         if mode not in (None, ExecutionMode.JOB):
             raise ValueError("VQAModule supports sequential JOB execution only.")
-        if shots is not None and (
-            type(shots) is not int or shots < 0
-        ):
+        if shots is not None and (type(shots) is not int or shots < 0):
             raise ValueError("shots must be a non-negative integer or None.")
         results: list[Result] = []
         for index, (template, (names, bind)) in enumerate(

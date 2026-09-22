@@ -664,16 +664,16 @@ def run(
     exec_mode = mode or ExecutionMode.JOB
 
     if values_batch is not None and exec_mode != ExecutionMode.BATCH:
-        raise ValueError("values_batch is only supported when mode == ExecutionMode.BATCH")
+        raise ValueError(
+            "values_batch is only supported when mode == ExecutionMode.BATCH"
+        )
 
     if isinstance(circuit, CircuitBinding):
         if values is not None or values_batch is not None:
             raise ValueError("values must be specified inside CircuitBinding")
         results: list[Result] = []
         for target_device in devices:
-            batch = _run_circuit_binding(
-                circuit, target_device, display_breakpoints
-            )
+            batch = _run_circuit_binding(circuit, target_device, display_breakpoints)
             results.extend(batch.results)
         return BatchResult(results)
 
@@ -804,12 +804,12 @@ def submit(
         # TODO: we said that provider specific stuff should only go into the provider specific execution file ,
         #  here ibm.py, to keep the logic simple on runner.py
         if provider_params is not None and not isinstance(
-                    provider_params, QiskitParams
-                ):
-                    raise ValueError(
-                        f"provider_params should be QiskitParam not {type(provider_params)}"
-                    )
-                
+            provider_params, QiskitParams
+        ):
+            raise ValueError(
+                f"provider_params should be QiskitParam not {type(provider_params)}"
+            )
+
         if mode == ExecutionMode.SESSION:
             from mpqp.execution.connection.ibm_connection import (
                 get_backend,
@@ -825,7 +825,6 @@ def submit(
 
             job_id, _ = submit_remote_ibm(job, provider_params)
 
-        
     elif isinstance(device, ATOSDevice):
         job_id, _ = submit_QLM(job)
     elif isinstance(device, AWSDevice):
