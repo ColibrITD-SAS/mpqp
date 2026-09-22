@@ -7,14 +7,23 @@ for fixes explicitly.
 ## Review objective
 
 Review MPQP as a user-facing scientific library and as a provider-independent
-abstraction over several quantum SDKs. Prioritize observable correctness,
-scientific validity, API stability, and regressions over subjective style.
+abstraction over several quantum SDKs. Prioritize correctness of user-visible
+results and behavior, scientific validity, API stability, and regressions over
+subjective style.
+
+When the environment permits, run the relevant local tests and exercise the
+affected behavior through the public API. Identify missing regression tests and
+check for newly introduced errors, behavioral regressions, and material performance
+problems. State clearly which checks could not be run.
 
 Start by understanding the pull request's stated goal and its complete diff against
 the merge base. Review changed behavior in context: inspect callers, sibling
-implementations, tests, public exports, and documentation. Do not report unrelated
-pre-existing problems unless the pull request makes them worse or relies on them.
-Call out unexplained or accidental changes outside the stated scope.
+implementations, tests, supported public import paths and facade modules, and
+documentation. When relevant, also inspect dependency and packaging files such as
+`requirements*.txt`, `requirements_providers/*.txt`, `setup.py`, and
+`pyproject.toml`. Do not report unrelated pre-existing problems unless the pull
+request makes them worse or relies on them. Call out unexplained or accidental
+changes outside the stated scope.
 
 ## MPQP design principles
 
@@ -81,7 +90,10 @@ Check constructors, properties, cloning helpers, caches, and conversion methods 
 - shared mutable defaults such as `[]` or `{}`;
 - shallow copies presented as deep copies, or redundant `deepcopy` calls;
 - one instruction reused in multiple positions or circuits;
-- stale cached environment/provider state;
+- cached environment variables, credentials, installed-provider detection, or
+  transpiled circuits, noise models, and observables that are not invalidated when
+  their inputs change or are not keyed by every input and backend property that
+  affects their value;
 - public and private attributes representing the same state and drifting apart;
 - partially initialized objects, especially code using `__new__` or bypassing the
   normal constructor;
@@ -93,8 +105,9 @@ Treat signatures, import paths, names, defaults, exceptions, warnings, `repr`, a
 `str` as compatibility-sensitive.
 
 - Prefer MPQP-level types and concepts in the public API.
-- Verify that new public objects are exported from the appropriate facade module
-  when they are meant to be discoverable.
+- Verify that new public objects are available from the supported public import
+  paths and facade modules when they are meant to be discoverable, for example
+  through `from mpqp import ...`, `mpqp.gates`, or `mpqp.measures`.
 - Preserve established defaults and behavior unless the change is intentional and
   documented.
 - Validate inputs at the boundary and raise an informative, appropriate exception.
@@ -248,6 +261,11 @@ Each finding must:
 - explain the observable consequence, not merely a preference;
 - suggest the direction of a fix when it is not obvious;
 - distinguish verified behavior from an inference or an open question.
+
+For a small, unambiguous edit such as a typo, syntax error, or one-line correction,
+include a GitHub `suggestion` block in the inline comment so the author can apply
+it directly. Let the author decide whether to accept it; do not modify the branch
+during a review unless explicitly asked.
 
 Do not inflate style preferences into blockers. Avoid vague comments such as
 "why?", "this looks wrong", or "add tests" without naming the risk and missing
