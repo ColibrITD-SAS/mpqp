@@ -117,12 +117,7 @@ def statevector_from_random_circuit(
         The statevector with the specified number of qubits
 
     Examples:
-        >>> expected = np.array([
-        ...     0.4364437 + 0.13832902j,
-        ...     0,
-        ...     0.21760065 + 0.861993j,
-        ...     0,
-        ... ])
+        >>> expected = np.array([0.4364437 + 0.13832902j, 0, 0.21760065 + 0.861993j, 0])
         >>> np.allclose(statevector_from_random_circuit(2, seed=123), expected)
         True
     """

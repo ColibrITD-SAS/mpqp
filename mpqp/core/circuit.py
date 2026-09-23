@@ -1599,10 +1599,6 @@ class QCircuit:
         elif isinstance(device, AWSDevice):
             if job_type == JobType.STATE_VECTOR:
                 skip_measurements = True
-            if device == AWSDevice.IQM_EMERALD or device == AWSDevice.IQM_GARNET:
-                for instr in self.instructions:
-                    for i in range(len(instr.targets)):
-                        instr.targets[i] += 1
 
             aws_circuit = translated_circuit.to_other_language(
                 Language.BRAKET,

@@ -124,9 +124,6 @@ def compute_expectation_value(
 
         if TYPE_CHECKING:
             assert isinstance(ibm_circuit, QuantumCircuit)
-        qiskit_observables = [
-            obs.apply_layout(ibm_circuit.layout) for obs in qiskit_observables
-        ]
         options = {"default_shots": nb_shots}
         estimator = Runtime_Estimator(mode=backend, options=options)
 

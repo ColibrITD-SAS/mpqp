@@ -379,14 +379,14 @@ def _Gate_U(circuit: QCircuit, gate_str: str, tokens: list[LexToken], idx: int) 
     idx += 1
 
     theta, phi, lbda = 0, 0, 0
+    parameters, idx = _eval_expr(tokens, idx)
     if gate_str == 'u1':
-        theta, idx = _eval_expr(tokens, idx)
+        (lbda,) = parameters
     elif gate_str == 'u2':
-        theta, idx = _eval_expr(tokens, idx)
-        phi, idx = _eval_expr(tokens, idx)
+        phi, lbda = parameters
+        theta = np.pi / 2
     elif gate_str == 'u3' or gate_str == 'u' or gate_str == 'U':
-        list_params, idx = _eval_expr(tokens, idx)
-        theta, phi, lbda = tuple(list_params)
+        theta, phi, lbda = parameters
     if check_Id(tokens, idx):
         raise SyntaxError(
             f'GateU:  {" ".join(str(token.value) for token in tokens[idx : idx + 4])}'

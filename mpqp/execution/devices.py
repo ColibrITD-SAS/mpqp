@@ -28,6 +28,8 @@ import warnings
 from abc import abstractmethod
 from enum import Enum, auto
 
+from typing_extensions import override
+
 from mpqp.core.instruction.gates import Gate
 from mpqp.core.instruction.gates.native_gates import *
 from mpqp.environment.env_manager import get_env_variable
@@ -408,7 +410,8 @@ class AWSDevice(AvailableDevice):
         else:
             return get_env_variable("AWS_DEFAULT_REGION")
 
-    def compatible_gate(self, native_set: bool = False) -> set[type[Gate]]:
+    @override
+    def compatible_gates(self, native_set: bool = False) -> set[type[Gate]]:
         """List of compatible gates with the devices that can be found in MPQP.
         Lists pulled from here: https://docs.aws.amazon.com/braket/latest/developerguide/braket-submit-tasks.html#braket-qpu-partner-iqm
         """

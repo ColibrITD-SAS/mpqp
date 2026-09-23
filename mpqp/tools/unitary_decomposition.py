@@ -10,8 +10,6 @@ from typing import Optional, Union
 import numpy as np
 from scipy.linalg import cossin
 
-from scipy.linalg import cossin
-
 from mpqp.core.circuit import QCircuit
 from mpqp.gates import CNOT, Ry, Rz
 from mpqp.tools import Matrix
@@ -129,7 +127,6 @@ def _gray_code_decomposition(
         changed = _gray_code(i) ^ _gray_code(i + 1)
         control = next(i for i in range(len(thetas)) if (changed >> i & 1))
         control = max(-control - targets[position] - 1 + circuit.nb_qubits, 1)
-        control = max(-control - targets[position] - 1 + circuit.nb_qubits, 1)
         if np.abs(angle) > PRECISION:  # Dodge unnecessary rotations
             circuit.add(rotation(angle, targets[position]))
         circuit.add(CNOT(control + targets[position], targets[position]))
@@ -197,11 +194,9 @@ def _decompose(
 
         # Now recursively decompose every obtained matrices.
         circuit = _decompose(Wv, circuit, targets, position + 1)
-        circuit = _decompose(Wv, circuit, targets, position + 1)
         circuit = _gray_code_decomposition(
             dv, circuit, targets, position, Rz  # pyright: ignore[reportArgumentType]
         )
-        circuit = _decompose(Vv, circuit, targets, position + 1)
         circuit = _decompose(Vv, circuit, targets, position + 1)
 
         circuit = _gray_code_decomposition(
@@ -213,11 +208,9 @@ def _decompose(
         )
 
         circuit = _decompose(Wu, circuit, targets, position + 1)
-        circuit = _decompose(Wu, circuit, targets, position + 1)
         circuit = _gray_code_decomposition(
             du, circuit, targets, position, Rz  # pyright: ignore[reportArgumentType]
         )
-        circuit = _decompose(Vu, circuit, targets, position + 1)
         circuit = _decompose(Vu, circuit, targets, position + 1)
 
         return circuit
@@ -269,8 +262,13 @@ def quantum_shannon_decomposition(
     .. [1] Mikko Möttönen, Juha J. Vartiainen, Ville Bergholm, and Martti M. Salomaa. 2004. Quantum circuits for general multi-qubit gates. American Physical Society (APS) : 93-13.
 
     Examples:
+        >>> from mpqp.tools.maths import matrix_eq
         >>> U = np.array([[1,0],[0,1]])
         >>> circuit = quantum_shannon_decomposition(U, [0])
+        >>> print(matrix_eq(U, circuit.to_matrix()))
+        True
+        >>> U = np.fft.fft(np.eye(4)) / 2
+        >>> circuit = quantum_shannon_decomposition(U, [0, 1])
         >>> print(matrix_eq(U, circuit.to_matrix()))
         True
     """
