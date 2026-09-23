@@ -41,8 +41,7 @@ DEBUG: After instruction 2, state is
        q_0: ┤ H ├┤ Y ├
             └───┘└───┘
        q_1: ──────────
-"""
-        + "               \n",
+""" + "               \n",
     ),
     (
         QCircuit([H(0), CNOT(0, 1), Breakpoint(enabled=False), Y(1)]),
