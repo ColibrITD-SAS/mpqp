@@ -2374,8 +2374,7 @@ class TOF(InvolutionGate, ControlledGate, NoParameterGate):
 
 
 class GPi(RotationGate, SingleQubitGate, ComposedGate):
-    """Braket specific single qubit gate.
-    This gate is only used on IONQ hardware.
+    r"""IonQ native single-qubit gate.
 
     GPi(φ) = Rz(φ) X Rz(-φ)
 
@@ -2390,13 +2389,14 @@ class GPi(RotationGate, SingleQubitGate, ComposedGate):
         target: Target qubit.
     
     Example:
-        >>> pprint(GPi(np.pi, 0).to_matrix())
-        [[0  , -1j],
-         [-1j, 0  ]]
+        >>> pprint(GPi(np.pi / 2, 0).to_matrix())
+        [[0 , -1j],
+         [1j, 0  ]]
     
     """
 
-    qlm_aqasm_keyword = "GPi"
+    qiskit_string = "GPi"
+    qlm_aqasm_keyword = "gpi"
 
     @classproperty
     def braket_gate(cls):
@@ -2406,31 +2406,24 @@ class GPi(RotationGate, SingleQubitGate, ComposedGate):
 
     @classproperty
     def qiskit_gate(cls):
-        pass
+        raise NotImplementedError
 
     @classproperty
     def cirq_gate(cls):
-        pass
+        from mpqp.translation.cirq import cirqGPIGate
+
+        return cirqGPIGate
 
     def __init__(self, phi: Expr | float, target: int):
         self.targets = [target]
         super().__init__([phi], self.targets)
 
     def to_canonical_matrix(self):
-        return np.matrix(
+        phi = self.parameters[0]
+        return np.array(
             [
-                [
-                    0,
-                    np.exp(
-                        -1j * self.parameters[0]  # pyright: ignore[reportOperatorIssue]
-                    ),
-                ],
-                [
-                    np.exp(
-                        1j * self.parameters[0]  # pyright: ignore[reportOperatorIssue]
-                    ),
-                    0,
-                ],
+                [0, exp(symbolic_product(-1j, phi))],
+                [exp(symbolic_product(1j, phi)), 0],
             ]
         )
 
@@ -2445,7 +2438,7 @@ class GPi(RotationGate, SingleQubitGate, ComposedGate):
         ]
 
     def inverse(self) -> Gate:
-        return self.__class__(-self.parameters[0], self.targets[0])
+        return self.__class__(self.parameters[0], self.targets[0])
 
     def __repr__(self):
         return f"GPi({self.parameters[0]}, {self.targets[0]})"
@@ -2462,6 +2455,8 @@ class GPi(RotationGate, SingleQubitGate, ComposedGate):
                 operator=self.braket_gate(_sympy_to_braket_param(self.parameters[0])),
                 target=self.targets,
             )
+        if language == Language.CIRQ:
+            return self.cirq_gate(phi=symbolic_divide(self.parameters[0], 2 * np.pi))
         return super().to_other_language(language, qiskit_parameters)
 
 

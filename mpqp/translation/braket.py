@@ -48,7 +48,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
 
     def get_braket_gate_set() -> set[type[Gate]]:
         """Return gates directly representable by Braket."""
-        from mpqp.gates import CNOT, PRX, Rxx, Ryy, Rzz, Rx, Ry, Rz
+        from mpqp.gates import CNOT, GPi, PRX, Rxx, Ryy, Rzz, Rx, Ry, Rz
 
         return {
             Rx,
@@ -58,6 +58,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
             Rxx,
             Ryy,
             Rzz,
+            GPi,
             CNOT,
         }
 

@@ -16,6 +16,7 @@ COMPOSED_GATES = [
     Rzz(np.pi / 2, 0, 1),
     Ryy(np.pi / 2, 0, 1),
     PRX(np.pi / 3, 1, 0),
+    GPi(np.pi / 3, 0),
 ]
 
 
@@ -26,6 +27,8 @@ COMPOSED_GATES = [
         (Ryy(np.pi / 2, 0, 1), Language.QISKIT),
         (Rzz(np.pi / 2, 0, 1), Language.BRAKET),
         (PRX(np.pi / 3, 1, 0), Language.BRAKET),
+        (GPi(np.pi / 3, 0), Language.BRAKET),
+        (GPi(np.pi / 3, 0), Language.CIRQ),
     ],
 )
 def test_composedgate_compatible(gate: Gate, language: Language) -> None:
@@ -38,6 +41,7 @@ def test_composedgate_compatible(gate: Gate, language: Language) -> None:
     [
         (PRX(1.0, 0.5, 0), {Rx, Rz}, [Rz, Rx, Rz]),
         (Rzz(1.0, 0, 1), {CNOT, Rz}, [CNOT, Rz, CNOT]),
+        (GPi(1.0, 0), {X, Rz}, [Rz, X, Rz]),
     ],
 )
 def test_composed_gate_is_decomposed(
@@ -146,6 +150,20 @@ def test_composedgate_translation_decomposition(gate: Gate, language: Language):
 def test_composedgates_decomposition(gate: ComposedGate):
     c = QCircuit(gate.decompose())
     assert matrix_eq(c.to_matrix(), gate.to_matrix())
+
+
+@pytest.mark.parametrize("phi", [0, np.pi / 3, np.pi / 2, np.pi])
+def test_gpi_cirq_statevector_and_roundtrip(phi: float) -> None:
+    import cirq
+
+    circuit = QCircuit([GPi(phi, 0)])
+    cirq_circuit = circuit.to_other_language(Language.CIRQ)
+
+    statevector = cirq.Simulator().simulate(cirq_circuit).final_state_vector
+    assert np.allclose(statevector, circuit.to_matrix()[:, 0])
+
+    restored = QCircuit.from_other_language(cirq_circuit)
+    assert matrix_eq(restored.to_matrix(), circuit.to_matrix())
 
 
 @pytest.mark.parametrize("gate", [Rxx(np.pi / 2, 0, 1)])

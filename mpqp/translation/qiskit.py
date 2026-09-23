@@ -33,9 +33,9 @@ if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
         return qc
 
     def get_qiskit_gate_set() -> set[type[Gate]]:
-        from mpqp.gates import CNOT, PRX, Rxx, Ryy, Rzz, Rx, Ry, Rz
+        from mpqp.gates import CNOT, PRX, Rxx, Ryy, Rzz, Rx, Ry, Rz, X, Y, Z, TOF, S
 
-        return {Rx, Ry, Rz, PRX, Rxx, Ryy, Rzz, U, CNOT}
+        return {Rx, Ry, Rz, PRX, Rxx, Ryy, Rzz, U, CNOT, X, Y, Z, TOF, S}
 
     def mpqp_to_qiskit(
         circuit: QCircuit,

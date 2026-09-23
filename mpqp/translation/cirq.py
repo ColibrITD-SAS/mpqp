@@ -82,9 +82,9 @@ if InstalledProviders.CIRQ in _INSTALLED_MPQP_PROVIDERS:
 
     def get_cirq_gate_set() -> set[type[Gate]]:
         """Return gates directly representable by Cirq."""
-        from mpqp.gates import CNOT, Rx, Ry, Rz
+        from mpqp.gates import CNOT, GPi, Rx, Ry, Rz
 
-        return {Rx, Ry, Rz, CNOT}
+        return {Rx, Ry, Rz, GPi, CNOT}
 
     def mpqp_to_cirq(
         circuit: QCircuit,
@@ -281,3 +281,20 @@ if InstalledProviders.CIRQ in _INSTALLED_MPQP_PROVIDERS:
             if self.label:
                 return f"{self.label}"
             return f"MPQP custom gate"
+
+    from cirq_ionq import GPIGate
+
+    class cirqGPIGate(GPIGate):  # pyright: ignore[reportUntypedBaseClass]
+        def __init__(self, *, phi: float):
+            super().__init__(phi=phi)
+
+        def _decompose_(self, qubits: list["Qid"]):
+            from cirq.ops.pauli_gates import X as CirqX
+            from cirq.ops.common_gates import rz as CirqRz
+            import numpy as np
+
+            q1 = qubits[0]
+            angle = 2 * np.pi * self.phi
+            yield CirqRz(-angle).on(q1)
+            yield CirqX.on(q1)
+            yield CirqRz(angle).on(q1)

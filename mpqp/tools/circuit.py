@@ -118,9 +118,9 @@ def statevector_from_random_circuit(
 
     Examples:
         >>> expected = np.array([
-        ...     0.4364437 + 0.13832902j,
+        ...     0.62054458-0.33900505j,
         ...     0,
-        ...     0.21760065 + 0.861993j,
+        ...     0.07751884+0.70284481j,
         ...     0,
         ... ])
         >>> np.allclose(statevector_from_random_circuit(2, seed=123), expected)

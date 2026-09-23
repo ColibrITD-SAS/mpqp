@@ -126,9 +126,9 @@ gate zz(a) b, c {
 }
 
 gate gpi(a) b {
-    rz(a) b;
-    x b;
     rz(-a) b;
+    x b;
+    rz(a) b;
 }
 
 gate gpi2(a) b {
