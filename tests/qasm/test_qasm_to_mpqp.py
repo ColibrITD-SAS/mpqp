@@ -211,11 +211,9 @@ def test_random_qasm_code():
     ],
 )
 def test_standard_u_gates(instruction: str, expected_gate: U):
-    circuit = qasm2_parse(
-        f'''OPENQASM 2.0;
+    circuit = qasm2_parse(f'''OPENQASM 2.0;
         include "qelib1.inc";
         qreg q[1];
-        {instruction}'''
-    )
+        {instruction}''')
 
     assert circuit.instructions == [expected_gate]
