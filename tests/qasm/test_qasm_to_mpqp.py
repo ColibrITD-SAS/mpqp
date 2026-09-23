@@ -1,8 +1,9 @@
 from typing import TYPE_CHECKING
 
+import numpy as np
 import pytest
 
-from mpqp import CNOT, CP, BasisMeasure, H, Language
+from mpqp import CNOT, CP, BasisMeasure, H, Language, U
 from mpqp.translation.qasm.qasm_to_mpqp import qasm2_parse
 from mpqp.tools.circuit import random_circuit
 
@@ -198,3 +199,23 @@ def test_random_qasm_code():
         if TYPE_CHECKING:
             assert isinstance(qasm_code, str)
         assert qcircuit.is_equivalent(qasm2_parse(qasm_code))
+
+
+@pytest.mark.parametrize(
+    "instruction, expected_gate",
+    [
+        ("u1(pi/4) q[0];", U(0, 0, np.pi / 4, 0)),
+        ("u2(pi/3,pi/4) q[0];", U(np.pi / 2, np.pi / 3, np.pi / 4, 0)),
+        ("u3(pi/2,pi/3,pi/4) q[0];", U(np.pi / 2, np.pi / 3, np.pi / 4, 0)),
+        ("U(pi/2,pi/3,pi/4) q[0];", U(np.pi / 2, np.pi / 3, np.pi / 4, 0)),
+    ],
+)
+def test_standard_u_gates(instruction: str, expected_gate: U):
+    circuit = qasm2_parse(
+        f'''OPENQASM 2.0;
+        include "qelib1.inc";
+        qreg q[1];
+        {instruction}'''
+    )
+
+    assert circuit.instructions == [expected_gate]
