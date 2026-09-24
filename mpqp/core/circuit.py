@@ -75,7 +75,7 @@ if TYPE_CHECKING:
     from braket.circuits import Circuit as braket_Circuit
     from cirq.circuits.circuit import Circuit as cirq_Circuit
     from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
-    from qiskit.circuit import Parameter, QuantumCircuit
+    from qiskit.circuit import QuantumCircuit
     from qiskit_aer import AerSimulator
     from sympy import Basic, Expr
     from mpqp.execution.job import JobType
@@ -319,6 +319,9 @@ class QCircuit:
                     if isinstance(self.instructions[i], Gate):
                         break
             self.instructions.append(components)
+
+        self.transpiled_circuit.clear()
+        self.transpiled_noise_model = None
 
     def _check_components_targets(self, components: Instruction | NoiseModel):
         if isinstance(components, BasisMeasure):
@@ -1025,6 +1028,8 @@ class QCircuit:
             if attr not in exclude_attrs:
                 if deep_copy is True:
                     setattr(new_obj, attr, deepcopy(val))
+                elif attr == "transpiled_circuit":
+                    setattr(new_obj, attr, val.copy())
                 else:
                     setattr(new_obj, attr, val)
         return new_obj
@@ -1878,15 +1883,15 @@ class QCircuit:
             ...      BasisMeasure(shots=1000)]
             ... )
             >>> print(c)  # doctest: +NORMALIZE_WHITESPACE
-                 ┌───────┐┌───┐┌───┐                             ┌─┐
-            q_0: ┤ Rx(θ) ├┤ X ├┤ H ├───────────■─────────────────┤M├───
-                 └───────┘└─┬─┘└───┘┌────────┐ │P(2**(1 - k)*pi) └╥┘┌─┐
-            q_1: ───────────■────■──┤ P(π/2) ├─■──────────────────╫─┤M├
-                               ┌─┴─┐└─┬───┬──┘        ┌─┐         ║ └╥┘
-            q_2: ──────────────┤ X ├──┤ X ├───────────┤M├─────────╫──╫─
-                               └───┘  └───┘           └╥┘         ║  ║
-            c: 3/══════════════════════════════════════╩══════════╩══╩═
-                                                       2          0  1
+                 ┌───────┐┌───┐┌───┐                            ┌─┐
+            q_0: ┤ Rx(θ) ├┤ X ├┤ H ├───────────■────────────────┤M├───
+                 └───────┘└─┬─┘└───┘┌────────┐ │P(2**(1 - k)*π) └╥┘┌─┐
+            q_1: ───────────■────■──┤ P(π/2) ├─■─────────────────╫─┤M├
+                               ┌─┴─┐└─┬───┬──┘       ┌─┐         ║ └╥┘
+            q_2: ──────────────┤ X ├──┤ X ├──────────┤M├─────────╫──╫─
+                               └───┘  └───┘          └╥┘         ║  ║
+            c: 3/═════════════════════════════════════╩══════════╩══╩═
+                                                      2          0  1
             >>> print(c.subs({theta: np.pi, k: 1}))  # doctest: +NORMALIZE_WHITESPACE
                  ┌───────┐┌───┐┌───┐                 ┌─┐
             q_0: ┤ Rx(π) ├┤ X ├┤ H ├───────────■─────┤M├───
@@ -1962,14 +1967,29 @@ class QCircuit:
 
     def transpiled_for_device(self, device: AvailableDevice):
         if device not in self.transpiled_circuit:
-            self.transpiled_circuit[device] = (
-                self.to_other_device(  # pyright: ignore[reportCallIssue]
-                    device  # pyright: ignore[reportArgumentType]
+            from mpqp.execution.devices import IBMDevice
+
+            if (
+                self.is_noisy
+                and isinstance(device, IBMDevice)
+                and not device.is_remote()
+            ):
+                from qiskit_aer import AerSimulator
+
+                from mpqp.execution.providers.ibm import generate_qiskit_noise_model
+
+                noise_model, circuit = generate_qiskit_noise_model(self)
+                self.transpiled_noise_model = noise_model
+                backend = AerSimulator(
+                    method=device.value,
+                    noise_model=noise_model,
                 )
-            )
-        for instruction in self.instructions:
-            if isinstance(instruction, ExpectationMeasure):
-                instruction.pre_transpile_observables(device)
+                self.transpiled_circuit[device] = circuit.to_other_device(
+                    device,
+                    backend_sim=backend,
+                )
+            else:
+                self.transpiled_circuit[device] = self.to_other_device(device)
         return self.transpiled_circuit[device]
 
     def variables(self) -> set[Basic]:
@@ -1998,7 +2018,7 @@ class QCircuit:
         return params
 
     def bind_parameters(
-        self, device: AvailableDevice, values: dict[str | Parameter | Basic, Number]
+        self, device: AvailableDevice, values: dict[Expr | str, Number]
     ):
         """Bind parameter values to the transpiled circuit."""
         # TODO: to enhance docs

@@ -17,12 +17,7 @@ import inspect
 import sys
 from abc import abstractmethod
 from numbers import Integral
-from typing import TYPE_CHECKING, Optional
-
-if TYPE_CHECKING:
-    from sympy import Expr
-    from qiskit._accelerate.circuit import Parameter
-    from braket.circuits import FreeParameter
+from typing import TYPE_CHECKING, Callable, Mapping, Optional, TypeVar, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -35,16 +30,45 @@ from mpqp.core.languages import Language
 from mpqp.tools.generics import Matrix, SimpleClassReprABC, classproperty
 from mpqp.tools.maths import cos, exp, sin
 
+if TYPE_CHECKING:
+    from braket.circuits import FreeParameterExpression
+    from qiskit._accelerate.circuit import Parameter, ParameterExpression
+    from sympy import Basic, Expr
+
 # pylance doesn't handle well Expr, so a lot of "type:ignore" will happen in
 # this file :/
 
 
-# from sympy import Expr, pi
+SymbolicExpression = TypeVar("SymbolicExpression")
+
+
+def _evaluate_symbolic_expression(
+    expression: "Expr",
+    parameter_factory: Callable[["Basic"], SymbolicExpression],
+    functions: Optional[
+        Mapping[str, Callable[[SymbolicExpression], SymbolicExpression]]
+    ] = None,
+) -> SymbolicExpression | float:
+    """Evaluate a SymPy expression with provider-native named parameters."""
+    if not expression.free_symbols:
+        return float(expression.evalf())
+    
+    from sympy import default_sort_key, lambdify
+
+    symbols = tuple(sorted(expression.free_symbols, key=default_sort_key))
+    parameters = tuple(parameter_factory(symbol) for symbol in symbols)
+    evaluator = lambdify(
+        symbols,
+        expression,
+        modules=[dict(functions or {}), "math"],
+        dummify=True,
+    )
+    return cast(SymbolicExpression | float, evaluator(*parameters))
 
 
 def _qiskit_parameter_adder(
     param: Expr | float, qiskit_parameters: set["Parameter"]
-) -> "Parameter | float | int":
+) -> "ParameterExpression | float":
     """To avoid having several parameters in qiskit for the same value we keep
     track of them in a set. This function takes care of this, this way you can
     directly call `QiskitGate(_qiskit_parameter_adder(<param>, <q_params_set>))`
@@ -60,45 +84,57 @@ def _qiskit_parameter_adder(
     Returns:
         The memoized parameter
     """
-    from sympy import Expr
+    from qiskit.circuit import Parameter as ParameterConstructor
+    from sympy import Expr, Function
 
     if isinstance(param, Expr):
-        name = str(param)
-        previously_set_param = list(
-            filter(lambda elt: elt.name == name, qiskit_parameters)
-        )
-        if len(previously_set_param) > 1:
-            raise ReferenceError(
-                "Somehow two parameter got the same name, this shouldn't be "
-                "possible. For help on this error please contact the authors of"
-                " this library"
-            )
-        elif len(previously_set_param) == 1:
-            qiskit_param = previously_set_param[0]
-        else:
-            from qiskit.circuit import Parameter
 
-            qiskit_param = Parameter(name)
-            qiskit_parameters.add(qiskit_param)
-    else:
-        qiskit_param = param
-    return qiskit_param
+        def parameter(symbol: "Basic") -> "ParameterExpression":
+            name = str(symbol)
+            matches = [item for item in qiskit_parameters if item.name == name]
+            if len(matches) > 1:
+                raise ReferenceError(f"Several Qiskit parameters are named {name!r}.")
+            if matches:
+                return matches[0]
+            created = cast("Parameter", ParameterConstructor(name))
+            qiskit_parameters.add(created)
+            return created
+
+        def provider_function(
+            name: str,
+        ) -> Callable[["ParameterExpression"], "ParameterExpression"]:
+            def apply(value: "ParameterExpression") -> "ParameterExpression":
+                operation = getattr(value, name, None)
+                if not callable(operation):
+                    raise ValueError(
+                        f"Qiskit parameters do not support the function {name!r}."
+                    )
+                return cast("ParameterExpression", operation())
+
+            return apply
+
+        functions = {
+            function.func.__name__: provider_function(function.func.__name__)
+            for function in param.atoms(Function)
+        }
+        return _evaluate_symbolic_expression(param, parameter, functions)
+    return float(param)
 
 
-def _sympy_to_braket_param(val: Expr | float) -> "float | FreeParameter":
+def _sympy_to_braket_param(
+    val: Expr | float,
+) -> "FreeParameterExpression | float":
+    from braket.circuits import FreeParameter as BraketFreeParameter
     from sympy import Expr
-    from braket.circuits import FreeParameter
-
+    
     if isinstance(val, Expr):
-        if val.free_symbols:
-            return FreeParameter(str(val))  # note: Braket won't parse expressions
-        else:
-            try:
-                return float(val.evalf())
-            except Exception as e:
-                raise ValueError(f"Failed to evaluate sympy expression '{val}': {e}")
-    else:
-        return float(val)
+        return _evaluate_symbolic_expression(
+            val,
+            lambda symbol: cast(
+                "FreeParameterExpression", BraketFreeParameter(str(symbol))
+            ),
+        )
+    return float(val)
 
 
 class NativeGate(Gate, SimpleClassReprABC):
@@ -247,8 +283,9 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
                 qiskit_parameters = set()
             return self.qiskit_gate(_qiskit_parameter_adder(theta, qiskit_parameters))
         elif language == Language.BRAKET:
-            from braket.circuits import Instruction
             from copy import deepcopy
+
+            from braket.circuits import Instruction
 
             connection = deepcopy(self.targets)
             if isinstance(self, ControlledGate):
@@ -361,8 +398,9 @@ class NoParameterGate(NativeGate, SimpleClassReprABC):
         if language == Language.QISKIT:
             return self.qiskit_gate()
         elif language == Language.BRAKET:
-            from braket.circuits import Instruction
             from copy import deepcopy
+
+            from braket.circuits import Instruction
 
             connection = deepcopy(self.targets)
             if isinstance(self, ControlledGate):

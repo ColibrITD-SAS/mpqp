@@ -1,24 +1,25 @@
 from enum import Enum, auto
-from typing import TYPE_CHECKING, Any, overload
-from typing import Optional, TypeVar, Union
-from numbers import Complex
+from typing import TYPE_CHECKING, Any, Optional, TypeVar, overload
+
+from sympy import Expr
+
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.measurement.measure import Measure
-from mpqp.tools.generics import OneOrMany
-from sympy import Expr
+from mpqp.execution.devices import AvailableDevice, AWSDevice, IBMDevice
 from mpqp.noise.noise_model import NoiseModel
-from mpqp.execution.devices import AWSDevice, AvailableDevice, IBMDevice
+from mpqp.tools.generics import OneOrMany
 
 if TYPE_CHECKING:
-    from mpqp.execution.job import Job
-    from qiskit_aer import AerSimulator
-    from qiskit.primitives.containers import EstimatorPubLike
     from braket.program_sets import ProgramSet
+    from qiskit.primitives.containers import EstimatorPubLike
+    from qiskit_aer import AerSimulator
+    from mpqp.execution.runner import ValuesDict
+
+    from mpqp.execution.job import Job
 
 
-BindingParameters = dict[Union["Expr", str], Union[Complex, float]]
-BindingExecution = tuple[QCircuit, Optional[BindingParameters], Optional[Measure]]
-BindingOptions = tuple[Optional[BindingParameters], Optional[Measure]]
+BindingExecution = tuple[QCircuit, Optional["ValuesDict"], Optional[Measure]]
+BinDingOptions = tuple[Optional["ValuesDict"], Optional[Measure]]
 _AxisElement = TypeVar("_AxisElement")
 
 
@@ -73,14 +74,15 @@ class CircuitBinding:
         noises: Optional[list[NoiseModel]] = None,
         shots: Optional[int] = None,
     ) -> None:
-        from mpqp.execution.runner import adjust_measure
-        from mpqp.execution.job import JobType
         from typing import TYPE_CHECKING, Sequence
+
         from mpqp.core.instruction.measurement import (
-            Measure,
-            ExpectationMeasure,
             BasisMeasure,
+            ExpectationMeasure,
+            Measure,
         )
+        from mpqp.execution.job import JobType
+        from mpqp.execution.runner import adjust_measure
 
         if mode == BindingMode.ZIP and measurements is not None and values is not None:
             m = measurements if isinstance(measurements, Sequence) else [measurements]
@@ -237,7 +239,7 @@ class CircuitBinding:
         ):
             shots = -1
             for circuit in circuits:
-                if isinstance(circuit, 'CircuitBinding'):
+                if isinstance(circuit, "CircuitBinding"):
                     for c in circuit.circuits:
                         if TYPE_CHECKING:
                             assert c.measurements is not None
@@ -289,8 +291,8 @@ class CircuitBinding:
                 transpilation.
         """
 
-        from mpqp.execution.providers.ibm import generate_qiskit_noise_model
         from mpqp import QCircuit
+        from mpqp.execution.providers.ibm import generate_qiskit_noise_model
 
         for i, c in enumerate(self.circuits):
             if isinstance(c, QCircuit):
@@ -341,9 +343,9 @@ class CircuitBinding:
             if isinstance(self.value, list)
             else ([self.value] if self.value is not None else [None])
         )
-        parent_values: list[Optional[BindingParameters]] = [
+        parent_values: list[Optional["ValuesDict"]] = [
             (
-                cast(BindingParameters, parameter_set)
+                cast("ValuesDict", parameter_set)
                 if parameter_set is not None
                 else None
             )
@@ -356,9 +358,9 @@ class CircuitBinding:
         )  # pyright: ignore[reportAssignmentType]
 
         def merge_values(
-            child_parameters: Optional[BindingParameters],
-            parent_parameters: Optional[BindingParameters],
-        ) -> Optional[BindingParameters]:
+            child_parameters: Optional["ValuesDict"],
+            parent_parameters: Optional["ValuesDict"],
+        ) -> Optional["ValuesDict"]:
             """Merge child and parent values, giving precedence to the parent."""
             if child_parameters is None and parent_parameters is None:
                 return None
@@ -370,8 +372,8 @@ class CircuitBinding:
             return combined_parameters
 
         def bind_same_parameters(
-            child_parameters: Optional[BindingParameters],
-            parent_parameters: Optional[BindingParameters],
+            child_parameters: Optional["ValuesDict"],
+            parent_parameters: Optional["ValuesDict"],
         ) -> bool:
             """Return whether child and parent bind at least one common name."""
             if child_parameters is None or parent_parameters is None:
@@ -381,11 +383,11 @@ class CircuitBinding:
             return bool(child_names & parent_names)
 
         def combine_zipped_options(
-            child_parameters: Optional[BindingParameters],
+            child_parameters: Optional["ValuesDict"],
             child_measurement: Optional[Measure],
-            parent_parameters: Optional[BindingParameters],
+            parent_parameters: Optional["ValuesDict"],
             parent_measurement: Optional[Measure],
-        ) -> list[BindingOptions]:
+        ) -> list[BinDingOptions]:
             """Combine one child option with one parent option in ZIP mode."""
             parameter_collision = bind_same_parameters(
                 child_parameters, parent_parameters
@@ -436,7 +438,7 @@ class CircuitBinding:
             ]
 
         def parameter_set_key(
-            parameter_set: Optional[BindingParameters],
+            parameter_set: Optional["ValuesDict"],
         ) -> Optional[tuple[tuple[str, str]]]:
             """Build a stable, hashable key for a parameter mapping."""
             if parameter_set is None:
@@ -453,11 +455,11 @@ class CircuitBinding:
             return id(circuit), parameter_set_key(parameters), id(measurement)
 
         def product_values(
-            child_parameters: Optional[BindingParameters],
-        ) -> list[Optional[BindingParameters]]:
+            child_parameters: Optional["ValuesDict"],
+        ) -> list[Optional["ValuesDict"]]:
             """Resolve and deduplicate parameter sets for PRODUCT mode."""
             unique_values: dict[
-                Optional[tuple[tuple[str, str]]], Optional[BindingParameters]
+                Optional[tuple[tuple[str, str]]], Optional["ValuesDict"]
             ] = {}
             keep_child_parameters = False
 
@@ -620,15 +622,16 @@ class CircuitBinding:
             are grouped by circuit. PUB fields are circuit, observables and
             parameter values; absent trailing fields are omitted.
         """
-        from mpqp.execution.job import Job
-        from mpqp.execution.devices import (
-            IBMDevice,
-            AWSDevice,
-        )
-        from mpqp.execution.providers.ibm import JobType
         from copy import deepcopy
+
         from mpqp.core.instruction.measurement import ExpectationMeasure
         from mpqp.core.languages import Language
+        from mpqp.execution.devices import (
+            AWSDevice,
+            IBMDevice,
+        )
+        from mpqp.execution.job import Job
+        from mpqp.execution.providers.ibm import JobType
 
         if isinstance(device, IBMDevice):
             if self.job_type != JobType.OBSERVABLE:

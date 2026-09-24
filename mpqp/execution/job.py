@@ -13,12 +13,9 @@ would in principle never need to instantiate one yourself.
 
 from __future__ import annotations
 
-from numbers import Number
 from typing import TYPE_CHECKING, Optional
 
 from aenum import Enum, NoAlias, auto
-from qiskit.circuit import Parameter
-from sympy import Basic
 
 from mpqp.tools.generics import MessageEnum
 
@@ -26,8 +23,7 @@ from mpqp.tools.generics import MessageEnum
 # is a class (probably because Enum does weird things to the Enum class)
 if TYPE_CHECKING:
     from enum import Enum
-    from sympy import Expr
-    from numbers import Complex
+    from mpqp.execution.runner import ValuesDict
 
 from mpqp.core.instruction.measurement import BasisMeasure, ExpectationMeasure, Measure
 
@@ -132,7 +128,7 @@ class Job:
         device: AvailableDevice,
         mode: ExecutionMode = ExecutionMode.JOB,
         measurement: Optional[Measure] = None,
-        values: Optional[dict[Expr | str, Complex | float]] = None,
+        values: Optional["ValuesDict"] = None,
     ):
         self._status = JobStatus.INIT
 
@@ -150,7 +146,7 @@ class Job:
         while before it is set to the right value (For instance, a job
         submission can require handshake protocols to conclude before
         attributing an id to the job)."""
-        self.values: Optional[dict[str | Parameter | Basic, Number]] = None
+        self.values: Optional["ValuesDict"] = None
         """Parameter bindings for circuits containing symbolic variables.
         
         For local execution, parameters are typically substituted directly into the

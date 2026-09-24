@@ -252,7 +252,7 @@ def run_cirq_observable(
                 cirq_obs = obs.to_other_language(
                     language=Language.CIRQ, circuit=circuit
                 )
-                obs.pre_transpile[job.device] = cirq_obs
+                obs.pre_transpiled[job.device] = cirq_obs
             else:
                 cirq_obs = obs.pre_transpiled[job.device]
 

@@ -3,7 +3,8 @@ from __future__ import annotations
 import math
 import warnings
 from copy import deepcopy
-from typing import TYPE_CHECKING, Optional, Union
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, Optional, Sequence, Union, cast
 
 from mpqp import QCircuit
 from mpqp.core.circuitbinding import CircuitBinding
@@ -18,8 +19,8 @@ from mpqp.execution.connection.ibm_connection import (
 )
 from mpqp.execution.devices import AZUREDevice, IBMDevice
 from mpqp.execution.job import ExecutionMode, Job, JobStatus, JobType
-from mpqp.execution.result import BatchResult, Result, Sample, StateVector
 from mpqp.execution.providers.providers_params import QiskitParams
+from mpqp.execution.result import BatchResult, Result, Sample, StateVector
 from mpqp.noise import DimensionalNoiseModel
 from mpqp.tools.errors import (
     DeviceJobIncompatibleError,
@@ -34,15 +35,126 @@ if TYPE_CHECKING:
         PubResult,
         SamplerPubResult,
     )
+    from qiskit.primitives.containers import EstimatorPubLike
     from qiskit.providers.backend import BackendV2
     from qiskit.quantum_info import SparsePauliOp
     from qiskit.result import Result as QiskitResult
     from qiskit_aer import AerSimulator
     from qiskit_aer.noise import NoiseModel as Qiskit_NoiseModel
     from qiskit_ibm_runtime import RuntimeJobV2, Session
-    from qiskit.primitives.containers import EstimatorPubLike
 
     from mpqp.execution.simulated_devices import StaticIBMSimulatedDevice
+
+
+@dataclass(frozen=True)
+class _IBMEstimatorBinding:
+    """Normalized IBM Estimator payload and MPQP result contexts."""
+
+    pubs: list["EstimatorPubLike"]
+    contexts: list[list[Job]]
+    shots: int
+
+
+def _normalize_estimator_pubs(
+    pubs: Sequence["EstimatorPubLike"],
+) -> list["EstimatorPubLike"]:
+    """Flatten observable batches into the shape expected by Estimator V2."""
+    normalized: list["EstimatorPubLike"] = []
+    for pub in pubs:
+        fields = cast(tuple[Any, ...], pub)
+        circuit = fields[0]
+        observable_batches = fields[1] if len(fields) > 1 else None
+        parameter_batches = fields[2] if len(fields) > 2 else None
+
+        if observable_batches is not None:
+            if parameter_batches is not None:
+                parameter_batches = [
+                    values
+                    for observables, values in zip(
+                        observable_batches, parameter_batches
+                    )
+                    for _ in observables
+                ]
+            observable_batches = [
+                observable
+                for observables in observable_batches
+                for observable in observables
+            ]
+
+        if observable_batches is not None and circuit.layout is not None:
+            observable_batches = [
+                observable.apply_layout(circuit.layout)
+                for observable in observable_batches
+            ]
+
+        if parameter_batches is not None:
+            normalized.append(
+                cast(
+                    "EstimatorPubLike",
+                    (circuit, observable_batches, parameter_batches),
+                )
+            )
+        elif observable_batches is not None:
+            normalized.append(cast("EstimatorPubLike", (circuit, observable_batches)))
+        else:
+            raise ValueError("An IBM Estimator PUB must contain observables.")
+    return normalized
+
+
+def _prepare_ibm_binding(job: Job) -> _IBMEstimatorBinding:
+    """Translate an observable CircuitBinding into one Estimator submission."""
+    if not isinstance(job.circuit, CircuitBinding):
+        raise TypeError("IBM binding preparation requires a CircuitBinding job.")
+    if job.job_type != JobType.OBSERVABLE:
+        raise NotImplementedError(
+            "Remote IBM CircuitBinding currently supports observable jobs only."
+        )
+    if job.circuit.shots in (None, 0):
+        raise DeviceJobIncompatibleError(
+            "Remote IBM observable bindings require a positive shot count."
+        )
+    translated = job.circuit.to_other_device(cast(IBMDevice, job.device))
+    pubs = [pub for pub, _ in translated]
+    contexts = [context for _, context in translated]
+    return _IBMEstimatorBinding(
+        pubs=_normalize_estimator_pubs(pubs),
+        contexts=contexts,
+        shots=job.circuit.shots,
+    )
+
+
+def _extract_ibm_binding_results(
+    estimator_result: Sequence[Any], binding: _IBMEstimatorBinding, device: IBMDevice
+) -> BatchResult:
+    """Restore one MPQP result for every execution in a submitted binding."""
+    from qiskit.primitives import PubResult
+    from qiskit.primitives.containers import DataBin
+
+    results: list[Result] = []
+    for pub_index, contexts in enumerate(binding.contexts):
+        offset = 0
+        provider_result = estimator_result[pub_index]
+        for context_job in contexts:
+            measure = context_job.measure
+            if not isinstance(measure, ExpectationMeasure):
+                raise TypeError("IBM observable context is missing its measurement.")
+            count = len(measure.observables)
+            data = provider_result.data
+            sliced_result = PubResult(
+                DataBin(
+                    evs=data.evs[offset : offset + count],
+                    stds=data.stds[offset : offset + count],
+                    shape=(count,),
+                ),
+                metadata=provider_result.metadata,
+            )
+            offset += count
+            extracted = extract_result(sliced_result, context_job, device)
+            if isinstance(extracted, BatchResult):
+                results.extend(extracted.results)
+            else:
+                results.append(extracted)
+    return BatchResult(results)
 
 
 def run_ibm(
@@ -85,9 +197,10 @@ def compute_expectation_value(
     Each batched PUB has an ordered list of context jobs, one for each
     parameter/measurement pair resolved by the binding mode.
     """
-    from qiskit.quantum_info import SparsePauliOp
     from qiskit.primitives import PubResult
     from qiskit.primitives.containers import DataBin
+    from qiskit.quantum_info import SparsePauliOp
+
     from mpqp.execution.simulated_devices import StaticIBMSimulatedDevice
 
     pubs_to_run = []
@@ -636,9 +749,7 @@ def run_aer(job: Job) -> Result | BatchResult:
         if TYPE_CHECKING:
             assert job.measure is not None
         job.status = JobStatus.RUNNING
-        result_sim = backend_sim.run(
-            qiskit_circuit, shots=job.measure.shots
-        ).result()
+        result_sim = backend_sim.run(qiskit_circuit, shots=job.measure.shots).result()
         result = extract_result(result_sim, job, job.device)
     elif job.job_type == JobType.OBSERVABLE:
         result = compute_expectation_value(job, backend_sim, qiskit_circuit)
@@ -647,8 +758,6 @@ def run_aer(job: Job) -> Result | BatchResult:
 
     job.status = JobStatus.DONE
     return result
-
-
 
 
 def _submit_remote_ibm(
@@ -675,17 +784,28 @@ def _submit_remote_ibm(
     from qiskit_ibm_runtime import EstimatorV2 as Runtime_Estimator
     from qiskit_ibm_runtime import SamplerV2 as Runtime_Sampler
 
-    meas = job.measure
     check_job_compatibility(job)
 
     if TYPE_CHECKING:
         assert isinstance(job.device, IBMDevice)
+
+    if isinstance(job.circuit, CircuitBinding):
+        binding = _prepare_ibm_binding(job)
+        estimator = Runtime_Estimator(mode=runtime_target)
+        twirling = getattr(estimator.options, "twirling", None)
+        if twirling is not None:
+            twirling.enable_gates = False
+            twirling.enable_measure = False
+            twirling.num_randomizations = 1
+            twirling.shots_per_randomization = binding.shots
+        setattr(estimator.options, "default_shots", binding.shots)
+        ibm_job = estimator.run(binding.pubs)
+        job.id = ibm_job.job_id()
+        return job.id, ibm_job
+
+    meas = job.measure
+    if TYPE_CHECKING:
         assert isinstance(job.circuit, QCircuit)
-
-    instance = qiskit_params.instance if qiskit_params is not None else None
-
-    backend = get_backend(job.device, instance)
-    job.device = IBMDevice(backend.name)
 
     qiskit_circ = job.circuit.transpiled_for_device(job.device)
 
@@ -695,8 +815,7 @@ def _submit_remote_ibm(
     if job.job_type == JobType.OBSERVABLE:
         if TYPE_CHECKING:
             assert isinstance(meas, ExpectationMeasure)
-        estimator = Runtime_Estimator(mode=backend)
-        # estimator = Runtime_Estimator(mode=runtime_target)
+        estimator = Runtime_Estimator(mode=runtime_target)
         qiskit_observables = [
             (
                 obs.to_other_language(Language.QISKIT)
@@ -722,8 +841,7 @@ def _submit_remote_ibm(
     elif job.job_type == JobType.SAMPLE:
         if TYPE_CHECKING:
             assert isinstance(meas, BasisMeasure)
-        #sampler = Runtime_Sampler(mode=runtime_target)
-        sampler = Runtime_Sampler(mode=backend)
+        sampler = Runtime_Sampler(mode=runtime_target)
         ibm_job = sampler.run([qiskit_circ], shots=meas.shots)
 
     else:
@@ -742,7 +860,8 @@ def submit_remote_ibm(
     # TODO: docs
     if TYPE_CHECKING:
         assert isinstance(job.device, IBMDevice)
-    backend = get_backend(job.device)
+    instance = qiskit_params.instance if qiskit_params is not None else None
+    backend = get_backend(job.device, instance)
 
     try:
         job.device = IBMDevice(backend.name)
@@ -832,7 +951,7 @@ def submit_remote_ibm_session(
 
 def run_remote_ibm(
     job: Job, qiskit_params: Optional[QiskitParams] = None
-) -> Result:
+) -> Result | BatchResult:
     """Submits the job on the right IBM remote device, precised in the job in
     parameter, and waits until the job is completed.
 
@@ -853,13 +972,18 @@ def run_remote_ibm(
     if TYPE_CHECKING:
         assert isinstance(job.device, IBMDevice)
 
+    if isinstance(job.circuit, CircuitBinding):
+        return _extract_ibm_binding_results(
+            ibm_result, _prepare_ibm_binding(job), job.device
+        )
+
     result = extract_result(ibm_result, job, job.device)
     if not isinstance(result, Result):
         raise TypeError("A single IBM job must return a Result.")
     return result
 
 
-def run_remote_ibm_session(job: Job) -> Result:
+def run_remote_ibm_session(job: Job) -> Result | BatchResult:
     # TODO: docs
     from mpqp.execution.connection.ibm_connection import get_or_create_ibm_session
 
@@ -870,6 +994,10 @@ def run_remote_ibm_session(job: Job) -> Result:
 
     _, remote_job = submit_remote_ibm_session(job, session)
     ibm_result = remote_job.result()
+    if isinstance(job.circuit, CircuitBinding):
+        return _extract_ibm_binding_results(
+            ibm_result, _prepare_ibm_binding(job), job.device
+        )
     result = extract_result(ibm_result, job, job.device)
     if not isinstance(result, Result):
         raise TypeError("A single IBM session job must return a Result.")
@@ -908,9 +1036,9 @@ def extract_result(
     Returns:
         The ``qiskit`` result converted to our format.
     """
-    from qiskit.result import Result as QiskitResult
-    from qiskit.primitives import PubResult, SamplerPubResult, EstimatorResult
     import numpy as np
+    from qiskit.primitives import EstimatorResult, PubResult, SamplerPubResult
+    from qiskit.result import Result as QiskitResult
 
     # If this is a PubResult from primitives V2
     if isinstance(result, (PubResult | SamplerPubResult)):

@@ -1,12 +1,16 @@
+from types import SimpleNamespace
 from typing import Any, Sequence
 
-import numpy.typing as npt
 import numpy as np
+import numpy.typing as npt
 import pytest
 from sympy import Expr, symbols
 
 from mpqp import (
+    AWSDevice,
     BasisMeasure,
+    BindingMode,
+    CircuitBinding,
     ExpectationMeasure,
     IBMDevice,
     Observable,
@@ -14,19 +18,26 @@ from mpqp import (
     pX,
     pZ,
 )
-from mpqp.gates import Ry, Rz
 from mpqp.execution.devices import AvailableDevice
+from mpqp.execution.job import ExecutionMode
+from mpqp.execution.providers.providers_params import AWSParams, QiskitParams
 from mpqp.execution.result import Result
-from mpqp.execution.providers.providers_params import QiskitParams
-from mpqp.execution.vqa.optimizer import OptimizableFunc, OptimizerInput, OptimizerOptions
+from mpqp.execution.vqa.optimizer import (
+    OptimizableFunc,
+    OptimizerInput,
+    OptimizerOptions,
+)
 from mpqp.execution.vqa.vqa import Optimizer, OptimizerData, VQAModule
+from mpqp.gates import Ry, Rz
 
 pytestmark = pytest.mark.provider("qiskit")
 theta, phi, scale = symbols("theta phi scale")
 DEVICE = IBMDevice.AER_SIMULATOR
 
 
-def circuit(angle: Expr = theta, measurement: BasisMeasure | ExpectationMeasure | None = None) -> QCircuit:
+def circuit(
+    angle: Expr = theta, measurement: BasisMeasure | ExpectationMeasure | None = None
+) -> QCircuit:
     return QCircuit([Ry(angle, 0), measurement or ExpectationMeasure(Observable(pZ))])
 
 
@@ -89,8 +100,10 @@ def test_failure_does_not_poison_template(monkeypatch: pytest.MonkeyPatch) -> No
     vqa = VQAModule(circuit(), DEVICE)
     original = module.run
 
-    def fail(circ: QCircuit, device: AvailableDevice, **kwargs: Any) -> Result:
-        circ.bind_parameters(device, kwargs["values"])
+    def fail(binding: CircuitBinding, device: AvailableDevice, **kwargs: Any) -> Result:
+        nested = binding.circuits[0]
+        assert isinstance(nested, QCircuit)
+        nested.transpiled_circuit[device] = object()
         raise RuntimeError("provider failure")
 
     monkeypatch.setattr(module, "run", fail)
@@ -138,7 +151,9 @@ def test_parameter_order_validation() -> None:
 
 
 def test_custom_optimizer_and_objective_override() -> None:
-    def optimizer(fun: OptimizableFunc, initial: OptimizerInput, options: OptimizerOptions) -> tuple[float, OptimizerInput]:
+    def optimizer(
+        fun: OptimizableFunc, initial: OptimizerInput, options: OptimizerOptions
+    ) -> tuple[float, OptimizerInput]:
         options["changed"] = True
         return fun([0.5]), [0.5]
 
@@ -168,14 +183,12 @@ def test_runner_forwards_execution_options(monkeypatch: pytest.MonkeyPatch) -> N
             circuit(),
             DEVICE,
             mode=ExecutionMode.JOB,
-            reservation_arn="reservation",
             provider_params=provider_options,
         )
         is sentinel
     )
     assert seen == {
         "mode": ExecutionMode.JOB,
-        "reservation_arn": "reservation",
         "provider_params": provider_options,
     }
 
@@ -200,8 +213,132 @@ def test_sampling_statevector_switch_prepares_each_variant_once(
         sampled = vqa.evaluate([0.0], shots=16)[0]
         assert sum(sampled.counts) == 16
         assert sampled.counts[0] == 16
-    assert len(calls) == 2
+    assert len(calls) == 1
     assert source.measurements[0].shots == initial_shots
+
+
+def test_circuit_binding_multiple_circuits_order_and_custom_cost() -> None:
+    binding = CircuitBinding(
+        [QCircuit([Ry(theta, 0)]), QCircuit([Ry(theta, 0)])],
+        values=[{theta: 9.0}, {"theta": -9.0}],
+        measurements=[
+            ExpectationMeasure(Observable(pZ)),
+            ExpectationMeasure(Observable(pX)),
+        ],
+        mode=BindingMode.ZIP,
+    )
+
+    def loss(params: npt.NDArray[np.float64], results: Sequence[Result]) -> float:
+        return float(
+            results[0].expectation_values
+            + 2 * results[1].expectation_values
+            + 0.1 * np.dot(params, params)
+        )
+
+    vqa = VQAModule(binding, DEVICE, cost_function=loss)
+    results = vqa.evaluate([0.4])
+    assert [result.expectation_values for result in results] == pytest.approx(
+        [np.cos(0.4), np.sin(0.4)]
+    )
+    assert vqa.cost([0.4]) == pytest.approx(
+        np.cos(0.4) + 2 * np.sin(0.4) + 0.1 * 0.4**2
+    )
+
+
+def test_evaluate_and_parameter_batch_use_zip_binding(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import importlib
+
+    module = importlib.import_module("mpqp.execution.vqa.vqa")
+    original = module.run
+    bindings: list[CircuitBinding] = []
+
+    def inspected(binding: CircuitBinding, *args: Any, **kwargs: Any) -> Any:
+        bindings.append(binding)
+        return original(binding, *args, **kwargs)
+
+    monkeypatch.setattr(module, "run", inspected)
+    vqa = VQAModule(
+        [circuit(), circuit(measurement=ExpectationMeasure(Observable(pX)))], DEVICE
+    )
+    batch = vqa.evaluate_batch([[0.0], [np.pi / 2]], mode=ExecutionMode.BATCH)
+    assert len(bindings) == 1
+    assert bindings[0].mode is BindingMode.ZIP
+    assert len(bindings[0].unroll()) == 4
+    assert [
+        result.expectation_values for point in batch for result in point
+    ] == pytest.approx([1, 0, 0, 1])
+
+
+def test_shot_priority_and_vqa_provider_options(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import importlib
+
+    binding = CircuitBinding(
+        QCircuit([Ry(theta, 0)]),
+        measurements=BasisMeasure(),
+        shots=24,
+    )
+    module = importlib.import_module("mpqp.execution.vqa.vqa")
+    original = module.run
+    seen: list[dict[str, Any]] = []
+
+    def inspected(*args: Any, **kwargs: Any) -> Any:
+        seen.append(kwargs)
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(module, "run", inspected)
+    params = QiskitParams(instance="instance")
+    vqa = VQAModule(binding, DEVICE)
+    assert sum(vqa.evaluate([0])[0].counts) == 24
+    assert (
+        sum(
+            vqa.evaluate(
+                [0],
+                shots=7,
+                mode=ExecutionMode.BATCH,
+                provider_params=params,
+            )[0].counts
+        )
+        == 7
+    )
+    assert seen[-1]["mode"] is ExecutionMode.BATCH
+    assert seen[-1]["provider_params"] is params
+
+
+def test_aws_reservation_is_forwarded_through_provider_params(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import mpqp.execution.runner as runner
+
+    expected = object.__new__(Result)
+    seen: dict[str, Any] = {}
+
+    def fake_run_braket(*args: Any, **kwargs: Any) -> Any:
+        seen.update(kwargs)
+        return expected
+
+    monkeypatch.setattr(runner, "run_braket", fake_run_braket)
+    monkeypatch.setattr(
+        runner, "generate_job", lambda *args, **kwargs: SimpleNamespace()
+    )
+    params = AWSParams(reservation_arn="reservation")
+    result = runner._run_single(
+        circuit(),
+        AWSDevice.BRAKET_LOCAL_SIMULATOR,
+        provider_params=params,
+    )
+    assert result is expected
+    assert seen == {"provider_params": params}
+
+
+def test_public_binding_api() -> None:
+    import mpqp
+
+    assert mpqp.CircuitBinding is CircuitBinding
+    assert mpqp.BindingMode is BindingMode
 
 
 def test_cmaes_returns_best_candidate_and_preserves_options() -> None:

@@ -24,6 +24,7 @@ import numpy.typing as npt
 from mpqp.core.circuit import QCircuit
 from mpqp.execution import AvailableDevice, Result, run
 from mpqp.execution.vqa import Optimizer
+from mpqp.execution.vqa.optimizer import run_optimizer
 from mpqp.execution.vqa.qubo import Qubo
 from mpqp.execution.vqa.vqa import OptimizerInput
 from mpqp.gates import CustomGate, H
@@ -31,6 +32,7 @@ from mpqp.measures import BasisMeasure, ExpectationMeasure, Observable
 
 if TYPE_CHECKING:
     from networkx import Graph
+
     from mpqp.tools.maths import Matrix
 
 
@@ -221,12 +223,11 @@ def qaoa_solver(
         raise ValueError(
             f"Length of initial parameters must be the same as the number of gates in the ansatz, expected: {depth * 2} but got {len(init_params)}"
         )
-    # _, optimal_params = minimize(
-    #     loss_optimize,
-    #     method=optimizer,
-    #     init_params=init_params,
-    # ) TODO: FIXE with new vqa
-    optimal_params = [1]
+    _, optimal_params = run_optimizer(
+        loss_optimize,
+        method=optimizer,
+        init_params=init_params,
+    )
     # TODO: use .pretranspiled_circuit to avoid transpilation every time
     circuit = _generate_ansatz(optimal_params, observable, problem_size, mixer_matrix)
     circuit.add(BasisMeasure(list(range(circuit.nb_qubits))))
@@ -246,7 +247,7 @@ def qaoa_solver(
 
 
 def _loss(
-    parameters: list[float],
+    parameters: OptimizerInput,
     cost: Observable,
     nb_qubit: int,
     mixer: Matrix,

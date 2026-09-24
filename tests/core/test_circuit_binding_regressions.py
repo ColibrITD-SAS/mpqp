@@ -87,7 +87,10 @@ def test_provider_parameters_forwarded(many_circuits: bool, many_devices: bool):
     assert execute.call_count == (2 if many_circuits else 1) * (
         2 if many_devices else 1
     )
-    assert all(call.args[4] is params for call in execute.call_args_list)
+    assert all(
+        call.kwargs["provider_params"] is params
+        for call in execute.call_args_list
+    )
 
 
 def test_binding_runs_on_every_device():
