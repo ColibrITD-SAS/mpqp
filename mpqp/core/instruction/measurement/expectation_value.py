@@ -507,7 +507,7 @@ class ExpectationMeasure(Measure):
         ):
             warn(
                 "Non contiguous or non sorted observable target will introduce "
-                "additional CNOTs."
+                "additional CNOT/SWAP gates."
             )
 
             for t_index, target in enumerate(tweaked_tgt):  # sort the targets
