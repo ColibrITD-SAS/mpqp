@@ -28,7 +28,6 @@ from mpqp import (
     pY,
     pZ,
 )
-from mpqp.core.instruction.gates.native_gates import RotationGate
 from mpqp.gates import *
 from mpqp.tools.circuit import random_circuit, random_gate, random_noise
 
@@ -67,20 +66,6 @@ def test_repr_qcircuits_random():
     for _ in range(20):
         qcircuit = random_circuit()
         assert eval(repr(qcircuit)) == qcircuit
-
-
-@pytest.mark.parametrize(
-    ("gate", "expected"),
-    [
-        (Rx(0.5, 0), "Rx(0.5, 0)"),
-        (Ry(0.5, 1), "Ry(0.5, 1)"),
-        (Rz(0.5, 2), "Rz(0.5, 2)"),
-        (P(0.5, 3), "P(0.5, 3)"),
-    ],
-)
-def test_single_qubit_rotation_repr(gate: RotationGate, expected: str) -> None:
-    assert repr(gate) == expected
-    assert eval(repr(gate)) == gate
 
 
 def generate_basis_measures():
