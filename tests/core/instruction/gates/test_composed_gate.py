@@ -148,6 +148,25 @@ def test_composedgates_decomposition(gate: ComposedGate):
     assert matrix_eq(c.to_matrix(), gate.to_matrix())
 
 
+@pytest.mark.parametrize(
+    "gate, qasm",
+    [
+        (
+            PRX(1.0, 0.5, 2)
+            .to_other_language(Language.QASM2)
+            .splitlines(),  # pyright: ignore[reportAttributeAccessIssue]
+            [
+                "rz(-0.5) q[2];",
+                "rx(1.0) q[2];",
+                "rz(0.5) q[2];",
+            ],
+        )
+    ],
+)
+def test_prx_qasm2_translation_matches_decomposition(gate: Gate, qasm: list[str]):
+    assert gate == qasm
+
+
 @pytest.mark.parametrize("gate", [Rxx(np.pi / 2, 0, 1)])
 def test_composedgates_error(gate: Gate):
     with pytest.raises(

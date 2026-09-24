@@ -1816,7 +1816,11 @@ class PRX(RotationGate, SingleQubitGate, ComposedGate):
         elif language == Language.QASM2:
             target = self.targets[0]
 
-            return f"rz({self.parameters[1]}) q[{target}];\nrx({self.parameters[0]}) q[{target}];\nrz({-self.parameters[1]}) q[{target}];"
+            return (
+                f"rz({-self.parameters[1]}) q[{target}];\n"
+                f"rx({self.parameters[0]}) q[{target}];\n"
+                f"rz({self.parameters[1]}) q[{target}];"
+            )
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
 
