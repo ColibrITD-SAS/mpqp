@@ -1112,8 +1112,8 @@ def test_validity_optim_ideal_multi_diag_obs_and_regular_run(
     ],
 )
 def test_global_phase_statevector(matrix: Matrix, gphase: float):
-    from math import log2
     from itertools import pairwise
+    from math import log2
 
     circuit = QCircuit([CustomGate(matrix, list(range(int(log2(len(matrix))))))])
     circuit.input_g_phase = gphase

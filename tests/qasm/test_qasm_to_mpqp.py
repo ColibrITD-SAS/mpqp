@@ -4,8 +4,8 @@ import numpy as np
 import pytest
 
 from mpqp import CNOT, CP, BasisMeasure, H, Language, U
-from mpqp.translation.qasm.qasm_to_mpqp import qasm2_parse
 from mpqp.tools.circuit import random_circuit
+from mpqp.translation.qasm.qasm_to_mpqp import qasm2_parse
 
 
 @pytest.mark.parametrize(

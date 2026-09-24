@@ -1,26 +1,29 @@
 from typing import TYPE_CHECKING
 
-from mpqp.core.instruction.gates.gate_decomposition import resolve_gate
 from mpqp.core.instruction.gates.gate import Gate
+from mpqp.core.instruction.gates.gate_decomposition import resolve_gate
 from mpqp.environment.var_cache import (
     _INSTALLED_MPQP_PROVIDERS,  # pyright: ignore[reportPrivateUsage]
+)
+from mpqp.environment.var_cache import (
     InstalledProviders,
 )
 
 if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
     from braket.circuits import Circuit as braket_Circuit
+
     from mpqp.core.circuit import QCircuit
 
     def braket_to_mpqp(qcircuit: braket_Circuit) -> QCircuit:
 
+        from braket.circuits import Circuit as braket_Circuit
         from braket.circuits.serialization import IRType
         from braket.ir.openqasm.program_v1 import Program
 
+        from mpqp.core.languages import Language
         from mpqp.translation.qasm.open_qasm_2_and_3 import open_qasm_3_to_2
         from mpqp.translation.qasm.qasm_to_braket import braket_noise_to_mpqp
         from mpqp.translation.qasm.qasm_to_mpqp import qasm2_parse
-        from braket.circuits import Circuit as braket_Circuit
-        from mpqp.core.languages import Language
 
         assert isinstance(qcircuit, braket_Circuit)
         remove_measure = True
@@ -48,7 +51,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
 
     def get_braket_gate_set() -> set[type[Gate]]:
         """Return gates directly representable by Braket."""
-        from mpqp.gates import CNOT, PRX, Rxx, Ryy, Rzz, Rx, Ry, Rz
+        from mpqp.gates import CNOT, PRX, Rx, Rxx, Ry, Ryy, Rz, Rzz
 
         return {
             Rx,
@@ -99,7 +102,14 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                         └───┘
             T  : │  0  │  1  │
         """
-        from mpqp.execution.providers.aws import apply_noise_to_braket_circuit
+        from mpqp.core.circuit import QCircuit
+        from mpqp.core.instruction import (
+            Barrier,
+            BasisMeasure,
+            Breakpoint,
+            ControlledGate,
+            Measure,
+        )
         from mpqp.core.instruction.gates.custom_controlled_gate import (
             CustomControlledGate,
         )
@@ -107,14 +117,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
         from mpqp.core.instruction.gates.gate import Gate
         from mpqp.core.instruction.gates.native_gates import CRk
         from mpqp.core.languages import Language
-        from mpqp.core.instruction import (
-            Measure,
-            Breakpoint,
-            Barrier,
-            ControlledGate,
-            BasisMeasure,
-        )
-        from mpqp.core.circuit import QCircuit
+        from mpqp.execution.providers.aws import apply_noise_to_braket_circuit
 
         if len(circuit.noises) != 0:
             if any(isinstance(instr, CRk) for instr in circuit.instructions):
@@ -136,8 +139,9 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                 )
             )
             if len(used_qubits) != circuit.nb_qubits:
-                from mpqp.gates import Id
                 from copy import deepcopy
+
+                from mpqp.gates import Id
 
                 circuit = QCircuit(
                     [

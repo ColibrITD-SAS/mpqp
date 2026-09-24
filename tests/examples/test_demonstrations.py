@@ -1,13 +1,14 @@
 from typing import Any, Callable
+
 import numpy as np
 import pytest
 
 from mpqp import (
     ATOSDevice,
     AWSDevice,
-    GOOGLEDevice,
     BasisMeasure,
     ExpectationMeasure,
+    GOOGLEDevice,
     IBMDevice,
     Language,
     Observable,
@@ -16,8 +17,8 @@ from mpqp import (
 )
 from mpqp.execution.devices import AvailableDevice
 from mpqp.gates import *
-from mpqp.translation.qasm.qasm_to_braket import qasm3_to_braket_Circuit
 from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
+from mpqp.translation.qasm.qasm_to_braket import qasm3_to_braket_Circuit
 
 # TODO: add CIRQ local simulator devices to this file
 

@@ -1725,22 +1725,25 @@ class QCircuit:
         )
 
         if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
-            from mpqp.translation.qiskit import qiskit_to_mpqp
             from qiskit import QuantumCircuit
+
+            from mpqp.translation.qiskit import qiskit_to_mpqp
 
             if isinstance(qcircuit, QuantumCircuit):
                 return qiskit_to_mpqp(qcircuit)
         if InstalledProviders.CIRQ in _INSTALLED_MPQP_PROVIDERS:
-            from mpqp.translation import cirq_to_mpqp
             from cirq.circuits.circuit import Circuit as cirq_Circuit
             from cirq.circuits.moment import Moment
+
+            from mpqp.translation import cirq_to_mpqp
 
             if isinstance(qcircuit, Moment | cirq_Circuit):
                 return cirq_to_mpqp(qcircuit)
 
         if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
-            from mpqp.translation.braket import braket_to_mpqp
             from braket.circuits import Circuit as braket_Circuit
+
+            from mpqp.translation.braket import braket_to_mpqp
 
             if isinstance(qcircuit, braket_Circuit):
                 return braket_to_mpqp(qcircuit)

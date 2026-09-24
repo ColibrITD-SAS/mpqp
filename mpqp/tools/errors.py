@@ -7,8 +7,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from mpqp.execution.result import JobType
     from mpqp.core.instruction.gates.gate import Gate
+    from mpqp.execution.result import JobType
 
 
 class InstructionParsingError(ValueError):

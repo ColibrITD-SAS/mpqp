@@ -8,6 +8,8 @@ from numpy import exp
 
 from mpqp import CNOT, H, IBMDevice, Instruction, QCircuit, Result, U, run
 from mpqp.execution.devices import IBMDevice
+from mpqp.tools.errors import OpenQASMTranslationWarning
+from mpqp.tools.theoretical_simulation import amplitude
 from mpqp.translation.qasm.open_qasm_2_and_3 import (
     open_qasm_2_to_3,
     open_qasm_3_to_2,
@@ -18,8 +20,6 @@ from mpqp.translation.qasm.open_qasm_2_and_3 import (
     remove_user_gates,
 )
 from mpqp.translation.qasm.qasm_to_mpqp import qasm2_parse
-from mpqp.tools.errors import OpenQASMTranslationWarning
-from mpqp.tools.theoretical_simulation import amplitude
 
 qasm_folder = "tests/qasm/qasm_examples/"
 

@@ -424,14 +424,15 @@ def _TokenCustom(circuit: QCircuit, tokens: list[LexToken], idx: int) -> int:
 
 
 def parse_qasm2_gates(code: str) -> tuple[str, float]:
+    import re
+
     from mpqp.translation.qasm.open_qasm_2_and_3 import (
-        qasm_code,
-        remove_user_gates,
         Instr,
         parse_gphase_instruction,
+        qasm_code,
         remove_include_and_comment,
+        remove_user_gates,
     )
-    import re
 
     code, gphase = remove_include_and_comment(code)
 

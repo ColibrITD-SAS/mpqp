@@ -9,7 +9,6 @@ import copy
 from numbers import Real
 from typing import TYPE_CHECKING, Literal, Optional, Union, overload
 from warnings import warn
-from typing_extensions import Never
 
 import numpy as np
 import numpy.typing as npt

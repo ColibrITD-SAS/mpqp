@@ -3,11 +3,11 @@ from pytest import CaptureFixture
 
 from mpqp import CNOT, ATOSDevice, Breakpoint, H, QCircuit, Y, run
 from mpqp.execution.devices import (
-    AvailableDevice,
-    IBMDevice,
-    GOOGLEDevice,
     ATOSDevice,
+    AvailableDevice,
     AWSDevice,
+    GOOGLEDevice,
+    IBMDevice,
 )
 
 list_circuit_expected_out = [
