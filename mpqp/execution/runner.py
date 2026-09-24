@@ -689,6 +689,7 @@ def run(
     devices = [device] if isinstance(device, AvailableDevice) else list(device)
     exec_mode = mode or ExecutionMode.JOB
 
+
     if isinstance(circuit, CircuitBinding):
         if values is not None:
             raise ValueError("values must be specified inside CircuitBinding")
