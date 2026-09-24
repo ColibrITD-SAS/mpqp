@@ -261,9 +261,8 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
         """Rotation angle (in radians)."""
         return self.parameters[0]
 
-    def __repr__(self):
-        target = "[" + ", ".join(str(t) for t in self.targets) + "]"
-        return f"{type(self).__name__}({self.theta}, {target})"
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({self.theta}, {self.targets[0]})"
 
     def to_other_language(
         self,
