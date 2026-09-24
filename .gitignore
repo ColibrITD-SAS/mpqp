@@ -25,6 +25,7 @@ venv/
 # private files
 .dockerenv
 .env
+venv/
 
 # results of tests
 examples/notebooks/latex_error.log
