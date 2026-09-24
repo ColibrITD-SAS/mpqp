@@ -689,7 +689,6 @@ def run(
     devices = [device] if isinstance(device, AvailableDevice) else list(device)
     exec_mode = mode or ExecutionMode.JOB
 
-
     if isinstance(circuit, CircuitBinding):
         if values is not None:
             raise ValueError("values must be specified inside CircuitBinding")
@@ -765,7 +764,11 @@ def run(
         for target_device in devices
         for i, circ in enumerate(circuits)
     ]
-    if len(results) == 1 and isinstance(circuit, QCircuit) and isinstance(device, AvailableDevice):
+    if (
+        len(results) == 1
+        and isinstance(circuit, QCircuit)
+        and isinstance(device, AvailableDevice)
+    ):
         return results[0]
     return BatchResult(results)
 

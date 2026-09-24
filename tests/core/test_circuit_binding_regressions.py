@@ -88,8 +88,7 @@ def test_provider_parameters_forwarded(many_circuits: bool, many_devices: bool):
         2 if many_devices else 1
     )
     assert all(
-        call.kwargs["provider_params"] is params
-        for call in execute.call_args_list
+        call.kwargs["provider_params"] is params for call in execute.call_args_list
     )
 
 

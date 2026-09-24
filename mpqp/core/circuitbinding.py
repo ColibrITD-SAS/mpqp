@@ -344,11 +344,7 @@ class CircuitBinding:
             else ([self.value] if self.value is not None else [None])
         )
         parent_values: list[Optional["ValuesDict"]] = [
-            (
-                cast("ValuesDict", parameter_set)
-                if parameter_set is not None
-                else None
-            )
+            (cast("ValuesDict", parameter_set) if parameter_set is not None else None)
             for parameter_set in raw_parent_values
         ]
         parent_measurements: list[Measure | None] = (
