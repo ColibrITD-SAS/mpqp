@@ -2,7 +2,7 @@ from unittest.mock import patch
 
 import pytest
 
-from mpqp import AWSDevice, CZ, PRX, QCircuit
+from mpqp import AWSDevice, CZ, PRX, QCircuit, Rxx, Ryy, Rzz
 
 # TODO: test methods
 
@@ -40,3 +40,24 @@ def test_iqm_translation_preserves_qubit_indices():
     assert controlled_gate.controls == [0]
     assert controlled_gate.targets == [2]
     assert {int(qubit) for qubit in translated.qubits} == {0, 2}
+
+
+@pytest.mark.provider("braket")
+def test_iqm_translation_preserves_supported_rotation_gates():
+    circuit = QCircuit(
+        [
+            Rxx(0.1, 0, 1),
+            Ryy(0.2, 0, 1),
+            Rzz(0.3, 0, 1),
+            PRX(0.4, 0.5, 0),
+        ]
+    )
+
+    translated = circuit.to_other_device(AWSDevice.IQM_GARNET)
+
+    assert [instruction.operator.name for instruction in translated.instructions] == [
+        "XX",
+        "YY",
+        "ZZ",
+        "PRx",
+    ]
