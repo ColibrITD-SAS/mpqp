@@ -1443,7 +1443,7 @@ class Rxx(RotationGate, ComposedGate):
 
             from cirq import Qid
 
-            from mpqp.tools.cirq import cirqCustomGate
+            from mpqp.translation.cirq import cirqCustomGate
 
             def cirq_decomposition(qubits: list[Qid]) -> Generator[Any]:
                 from cirq.ops import common_gates
@@ -1557,7 +1557,7 @@ class Ryy(RotationGate, ComposedGate):
             import numpy as np
             from cirq import Qid
 
-            from mpqp.tools.cirq import cirqCustomGate
+            from mpqp.translation.cirq import cirqCustomGate
 
             def cirq_decomposition(qubits: list[Qid]) -> Generator[Any]:
                 from cirq.ops import common_gates
@@ -1674,7 +1674,7 @@ class Rzz(RotationGate, ComposedGate):
 
             from cirq import Qid
 
-            from mpqp.tools.cirq import cirqCustomGate
+            from mpqp.translation.cirq import cirqCustomGate
 
             # Need to do these warcrimes because cirq doesn't have a Rzz gate
             # This function is create so that the following custom gate still has a nice decomposition
