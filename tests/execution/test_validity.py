@@ -41,6 +41,7 @@ from mpqp.tools import Matrix, atol, rand_hermitian_matrix, rtol
 from mpqp.tools.circuit import random_gate, random_noise
 from mpqp.tools.errors import (
     DeviceJobIncompatibleError,
+    UnsupportedGateError,
 )
 from mpqp.tools.maths import matrix_eq, rand_unitary_matrix
 
@@ -607,6 +608,18 @@ def test_validity_run_job_type_qiskit(
             exec_validity_run_job_type(device, circuits_type)
     else:
         exec_validity_run_job_type(device, circuits_type)
+
+
+@pytest.mark.provider("qiskit")
+def test_unsupported_non_composed_gate_is_rejected_before_translation():
+    circuit = QCircuit([T(0)])
+
+    with pytest.warns(UserWarning, match=r"AER_SIMULATOR_STABILIZER"):
+        with pytest.raises(
+            UnsupportedGateError,
+            match=r"T cannot be represented with the target gate set",
+        ):
+            circuit.to_other_device(IBMDevice.AER_SIMULATOR_STABILIZER)
 
 
 @pytest.mark.provider("cirq")

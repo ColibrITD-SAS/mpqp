@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from mpqp.core.instruction.gates.controlled_gate import ControlledGate
 from mpqp.core.instruction.gates.custom_gate import CustomGate
@@ -6,7 +6,6 @@ from mpqp.core.languages import Language
 
 if TYPE_CHECKING:
     from qiskit._accelerate.circuit import Parameter
-    from qiskit.circuit import Gate as QiskitGate
 
     from mpqp.core.instruction.gates.gate import Gate
 
@@ -87,12 +86,17 @@ class CustomControlledGate(ControlledGate):
     ) -> Any:
         if isinstance(self.non_controlled_gate, CustomGate):
             if language == Language.QISKIT and printing:
-                gate = cast(
-                    "QiskitGate",
-                    self.non_controlled_gate.to_other_language(
-                        language, qiskit_parameters, printing=True
-                    ),
+                from qiskit.circuit import Gate as QiskitGate
+
+                gate = self.non_controlled_gate.to_other_language(
+                    language,
+                    qiskit_parameters,
+                    printing=True,
                 )
+                if not isinstance(gate, QiskitGate):
+                    raise TypeError(
+                        "Expected CustomGate translation to return a Qiskit Gate."
+                    )
                 return gate.control(len(self.controls))
             return self.to_custom_gate().to_other_language(language)
 

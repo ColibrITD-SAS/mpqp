@@ -57,6 +57,7 @@ from mpqp.tools.errors import (
     InstructionParsingError,
     NonReversibleWarning,
     NumberQubitsError,
+    UnsupportedGateError,
 )
 from mpqp.tools.generics import OneOrMany
 from mpqp.tools.maths import matrix_eq
@@ -1409,6 +1410,13 @@ class QCircuit:
                 translated_circuit.instructions,
                 native_gates,
             )
+            unsupported_gates = [
+                gate
+                for gate in translated_circuit.gates
+                if type(gate) not in native_gates
+            ]
+            if unsupported_gates:
+                raise UnsupportedGateError(unsupported_gates[0], native_gates)
 
         if isinstance(device, (IBMDevice, StaticIBMSimulatedDevice)):
             if job_type == JobType.STATE_VECTOR:

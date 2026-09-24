@@ -1739,7 +1739,7 @@ class PRX(RotationGate, SingleQubitGate, ComposedGate):
         )
 
     def to_matrix(self, desired_gate_size: int = 0):
-        return self.to_canonical_matrix()
+        return super().to_matrix(desired_gate_size)
 
     def decompose(self) -> list[Gate]:
         return [

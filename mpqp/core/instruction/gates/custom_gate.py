@@ -162,9 +162,6 @@ class CustomGate(Gate):
             from cirq import MatrixGate
 
             return MatrixGate(matrix=self.matrix, name=self.label, unitary_check=False)
-            from cirq import MatrixGate
-
-            return MatrixGate(matrix=self.matrix, name=self.label, unitary_check=False)
 
         elif language == Language.QASM2:
             from qiskit import QuantumCircuit, qasm2

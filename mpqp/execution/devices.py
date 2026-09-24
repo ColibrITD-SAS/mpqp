@@ -647,14 +647,3 @@ class AZUREDevice(AvailableDevice):
 
     def supports_observable_ideal(self) -> bool:
         return False
-
-
-IBM_CHIPS_HERON = [IBMDevice.IBM_MIAMI, IBMDevice.IBM_BERLIN]
-IBM_CHIPS_NIGHTHAWK = [
-    IBMDevice.IBM_BOSTON,
-    IBMDevice.IBM_KINGSTON,
-    IBMDevice.IBM_PITTSBURGH,
-    IBMDevice.IBM_FEZ,
-    IBMDevice.IBM_MARRAKESH,
-    IBMDevice.IBM_AACHEN,
-]
