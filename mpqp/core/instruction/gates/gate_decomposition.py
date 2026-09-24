@@ -33,8 +33,8 @@ def resolve_instructions(
     """
     Resolve the composed gates contained in a sequence of instructions.
 
-    Gates are processed using the funtion `resolve_gate`. Instructions that are not
-    gates are preserved unchanged and in their original order.
+    Gates are processed using the function :func:`resolve_gate`. Instructions that
+    are not gates are preserved unchanged and in their original order.
 
     Args:
         instructions: Instructions to resolve.
