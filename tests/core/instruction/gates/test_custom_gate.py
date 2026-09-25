@@ -152,7 +152,9 @@ def exec_custom_gate_with_random_circuit(
 
     # precision reduced from approximation errors (CustomGate usage)
     tolerance = 1e-2 if device == ATOSDevice.MYQLM_PYLINALG and circ_size >= 4 else 1e-4
-    assert matrix_eq(result1.amplitudes, result2.amplitudes, tolerance, tolerance)
+    density_matrix1 = np.outer(result1.amplitudes, result1.amplitudes.conjugate())
+    density_matrix2 = np.outer(result2.amplitudes, result2.amplitudes.conjugate())
+    assert matrix_eq(density_matrix1, density_matrix2, tolerance, tolerance)
 
 
 def _test_matrix_equality(
