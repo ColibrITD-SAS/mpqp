@@ -119,7 +119,8 @@ def result_error_message(type: JobType) -> str:
         msg
         + "\nNote: The type of the job in MPQP is dependant of the type of measurement done in the circuit."
     )
-  
+
+
 class ModifiedShotsNumberWarning(UserWarning):
     """Warning for different number of shots executed by the QPU compared to
     what request by the Job."""
