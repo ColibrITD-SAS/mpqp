@@ -853,7 +853,7 @@ class PauliString:
 
         Args:
             language: The target programming language.
-            targets: TODO doc
+            targets: List of qubits the pauli string acts upon (required for ``tket``) defaults at (0,...)
             circuit: The Cirq circuit associated with the pauli string (required
                 for ``cirq``).
 
