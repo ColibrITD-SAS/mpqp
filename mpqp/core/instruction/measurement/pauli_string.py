@@ -1150,7 +1150,7 @@ class PauliStringMonomial(PauliString):
 
     def to_matrix(self) -> Matrix:
         return (
-            reduce(
+            reduce( # pyright: ignore[reportOperatorIssue,reportReturnType]
                 np.kron,
                 map(lambda a: a.to_matrix(), self.atoms),
                 np.eye(1, dtype=np.complex128).tolist(),
