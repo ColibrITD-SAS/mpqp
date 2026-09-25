@@ -9,7 +9,6 @@ import copy
 from numbers import Real
 from typing import TYPE_CHECKING, Literal, Optional, Union, overload
 from warnings import warn
-from typing_extensions import Never
 
 import numpy as np
 import numpy.typing as npt
@@ -507,7 +506,7 @@ class ExpectationMeasure(Measure):
         ):
             warn(
                 "Non contiguous or non sorted observable target will introduce "
-                "additional CNOTs."
+                "additional CNOT/SWAP gates."
             )
 
             for t_index, target in enumerate(tweaked_tgt):  # sort the targets

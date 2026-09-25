@@ -64,7 +64,10 @@ def test_adjust_measure_target_order(
 ):
     with pytest.warns(
         UserWarning,
-        match="Non contiguous or non sorted observable target will introduce additional CNOTs.",
+        match=(
+            r"^Non contiguous or non sorted observable target will introduce "
+            r"additional CNOT/SWAP gates\.$"
+        ),
     ):
         measure = ExpectationMeasure(Observable(observable), measure_targets)
 
@@ -81,7 +84,10 @@ def test_adjust_measure_matrix_reordering():
     observable = Observable((pX @ pY @ pZ).to_matrix())
     with pytest.warns(
         UserWarning,
-        match="Non contiguous or non sorted observable target will introduce additional CNOTs.",
+        match=(
+            r"^Non contiguous or non sorted observable target will introduce "
+            r"additional CNOT/SWAP gates\.$"
+        ),
     ):
         measure = ExpectationMeasure(
             observable,

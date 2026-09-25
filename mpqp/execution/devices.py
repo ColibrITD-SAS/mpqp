@@ -31,10 +31,28 @@ from enum import Enum, auto
 from typing_extensions import override
 
 from mpqp.core.instruction.gates import Gate
-from mpqp.core.instruction.gates.native_gates import *
+from mpqp.core.instruction.gates.native_gates import (
+    CNOT,
+    CZ,
+    PRX,
+    SWAP,
+    TOF,
+    H,
+    Id,
+    Rx,
+    Rxx,
+    Ry,
+    Ryy,
+    Rz,
+    Rzz,
+    S,
+    S_dagger,
+    T,
+    X,
+    Y,
+    Z,
+)
 from mpqp.environment.env_manager import get_env_variable
-
-from mpqp.core.instruction.gates.native_gates import *
 
 
 class AvailableDevice(Enum):
@@ -629,14 +647,3 @@ class AZUREDevice(AvailableDevice):
 
     def supports_observable_ideal(self) -> bool:
         return False
-
-
-IBM_CHIPS_HERON = [IBMDevice.IBM_MIAMI, IBMDevice.IBM_BERLIN]
-IBM_CHIPS_NIGHTHAWK = [
-    IBMDevice.IBM_BOSTON,
-    IBMDevice.IBM_KINGSTON,
-    IBMDevice.IBM_PITTSBURGH,
-    IBMDevice.IBM_FEZ,
-    IBMDevice.IBM_MARRAKESH,
-    IBMDevice.IBM_AACHEN,
-]

@@ -1,16 +1,19 @@
 from typing import TYPE_CHECKING
 
-from mpqp.core.instruction.gates.gate_decomposition import resolve_gate
 from mpqp.core.instruction.gates.gate import Gate
+from mpqp.core.instruction.gates.gate_decomposition import resolve_gate
 from mpqp.core.instruction.gates.native_gates import U
 from mpqp.environment.var_cache import (
     _INSTALLED_MPQP_PROVIDERS,  # pyright: ignore[reportPrivateUsage]
+)
+from mpqp.environment.var_cache import (
     InstalledProviders,
 )
 
 if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
-    from mpqp.core.circuit import QCircuit
     from qiskit import QuantumCircuit
+
+    from mpqp.core.circuit import QCircuit
 
     def qiskit_to_mpqp(qcircuit: "QuantumCircuit"):
         """Translate a qiskit QuantumCircuit into a MPQP QCircuit.
@@ -22,6 +25,7 @@ if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
             qcircuit: Any Qiskit quantum circuit.
         """
         from qiskit import qasm3
+
         from mpqp.core.languages import Language
         from mpqp.translation.qasm import open_qasm_3_to_2
         from mpqp.translation.qasm.qasm_to_mpqp import qasm2_parse
@@ -33,7 +37,7 @@ if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
         return qc
 
     def get_qiskit_gate_set() -> set[type[Gate]]:
-        from mpqp.gates import CNOT, PRX, Rxx, Ryy, Rzz, Rx, Ry, Rz
+        from mpqp.gates import CNOT, PRX, Rx, Rxx, Ry, Ryy, Rz, Rzz
 
         return {Rx, Ry, Rz, PRX, Rxx, Ryy, Rzz, U, CNOT}
 
@@ -76,21 +80,21 @@ if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
         from qiskit.circuit import Operation, QuantumCircuit
         from qiskit.circuit.quantumcircuit import CircuitInstruction
         from qiskit.quantum_info import Operator
-        from mpqp.core.instruction.gates.gate import Gate
+
+        from mpqp.core.instruction import (
+            Barrier,
+            BasisMeasure,
+            Breakpoint,
+            ControlledGate,
+            CustomGate,
+            ExpectationMeasure,
+            Measure,
+        )
         from mpqp.core.instruction.gates.custom_controlled_gate import (
             CustomControlledGate,
         )
+        from mpqp.core.instruction.gates.gate import Gate
         from mpqp.core.languages import Language
-
-        from mpqp.core.instruction import (
-            Measure,
-            Breakpoint,
-            CustomGate,
-            Barrier,
-            ControlledGate,
-            BasisMeasure,
-            ExpectationMeasure,
-        )
 
         # to avoid defining twice the same parameter, we keep trace of the
         # added parameters, and we use those instead of new ones when they

@@ -162,9 +162,6 @@ class CustomGate(Gate):
             from cirq import MatrixGate
 
             return MatrixGate(matrix=self.matrix, name=self.label, unitary_check=False)
-            from cirq import MatrixGate
-
-            return MatrixGate(matrix=self.matrix, name=self.label, unitary_check=False)
 
         elif language == Language.QASM2:
             from qiskit import QuantumCircuit, qasm2
@@ -230,10 +227,10 @@ class CustomGate(Gate):
         if any(
             self.targets[i + 1] < self.targets[i] for i in range(len(self.targets) - 1)
         ):
+            import warnings
             from copy import deepcopy
 
             from mpqp.tools import rearrange_matrix
-            import warnings
 
             warnings.warn(
                 "In order to decompose a CustomGate with non ordered targets, the matrix gets copied and ordered according to the targets provided."

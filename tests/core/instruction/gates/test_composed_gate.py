@@ -22,10 +22,26 @@ COMPOSED_GATES = [
 @pytest.mark.parametrize(
     "gate ,language",
     [
-        (Rxx(np.pi / 2, 0, 1), Language.QISKIT),
-        (Ryy(np.pi / 2, 0, 1), Language.QISKIT),
-        (Rzz(np.pi / 2, 0, 1), Language.BRAKET),
-        (PRX(np.pi / 3, 1, 0), Language.BRAKET),
+        pytest.param(
+            Rxx(np.pi / 2, 0, 1),
+            Language.QISKIT,
+            marks=pytest.mark.provider("qiskit"),
+        ),
+        pytest.param(
+            Ryy(np.pi / 2, 0, 1),
+            Language.QISKIT,
+            marks=pytest.mark.provider("qiskit"),
+        ),
+        pytest.param(
+            Rzz(np.pi / 2, 0, 1),
+            Language.BRAKET,
+            marks=pytest.mark.provider("braket"),
+        ),
+        pytest.param(
+            PRX(np.pi / 3, 1, 0),
+            Language.BRAKET,
+            marks=pytest.mark.provider("braket"),
+        ),
     ],
 )
 def test_composedgate_compatible(gate: Gate, language: Language) -> None:
@@ -53,33 +69,37 @@ def test_composed_gate_is_decomposed(
 @pytest.mark.parametrize(
     "language, provider, gate_set_getter, gate, native_gates",
     [
-        (
+        pytest.param(
             Language.QISKIT,
             "qiskit",
             "get_qiskit_gate_set",
             Rxx(np.pi / 2, 0, 1),
             {Rx},
+            marks=pytest.mark.provider("qiskit"),
         ),
-        (
+        pytest.param(
             Language.QISKIT,
             "qiskit",
             "get_qiskit_gate_set",
             Ryy(np.pi / 2, 0, 1),
             {Rx, Rz},
+            marks=pytest.mark.provider("qiskit"),
         ),
-        (
+        pytest.param(
             Language.BRAKET,
             "braket",
             "get_braket_gate_set",
             Rzz(np.pi / 2, 0, 1),
             {Rz},
+            marks=pytest.mark.provider("braket"),
         ),
-        (
+        pytest.param(
             Language.CIRQ,
             "cirq",
             "get_cirq_gate_set",
             PRX(np.pi / 3, 1, 0),
             {Rx},
+            marks=pytest.mark.provider("cirq"),
         ),
     ],
 )
@@ -101,8 +121,22 @@ def test_composedgate_not_compatible_with_provider(
 
 
 def define_parameters():
+    provider_by_language = {
+        Language.QISKIT: "qiskit",
+        Language.BRAKET: "braket",
+        Language.CIRQ: "cirq",
+        Language.MY_QLM: "myqlm",
+    }
     return [
-        (gate, language)
+        pytest.param(
+            gate,
+            language,
+            marks=(
+                pytest.mark.provider(provider_by_language[language])
+                if language in provider_by_language
+                else ()
+            ),
+        )
         for gate in COMPOSED_GATES
         for language in [
             Language.QISKIT,

@@ -2,7 +2,7 @@ from unittest.mock import patch
 
 import pytest
 
-from mpqp import AWSDevice, CZ, PRX, QCircuit, Rxx, Ryy, Rzz
+from mpqp import CZ, PRX, AWSDevice, QCircuit, Rxx, Ryy, Rzz
 
 # TODO: test methods
 

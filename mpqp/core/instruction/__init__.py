@@ -1,15 +1,15 @@
 # pyright: reportUnusedImport=false
-from .instruction import Instruction
 from .barrier import Barrier
-from .gates import *
 from .breakpoint import Breakpoint
+from .gates import *
+from .instruction import Instruction
 from .measurement import (
     Basis,
-    ComputationalBasis,
-    HadamardBasis,
-    VariableSizeBasis,
     BasisMeasure,
+    ComputationalBasis,
     ExpectationMeasure,
-    Observable,
+    HadamardBasis,
     Measure,
+    Observable,
+    VariableSizeBasis,
 )

@@ -1,17 +1,20 @@
 from typing import TYPE_CHECKING
 
-from mpqp.core.instruction.gates.gate_decomposition import resolve_gate
 from mpqp.core.instruction.gates.gate import Gate
+from mpqp.core.instruction.gates.gate_decomposition import resolve_gate
 from mpqp.environment.var_cache import (
     _INSTALLED_MPQP_PROVIDERS,  # pyright: ignore[reportPrivateUsage]
+)
+from mpqp.environment.var_cache import (
     InstalledProviders,
 )
 
 if InstalledProviders.CIRQ in _INSTALLED_MPQP_PROVIDERS:
 
-    from mpqp.core.circuit import QCircuit
     from cirq.circuits.circuit import Circuit as cirq_Circuit
     from cirq.circuits.moment import Moment
+
+    from mpqp.core.circuit import QCircuit
 
     def cirq_to_mpqp(qcircuit: cirq_Circuit | Moment) -> QCircuit:
         """Translate a cirq Circuit to a MPQP QCircuit.
@@ -21,12 +24,14 @@ if InstalledProviders.CIRQ in _INSTALLED_MPQP_PROVIDERS:
         Args:
             qcircuit: Any cirq Circuit, or for simpler circuits could be a sole Moment.
         """
+        from copy import deepcopy
+
+        from cirq import MatrixGate, ops
         from cirq.circuits.circuit import Circuit as cirq_Circuit
         from cirq.circuits.moment import Moment
-        from cirq import ops, MatrixGate
+
         from mpqp import QCircuit
         from mpqp.gates import CustomGate
-        from copy import deepcopy
 
         qcircuit = deepcopy(qcircuit)
         from mpqp.translation.qasm.qasm_to_mpqp import (
@@ -118,17 +123,18 @@ if InstalledProviders.CIRQ in _INSTALLED_MPQP_PROVIDERS:
         from cirq.circuits.circuit import Circuit as CirqCircuit
         from cirq.ops.identity import I
         from cirq.ops.named_qubit import NamedQubit
+
         from mpqp.core.instruction import (
-            Measure,
-            Breakpoint,
-            CustomGate,
             Barrier,
+            Breakpoint,
             ControlledGate,
             CustomControlledGate,
+            CustomGate,
             ExpectationMeasure,
+            Measure,
         )
-        from mpqp.core.languages import Language
         from mpqp.core.instruction.gates.gate import Gate
+        from mpqp.core.languages import Language
 
         cirq_qubits = [NamedQubit(f"q_{i}") for i in range(circuit.nb_qubits)]
         cirq_circuit = CirqCircuit()
@@ -227,8 +233,8 @@ if InstalledProviders.CIRQ in _INSTALLED_MPQP_PROVIDERS:
             )
 
         if circuit.input_g_phase != 0:
-            from cirq import GlobalPhaseGate
             import numpy as np
+            from cirq import GlobalPhaseGate
 
             cirq_circuit.insert(
                 0, GlobalPhaseGate(np.exp(1j * circuit.input_g_phase)).on()
@@ -241,8 +247,9 @@ if InstalledProviders.CIRQ in _INSTALLED_MPQP_PROVIDERS:
     from cirq import Gate as cirqGate
 
     if TYPE_CHECKING:
-        from mpqp.tools.generics import Matrix
         from cirq import Qid
+
+        from mpqp.tools.generics import Matrix
 
     class cirqCustomGate(cirqGate):
         def __init__(

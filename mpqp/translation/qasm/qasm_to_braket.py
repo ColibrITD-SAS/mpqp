@@ -28,6 +28,7 @@ statevector and expectation value in Braket.
 """
 
 from __future__ import annotations
+
 import io
 import warnings
 from logging import StreamHandler, getLogger
@@ -39,8 +40,8 @@ if TYPE_CHECKING:
 
 from mpqp.core.instruction.gates.custom_gate import CustomGate
 from mpqp.noise import NoiseModel
-from mpqp.translation.qasm.open_qasm_2_and_3 import open_qasm_hard_includes
 from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
+from mpqp.translation.qasm.open_qasm_2_and_3 import open_qasm_hard_includes
 
 
 def qasm3_to_braket_Program(qasm3_str: str) -> "Program":

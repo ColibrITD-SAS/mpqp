@@ -6,7 +6,6 @@ from __future__ import annotations
 import math
 from functools import reduce
 from numbers import Complex, Real
-
 from typing import TYPE_CHECKING, Any, Optional, Union, cast
 
 import numpy as np
@@ -444,7 +443,6 @@ def rand_unitary_matrix(size: int, seed: Optional[int] = None) -> Matrix:
         True
     """
     from scipy.stats import unitary_group
-    import numpy as np
 
     return np.asarray(
         unitary_group.rvs(size, random_state=np.random.default_rng(seed)),

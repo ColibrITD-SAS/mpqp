@@ -30,11 +30,9 @@ def jobs_local_storage_to_mpqp(jobs: Optional[list[DictDB] | DictDB]) -> list[Jo
     """
     if jobs is None:
         return []
-    from numpy import (
-        array,  # pyright: ignore[reportUnusedImport]
-        complex64,  # pyright: ignore[reportUnusedImport]
-        complex128,  # pyright: ignore[reportUnusedImport]
-    )
+    from numpy import array  # pyright: ignore[reportUnusedImport]
+    from numpy import complex64  # pyright: ignore[reportUnusedImport]
+    from numpy import complex128  # pyright: ignore[reportUnusedImport]
 
     jobs_mpqp = []
     if isinstance(jobs, dict):

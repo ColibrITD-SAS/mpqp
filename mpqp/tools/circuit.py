@@ -13,8 +13,8 @@ from mpqp.core.instruction.gates.native_gates import (
     PRX,
     TOF,
     CRk,
-    P,
     OneQubitNoParamGate,
+    P,
     Rk,
     RotationGate,
     Rx,
@@ -35,8 +35,8 @@ from mpqp.noise.noise_model import (
 from mpqp.tools.maths import closest_unitary
 
 if TYPE_CHECKING:
-    from qiskit.circuit import QuantumCircuit
     from qiskit._accelerate.circuit import CircuitInstruction
+    from qiskit.circuit import QuantumCircuit
 
 
 def random_circuit(
@@ -335,8 +335,8 @@ def replace_custom_gate(
         correct the statevector if need be.
     """
     from qiskit import QuantumCircuit, transpile
-    from qiskit.exceptions import QiskitError
     from qiskit.circuit.library import UnitaryGate
+    from qiskit.exceptions import QiskitError
 
     if not isinstance(custom_unitary, QuantumCircuit):
         transpilation_circuit = QuantumCircuit(nb_qubits)

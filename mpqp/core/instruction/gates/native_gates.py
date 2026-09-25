@@ -19,25 +19,6 @@ from abc import abstractmethod
 from numbers import Integral
 from typing import TYPE_CHECKING, Optional
 
-from qiskit.circuit.library import (
-    CCXGate,
-    CPhaseGate,
-    CXGate,
-    CZGate,
-    HGate,
-    IGate,
-    PhaseGate,
-    RXGate,
-    RYGate,
-    RZGate,
-    SGate,
-    SwapGate,
-    TGate,
-    XGate,
-    YGate,
-    ZGate,
-)
-
 if TYPE_CHECKING:
     from sympy import Expr
     from qiskit._accelerate.circuit import Parameter
@@ -55,10 +36,10 @@ from mpqp.tools.generics import Matrix, SimpleClassReprABC, classproperty
 from mpqp.tools.maths import (
     cos,
     exp,
-    sin,
-    symbolic_product,
-    symbolic_divide,
     rotation_denominator,
+    sin,
+    symbolic_divide,
+    symbolic_product,
 )
 
 # pylance doesn't handle well Expr, so a lot of "type:ignore" will happen in
@@ -261,9 +242,8 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
         """Rotation angle (in radians)."""
         return self.parameters[0]
 
-    def __repr__(self):
-        target = "[" + ", ".join(str(t) for t in self.targets) + "]"
-        return f"{type(self).__name__}({self.theta}, {target})"
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({self.theta}, {self.targets[0]})"
 
     def to_other_language(
         self,
@@ -280,8 +260,9 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
                 qiskit_parameters = set()
             return self.qiskit_gate(_qiskit_parameter_adder(theta, qiskit_parameters))
         elif language == Language.BRAKET:
-            from braket.circuits import Instruction
             from copy import deepcopy
+
+            from braket.circuits import Instruction
 
             connection = deepcopy(self.targets)
             if isinstance(self, ControlledGate):
@@ -394,8 +375,9 @@ class NoParameterGate(NativeGate, SimpleClassReprABC):
         if language == Language.QISKIT:
             return self.qiskit_gate()
         elif language == Language.BRAKET:
-            from braket.circuits import Instruction
             from copy import deepcopy
+
+            from braket.circuits import Instruction
 
             connection = deepcopy(self.targets)
             if isinstance(self, ControlledGate):
@@ -1716,7 +1698,7 @@ class PRX(RotationGate, SingleQubitGate, ComposedGate):
         )
 
     def to_matrix(self, desired_gate_size: int = 0):
-        return self.to_canonical_matrix()
+        return super().to_matrix(desired_gate_size)
 
     def decompose(self) -> list[Gate]:
         return [
