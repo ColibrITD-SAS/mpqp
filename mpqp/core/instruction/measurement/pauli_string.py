@@ -734,8 +734,10 @@ class PauliString:
                     "Cannot parse non-homogeneous types when `pauli` is a `list`."
                 )
         from mpqp.environment.var_cache import (
-            InstalledProviders,
             _INSTALLED_MPQP_PROVIDERS,  # pyright: ignore[reportPrivateUsage]
+        )
+        from mpqp.environment.var_cache import (
+            InstalledProviders,
         )
 
         if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
@@ -1147,8 +1149,8 @@ class PauliStringMonomial(PauliString):
         return f"PauliStringMonomial({coef}{atoms})"
 
     def to_matrix(self) -> Matrix:
-        return (  # pyright: ignore[reportOperatorIssue,reportReturnType]
-            reduce(
+        return (
+            reduce(  # pyright: ignore[reportOperatorIssue,reportReturnType]
                 np.kron,
                 map(lambda a: a.to_matrix(), self.atoms),
                 np.eye(1, dtype=np.complex128).tolist(),

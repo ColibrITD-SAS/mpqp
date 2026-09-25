@@ -8,10 +8,10 @@ import numpy as np
 import numpy.typing as npt
 
 from mpqp.core.instruction.measurement.pauli_string import (
-    pI,
     PauliString,
     PauliStringAtom,
     PauliStringMonomial,
+    pI,
     pX,
     pY,
     pZ,

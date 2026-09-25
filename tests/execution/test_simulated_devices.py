@@ -54,6 +54,9 @@ def list_ibm_simulated_device() -> list[tuple[QCircuit, StaticIBMSimulatedDevice
 
 
 @pytest.mark.provider("qiskit")
+@pytest.mark.filterwarnings(
+    "ignore:Properties of fake_nighthawk are not intended.*:UserWarning"
+)
 def running_sample_job_ibm_simulated_devices(
     list_ibm_simulated_device: list[tuple[QCircuit, StaticIBMSimulatedDevice]],
 ):

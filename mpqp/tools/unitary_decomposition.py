@@ -162,15 +162,15 @@ def _decompose(
     else:  # 2 qubits or more
         length = len(U)
         U12, MuxRy, V12 = cossin(U, p=length // 2, q=length // 2, separate=False)
-
         # Extracts the rotations of the multiplexed Ry for later decomposition
         thetas = []
         for i in range(MuxRy.shape[0] // 2):
             thetas.append(np.arccos(MuxRy[i][i]))
-        thetas = np.array(thetas)
+        thetas = np.array(thetas, dtype=np.float64)
 
         assert isinstance(U12, np.ndarray)
         assert isinstance(V12, np.ndarray)
+
         Vu, MuxRzu, Wu = _unitary_SVD(U12)
         Vv, MuxRzv, Wv = _unitary_SVD(V12)
 
@@ -203,7 +203,7 @@ def _decompose(
             circuit,
             targets,
             position,
-            Ry,
+            Ry,  # pyright: ignore[reportArgumentType]
         )
 
         circuit = _decompose(Wu, circuit, targets, position + 1)
@@ -233,7 +233,6 @@ def _optimize_circuit(circuit: QCircuit) -> QCircuit:
                     break
                 j += 1
         i += 1
-
     return circuit
 
 
@@ -262,8 +261,13 @@ def quantum_shannon_decomposition(
     .. [1] Mikko Möttönen, Juha J. Vartiainen, Ville Bergholm, and Martti M. Salomaa. 2004. Quantum circuits for general multi-qubit gates. American Physical Society (APS) : 93-13.
 
     Examples:
+        >>> from mpqp.tools.maths import matrix_eq
         >>> U = np.array([[1,0],[0,1]])
-        >>> circuit = quantum_shannon_decomposition(U)
+        >>> circuit = quantum_shannon_decomposition(U, [0])
+        >>> print(matrix_eq(U, circuit.to_matrix()))
+        True
+        >>> U = np.fft.fft(np.eye(4)) / 2
+        >>> circuit = quantum_shannon_decomposition(U, [0, 1])
         >>> print(matrix_eq(U, circuit.to_matrix()))
         True
     """
