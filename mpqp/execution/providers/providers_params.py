@@ -27,12 +27,15 @@ class QiskitParams(ProviderParams):
 
 
 class QuantinuumParams(ProviderParams):
-    """
-    Class meant to regroup all Quantinuum Nexus specific parameters for remote execution.
+    """Configuration parameters for Quantinuum execution.
 
     Args:
-        optimisation_level: Optimisation level with which the circuit should be compiled (default at 0)
-        commutation_strategy: TODO docstring
+        optimisation_level: Level of optimisation applied when compiling the
+            circuit. Defaults to 0.
+        commutation_strategy: Strategy used by TKET to group Pauli terms for
+            sampled observable jobs on local devices. If ``None``, MPQP chooses
+            a strategy based on the commuting type defined by the measurement.
+            This parameter is not used for Nexus jobs.
     """
 
     def __init__(

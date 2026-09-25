@@ -106,7 +106,7 @@ def test_local_tket_state_vector(device: QUANTINUUMDevice):
                 QCircuit([ExpectationMeasure(Observable(pX), shots=0)]),
                 QUANTINUUMDevice.H1_EMULATOR,
             ),
-            "does not handle ideal observable job",
+            "does not handle exact observable jobs",
         ),
         (
             Job(
