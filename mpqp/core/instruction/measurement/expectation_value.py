@@ -329,7 +329,8 @@ class Observable:
 
         Args:
             language: The target programming language.
-            targets: TODO doc
+            targets: The list of qubits that the observable is acting upon
+            (required if ``language == Language.TKET``) otherwise defaults at (0,...)
             circuit: The Cirq circuit associated with the observable (required
                 if ``language == Language.CIRQ``).
 
