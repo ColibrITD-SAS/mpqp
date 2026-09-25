@@ -1753,6 +1753,7 @@ class PRX(RotationGate, SingleQubitGate, ComposedGate):
             return self.cirq_gate(
                 phase_exponent=symbolic_divide(self.parameters[1], np.pi),
                 exponent=symbolic_divide(self.parameters[0], np.pi),
+                global_shift=-0.5,
             )
         elif language == Language.QASM2:
             target = self.targets[0]
