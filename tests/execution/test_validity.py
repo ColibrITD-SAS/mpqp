@@ -1,4 +1,5 @@
 from copy import deepcopy
+
 import numpy as np
 import numpy.typing as npt
 import pytest
@@ -1233,17 +1234,24 @@ def test_validity_optim_ideal_multi_diag_obs_and_regular_run(
             QUANTINUUMDevice.TKET_AER_SIMULATOR,
         ],
     )
-    br2 = run(
-        c2,
-        [
-            IBMDevice.AER_SIMULATOR,
-            ATOSDevice.MYQLM_PYLINALG,
-            AWSDevice.BRAKET_LOCAL_SIMULATOR,
-            GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
-            QUANTINUUMDevice.TKET_QULACS_SIMULATOR,
-            QUANTINUUMDevice.TKET_AER_SIMULATOR,
-        ],
-    )
+    with pytest.warns(
+        UserWarning,
+        match=(
+            r"Cannot optimize diagonal observables on "
+            r"QUANTINUUMDevice\.TKET_AER_SIMULATOR"
+        ),
+    ):
+        br2 = run(
+            c2,
+            [
+                IBMDevice.AER_SIMULATOR,
+                ATOSDevice.MYQLM_PYLINALG,
+                AWSDevice.BRAKET_LOCAL_SIMULATOR,
+                GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
+                QUANTINUUMDevice.TKET_QULACS_SIMULATOR,
+                QUANTINUUMDevice.TKET_AER_SIMULATOR,
+            ],
+        )
 
     assert isinstance(br1, BatchResult)
     assert isinstance(br2, BatchResult)

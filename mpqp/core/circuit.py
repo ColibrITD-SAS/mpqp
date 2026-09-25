@@ -1154,7 +1154,6 @@ class QCircuit:
         language: Literal[Language.TKET],
         skip_pre_measure: bool = False,
         skip_measurements: bool = False,
-        authorized_gates: Optional[set[type[NativeGate]]] = None,
         printing: bool = False,
     ) -> tket_Circuit: ...
     @overload

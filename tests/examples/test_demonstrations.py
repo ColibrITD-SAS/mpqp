@@ -6,8 +6,6 @@ import pytest
 from mpqp import (
     ATOSDevice,
     AWSDevice,
-    GOOGLEDevice,
-    QUANTINUUMDevice,
     BasisMeasure,
     ExpectationMeasure,
     GOOGLEDevice,
@@ -15,6 +13,7 @@ from mpqp import (
     Language,
     Observable,
     QCircuit,
+    QUANTINUUMDevice,
     run,
 )
 from mpqp.execution.devices import AvailableDevice
