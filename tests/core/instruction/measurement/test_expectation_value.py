@@ -72,3 +72,22 @@ def test_to_other_language_tket():
     )
 
     assert observable.to_other_language(Language.TKET) == expected
+
+
+@pytest.mark.provider("quantinuum")
+def test_to_other_language_tket_explicit_targets():
+    from pytket.circuit import Qubit
+    from pytket.pauli import Pauli, QubitPauliString
+    from pytket.utils.operators import QubitPauliOperator
+
+    observable = Observable(pX @ pI @ pZ)
+    expected = QubitPauliOperator(
+        {
+            QubitPauliString(
+                [Qubit(2), Qubit(0)],
+                [Pauli.X, Pauli.Z],
+            ): 1,
+        }
+    )
+
+    assert observable.to_other_language(Language.TKET, targets=[2, 1, 0]) == expected
