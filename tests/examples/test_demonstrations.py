@@ -6,6 +6,8 @@ import pytest
 from mpqp import (
     ATOSDevice,
     AWSDevice,
+    GOOGLEDevice,
+    QUANTINUUMDevice,
     BasisMeasure,
     ExpectationMeasure,
     GOOGLEDevice,
@@ -19,8 +21,6 @@ from mpqp.execution.devices import AvailableDevice
 from mpqp.gates import *
 from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
 from mpqp.translation.qasm.qasm_to_braket import qasm3_to_braket_Circuit
-
-# TODO: add CIRQ local simulator devices to this file
 
 
 def warn_guard(device: AvailableDevice, run: Callable[[], Any]):
@@ -61,6 +61,16 @@ def test_sample_demo_myqlm():
 @pytest.mark.provider("cirq")
 def test_sample_demo_cirq():
     exec_sample_demo([GOOGLEDevice.CIRQ_LOCAL_SIMULATOR])
+
+
+@pytest.mark.provider("quantinuum")
+def test_sample_demo_quantinuum():
+    exec_sample_demo(
+        [
+            QUANTINUUMDevice.TKET_AER_SIMULATOR,
+            QUANTINUUMDevice.TKET_QULACS_SIMULATOR,
+        ],
+    )
 
 
 def exec_sample_demo(devices: list[AvailableDevice]):
@@ -158,6 +168,16 @@ def test_statevector_demo_cirq():
     exec_statevector_demo([GOOGLEDevice.CIRQ_LOCAL_SIMULATOR])
 
 
+@pytest.mark.provider("quantinuum")
+def test_statevector_demo_quantinuum():
+    exec_statevector_demo(
+        [
+            QUANTINUUMDevice.TKET_AER_STATEVECTOR_SIMULATOR,
+            QUANTINUUMDevice.TKET_QULACS_SIMULATOR,
+        ],
+    )
+
+
 def exec_statevector_demo(devices: list[AvailableDevice]):
     circuit = QCircuit(
         [
@@ -251,6 +271,20 @@ def test_observable_demo_myqlm(shots: int):
 @pytest.mark.parametrize("shots", [0, 1000])
 def test_observable_demo_cirq(shots: int):
     exec_observable_demo(shots, [GOOGLEDevice.CIRQ_LOCAL_SIMULATOR])
+
+
+@pytest.mark.provider("quantinuum")
+@pytest.mark.parametrize("shots", [0, 1000])
+def test_observable_demo_quantinuum(shots: int):
+    devices: list[AvailableDevice] = [
+        QUANTINUUMDevice.TKET_AER_SIMULATOR,
+        QUANTINUUMDevice.TKET_QULACS_SIMULATOR,
+    ]
+    if shots == 0:
+        devices.append(
+            QUANTINUUMDevice.TKET_AER_STATEVECTOR_SIMULATOR,
+        )
+    exec_observable_demo(shots, devices)
 
 
 def exec_observable_demo(shots: int, devices: list[AvailableDevice]):
@@ -378,6 +412,16 @@ def test_all_native_gates_braket():
 @pytest.mark.provider("myqlm")
 def test_all_native_gates_myqlm():
     exec_all_native_gates(ATOSDevice.MYQLM_PYLINALG)
+
+
+@pytest.mark.provider("quantinuum")
+def test_all_native_gates_quantinuum_aer():
+    exec_all_native_gates(QUANTINUUMDevice.TKET_AER_STATEVECTOR_SIMULATOR)
+
+
+@pytest.mark.provider("quantinuum")
+def test_all_native_gates_quantinuum_qulacs():
+    exec_all_native_gates(QUANTINUUMDevice.TKET_QULACS_SIMULATOR)
 
 
 def exec_all_native_gates(device: AvailableDevice):

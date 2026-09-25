@@ -39,6 +39,7 @@ from mpqp.execution.devices import (
     AZUREDevice,
     GOOGLEDevice,
     IBMDevice,
+    QUANTINUUMDevice,
 )
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.providers.atos import run_atos, submit_QLM
@@ -46,7 +47,12 @@ from mpqp.execution.providers.aws import run_braket, submit_job_braket
 from mpqp.execution.providers.azure import run_azure, submit_job_azure
 from mpqp.execution.providers.google import run_google
 from mpqp.execution.providers.ibm import run_ibm, submit_remote_ibm
-from mpqp.execution.providers.providers_params import ProviderParams, QiskitParams
+from mpqp.execution.providers.providers_params import (
+    ProviderParams,
+    QiskitParams,
+    QuantinuumParams,
+)
+from mpqp.execution.providers.quantinuum import run_quantinuum, submit_job_nexus
 from mpqp.execution.result import BatchResult, Result
 from mpqp.tools.display import state_vector_ket_shape
 from mpqp.tools.errors import DeviceJobIncompatibleError, RemoteExecutionError
@@ -242,10 +248,9 @@ def generate_job(
             else:
                 job = Job(JobType.SAMPLE, circuit, device)
         elif isinstance(measurement, ExpectationMeasure):
-            if not (measurement.optimize_measurement and isinstance(device, AWSDevice)):
-                m = adjust_measure(measurement, circuit)
-                circuit = circuit.without_measurements(deep_copy=False)
-                circuit.add(m)
+            m = adjust_measure(measurement, circuit)
+            circuit = circuit.without_measurements(deep_copy=False)
+            circuit.add(m)
             job = Job(
                 JobType.OBSERVABLE,
                 circuit,
@@ -275,32 +280,37 @@ def _run_diagonal_observables(
     adapted_circuit = circuit.without_measurements(deep_copy=False)
     adapted_circuit.add(BasisMeasure(exp_measure.targets, shots=exp_measure.shots))
 
-    result = _run_single(adapted_circuit, device, values, False)
-    probas = result.probabilities
+    adapted_result = _run_single(adapted_circuit, device, values, False)
+    probas = adapted_result.probabilities
 
     error = 0 if exp_measure.shots == 0 else None
     if exp_measure.nb_observables == 1:
         exp_value = float(probas.dot(exp_measure.observables[0].diagonal_elements))
-        return Result(
+        result = Result(
             observable_job,
             exp_value,
             error,
             exp_measure.shots,
         )
+    else:
+        exp_values = dict()
+        errors = dict()
+        for obs in exp_measure.observables:
+            # 3M-TODO: replace this dot product with copy, apparently more optim
+            exp_values[obs.label] = float(probas.dot(obs.diagonal_elements))
+            errors[obs.label] = error
 
-    exp_values = dict()
-    errors = dict()
-    for obs in exp_measure.observables:
-        # 3M-TODO: replace this dot product with cupy, apparently more optim
-        exp_values[obs.label] = float(probas.dot(obs.diagonal_elements))
-        errors[obs.label] = error
+        result = Result(
+            observable_job,
+            exp_values,
+            errors,
+            exp_measure.shots,
+        )
 
-    return Result(
-        observable_job,
-        exp_values,
-        errors,
-        exp_measure.shots,
-    )
+    observable_job.id = adapted_result.job.id
+    observable_job.status = JobStatus.DONE
+
+    return result
 
 
 def _run_single(
@@ -359,7 +369,22 @@ def _run_single(
         measure = circuit.measurements[0]
         if isinstance(measure, ExpectationMeasure):
             if measure.optim_diagonal and measure.only_diagonal_observables():
-                return _run_diagonal_observables(circuit, measure, device, job, values)
+                if (measure.shots == 0 and not device.supports_state_vector()) or (
+                    measure.shots != 0 and not device.supports_samples()
+                ):
+                    from warnings import warn
+
+                    required_job_type = (
+                        JobType.STATE_VECTOR if measure.shots == 0 else JobType.SAMPLE
+                    )
+                    warn(
+                        f"Cannot optimize diagonal observables on {device}: "
+                        f"a {required_job_type.name} job is required but not supported."
+                    )
+                else:
+                    return _run_diagonal_observables(
+                        circuit, measure, device, job, values
+                    )
 
     if len(circuit.noises) != 0:
         if not device.is_noisy_simulator():
@@ -387,6 +412,15 @@ def _run_single(
         return run_google(job)
     elif isinstance(device, AZUREDevice):
         return run_azure(job)
+    elif isinstance(device, QUANTINUUMDevice):
+        if provider_params is not None and not isinstance(
+            provider_params, QuantinuumParams
+        ):
+            raise TypeError(
+                "`provider_params` must be a `QuantinuumParams` instance, "
+                f"not `{type(provider_params).__name__}`."
+            )
+        return run_quantinuum(job, provider_params)
     else:
         raise NotImplementedError(f"Device {device} not handled")
 
@@ -589,6 +623,15 @@ def submit(
         job_id, _ = submit_job_braket(job)
     elif isinstance(device, AZUREDevice):
         job_id, _ = submit_job_azure(job)
+    elif isinstance(device, QUANTINUUMDevice):
+        if provider_params is not None and not isinstance(
+            provider_params, QuantinuumParams
+        ):
+            raise TypeError(
+                "`provider_params` must be a `QuantinuumParams` instance, "
+                f"not `{type(provider_params).__name__}`."
+            )
+        job_id, _ = submit_job_nexus(job, provider_params)
     else:
         raise NotImplementedError(f"Device {device} not handled")
 

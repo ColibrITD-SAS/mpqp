@@ -6,6 +6,7 @@ from .devices import (
     AZUREDevice,
     GOOGLEDevice,
     IBMDevice,
+    QUANTINUUMDevice,
 )
 from .job import Job, JobStatus, JobType
 from .result import BatchResult, Result, Sample, StateVector
