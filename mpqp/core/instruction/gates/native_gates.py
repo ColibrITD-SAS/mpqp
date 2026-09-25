@@ -1393,7 +1393,9 @@ class Rxx(RotationGate, ComposedGate):
 
     @classproperty
     def cirq_gate(cls):
-        raise NotImplementedError
+        from cirq import XXPowGate
+
+        return XXPowGate
 
     qlm_aqasm_keyword = "RXX"
     qiskit_string = "rxx"
@@ -1439,23 +1441,11 @@ class Rxx(RotationGate, ComposedGate):
         qiskit_parameters: Optional[set["Parameter"]] | None = None,
     ):
         if language == Language.CIRQ:
-            from typing import Any, Generator
+            import numpy as np
 
-            from cirq import Qid
-
-            from mpqp.translation.cirq import cirqCustomGate
-
-            def cirq_decomposition(qubits: list[Qid]) -> Generator[Any]:
-                from cirq.ops import common_gates
-                from cirq.ops.common_gates import rx as CirqRx
-
-                q1, q2 = qubits
-                yield common_gates.CNOT(q1, q2)
-                yield CirqRx(self.parameters[0]).on(q1)
-                yield common_gates.CNOT(q1, q2)
-
-            return cirqCustomGate(self.to_matrix(), cirq_decomposition, self.label)
-
+            return self.cirq_gate(
+                exponent=symbolic_divide(self.parameters[0], np.pi), global_shift=-0.5
+            )
         return super().to_other_language(language, qiskit_parameters)
 
 
@@ -1502,7 +1492,9 @@ class Ryy(RotationGate, ComposedGate):
 
     @classproperty
     def cirq_gate(cls):
-        raise NotImplementedError
+        from cirq import YYPowGate
+
+        return YYPowGate
 
     qlm_aqasm_keyword = "RYY"
     qiskit_string = "ryy"
@@ -1552,32 +1544,10 @@ class Ryy(RotationGate, ComposedGate):
         qiskit_parameters: Optional[set["Parameter"]] | None = None,
     ):
         if language == Language.CIRQ:
-            from typing import Any, Generator
 
-            import numpy as np
-            from cirq import Qid
-
-            from mpqp.translation.cirq import cirqCustomGate
-
-            def cirq_decomposition(qubits: list[Qid]) -> Generator[Any]:
-                from cirq.ops import common_gates
-                from cirq.ops.common_gates import rx as CirqRx
-                from cirq.ops.common_gates import rz as CirqRz
-
-                q1, q2 = qubits
-
-                yield CirqRx(np.pi / 2).on(q1)
-                yield CirqRx(np.pi / 2).on(q2)
-
-                yield common_gates.CNOT(q1, q2)
-                yield CirqRz(self.parameters[0]).on(q2)
-                yield common_gates.CNOT(q1, q2)
-
-                yield CirqRx(-np.pi / 2).on(q1)
-                yield CirqRx(-np.pi / 2).on(q2)
-
-            return cirqCustomGate(self.to_matrix(), cirq_decomposition, self.label)
-
+            return self.cirq_gate(
+                exponent=symbolic_divide(self.parameters[0], np.pi), global_shift=-0.5
+            )
         return super().to_other_language(language, qiskit_parameters)
 
 
@@ -1624,7 +1594,9 @@ class Rzz(RotationGate, ComposedGate):
 
     @classproperty
     def cirq_gate(cls):
-        raise NotImplementedError
+        from cirq import ZZPowGate
+
+        return ZZPowGate
 
     qlm_aqasm_keyword = "RZZ"
     qiskit_string = "rzz"
@@ -1670,24 +1642,11 @@ class Rzz(RotationGate, ComposedGate):
         qiskit_parameters: Optional[set["Parameter"]] | None = None,
     ):
         if language == Language.CIRQ:
-            from typing import Any, Generator
+            import numpy as np
 
-            from cirq import Qid
-
-            from mpqp.translation.cirq import cirqCustomGate
-
-            # Need to do these warcrimes because cirq doesn't have a Rzz gate
-            # This function is create so that the following custom gate still has a nice decomposition
-            def cirq_decomposition(qubits: list[Qid]) -> Generator[Any]:
-                from cirq.ops import common_gates
-                from cirq.ops.common_gates import rz as CirqRz
-
-                q1, q2 = qubits
-                yield common_gates.CNOT(q1, q2)
-                yield CirqRz(self.parameters[0]).on(q2)
-                yield common_gates.CNOT(q1, q2)
-
-            return cirqCustomGate(self.to_matrix(), cirq_decomposition, self.label)
+            return self.cirq_gate(
+                exponent=symbolic_divide(self.parameters[0], np.pi), global_shift=-0.5
+            )
 
         return super().to_other_language(language, qiskit_parameters)
 

@@ -82,9 +82,9 @@ if InstalledProviders.CIRQ in _INSTALLED_MPQP_PROVIDERS:
 
     def get_cirq_gate_set() -> set[type[Gate]]:
         """Return gates directly representable by Cirq."""
-        from mpqp.gates import CNOT, Rx, Ry, Rz
+        from mpqp.gates import CNOT, Rx, Ry, Rz, PRX, Rzz, Rxx, Ryy
 
-        return {Rx, Ry, Rz, CNOT}
+        return {Rx, Ry, Rz, CNOT, PRX, Rzz, Rxx, Ryy}
 
     def mpqp_to_cirq(
         circuit: QCircuit,
