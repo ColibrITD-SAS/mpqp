@@ -11,13 +11,13 @@ from mpqp import (
     BasisMeasure,
     ExpectationMeasure,
     GOOGLEDevice,
-    QUANTINUUMDevice,
     H,
     IBMDevice,
     Job,
     JobType,
     Observable,
     QCircuit,
+    QUANTINUUMDevice,
     Result,
     Rx,
     Sample,
@@ -231,7 +231,14 @@ observable_sampling_devices_quantinuum: list[AvailableDevice] = [
 @pytest.mark.provider("qiskit")
 @pytest.mark.parametrize("device", sampling_devices_qiskit)
 def test_sample_nb_shot_handle_qiskit(device: AvailableDevice):
-    exec_sample_nb_shot_handle(device)
+    if device in {
+        IBMDevice.AER_SIMULATOR_STABILIZER,
+        IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER,
+    }:
+        with pytest.warns(UserWarning, match=rf"For {device}"):
+            exec_sample_nb_shot_handle(device)
+    else:
+        exec_sample_nb_shot_handle(device)
 
 
 @pytest.mark.provider("braket")
@@ -271,7 +278,14 @@ def exec_sample_nb_shot_handle(device: AvailableDevice):
 @pytest.mark.provider("qiskit")
 @pytest.mark.parametrize("device", observable_sampling_devices_qiskit)
 def test_observable_nb_shot_handle_qiskit(device: AvailableDevice):
-    exec_observable_nb_shot_handle(device)
+    if device in {
+        IBMDevice.AER_SIMULATOR_STABILIZER,
+        IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER,
+    }:
+        with pytest.warns(UserWarning, match=rf"For {device}"):
+            exec_observable_nb_shot_handle(device)
+    else:
+        exec_observable_nb_shot_handle(device)
 
 
 @pytest.mark.provider("braket")

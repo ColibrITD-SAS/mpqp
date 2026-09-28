@@ -1,24 +1,25 @@
 from typing import Any, Callable
+
 import numpy as np
 import pytest
 
 from mpqp import (
     ATOSDevice,
     AWSDevice,
-    GOOGLEDevice,
-    QUANTINUUMDevice,
     BasisMeasure,
     ExpectationMeasure,
+    GOOGLEDevice,
     IBMDevice,
     Language,
     Observable,
     QCircuit,
+    QUANTINUUMDevice,
     run,
 )
 from mpqp.execution.devices import AvailableDevice
 from mpqp.gates import *
-from mpqp.translation.qasm.qasm_to_braket import qasm3_to_braket_Circuit
 from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
+from mpqp.translation.qasm.qasm_to_braket import qasm3_to_braket_Circuit
 
 
 def warn_guard(device: AvailableDevice, run: Callable[[], Any]):
@@ -35,9 +36,7 @@ def test_sample_demo_qiskit():
         [
             IBMDevice.AER_SIMULATOR,
             IBMDevice.AER_SIMULATOR_MATRIX_PRODUCT_STATE,
-            # IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER,
             IBMDevice.AER_SIMULATOR_STATEVECTOR,
-            # IBMDevice.AER_SIMULATOR_STABILIZER,
             IBMDevice.AER_SIMULATOR_DENSITY_MATRIX,
         ],
     )
@@ -122,14 +121,18 @@ def test_sample_demo_aer_stabilizers():
     circuit.add(BasisMeasure([0, 1, 2, 3], shots=2000))
 
     # Run the circuit on a selected device
-    run(
-        circuit,
-        [
-            IBMDevice.AER_SIMULATOR,
-            IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER,
-            IBMDevice.AER_SIMULATOR_STABILIZER,
-        ],
-    )
+    with pytest.warns(
+        UserWarning,
+        match=r"For IBMDevice\.AER_SIMULATOR_(?:EXTENDED_)?STABILIZER",
+    ):
+        run(
+            circuit,
+            [
+                IBMDevice.AER_SIMULATOR,
+                IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER,
+                IBMDevice.AER_SIMULATOR_STABILIZER,
+            ],
+        )
     assert True
 
 

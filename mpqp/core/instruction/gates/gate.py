@@ -210,12 +210,17 @@ class Gate(Instruction, ABC):
                     import braket  # pyright: ignore[reportUnusedImport]
                 except ImportError:
                     continue
+
+            try:
+                value = getattr(self, attr_name)
+            except NotImplementedError:
+                continue
+
             if (
                 attr_name not in {'_abc_impl'}
                 and not attr_name.startswith("__")
-                and not callable(getattr(self, attr_name))
+                and not callable(value)
             ):
-                value = getattr(self, attr_name)
                 if isinstance(value, np.ndarray):
                     value = value.tolist()
                 result[attr_name] = value

@@ -1,14 +1,19 @@
 from typing import TYPE_CHECKING
+
+from mpqp.core.instruction.gates.gate import Gate
+from mpqp.core.instruction.gates.gate_decomposition import resolve_gate
+from mpqp.core.instruction.gates.native_gates import U
 from mpqp.environment.var_cache import (
     _INSTALLED_MPQP_PROVIDERS,  # pyright: ignore[reportPrivateUsage]
+)
+from mpqp.environment.var_cache import (
     InstalledProviders,
 )
 
 if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
-    if TYPE_CHECKING:
-        from mpqp.core.instruction.gates.native_gates import NativeGate
-        from mpqp.core.circuit import QCircuit
-        from qiskit import QuantumCircuit
+    from qiskit import QuantumCircuit
+
+    from mpqp.core.circuit import QCircuit
 
     def qiskit_to_mpqp(qcircuit: "QuantumCircuit"):
         """Translate a qiskit QuantumCircuit into a MPQP QCircuit.
@@ -20,6 +25,7 @@ if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
             qcircuit: Any Qiskit quantum circuit.
         """
         from qiskit import qasm3
+
         from mpqp.core.languages import Language
         from mpqp.translation.qasm import open_qasm_3_to_2
         from mpqp.translation.qasm.qasm_to_mpqp import qasm2_parse
@@ -30,13 +36,17 @@ if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
         qc = qasm2_parse(qasm2_code)
         return qc
 
+    def get_qiskit_gate_set() -> set[type[Gate]]:
+        from mpqp.gates import CNOT, PRX, Rx, Rxx, Ry, Ryy, Rz, Rzz
+
+        return {Rx, Ry, Rz, PRX, Rxx, Ryy, Rzz, U, CNOT}
+
     def mpqp_to_qiskit(
-        circuit: "QCircuit",
+        circuit: QCircuit,
         skip_pre_measure: bool = False,
         skip_measurements: bool = False,
         printing: bool = False,
-        authorized_gates: set[type["NativeGate"]] | None = None,
-    ) -> "QuantumCircuit":
+    ) -> QuantumCircuit:
         """Translate a MPQP circuit to a Qiskit equivalent.
 
         Note:
@@ -46,7 +56,6 @@ if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
             circuit: The original MPQP circuit to be translated.
             skip_pre_measure: If set at True will translate the circuit without its pre-measurement circuit (see QCircuit.to_other_language for more information).
             skip_measurements: If set at True will translate the circuit without any measurement.
-            authorized_gates: The set of gates allowed on the circuit, if the circuit contains any other gates it raises a ValueError.
 
         Examples:
             >>> circuit = QCircuit([H(0), CNOT(0, 1), BasisMeasure()])
@@ -71,27 +80,26 @@ if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
         from qiskit.circuit import Operation, QuantumCircuit
         from qiskit.circuit.quantumcircuit import CircuitInstruction
         from qiskit.quantum_info import Operator
-        from mpqp.core.instruction.gates.gate import Gate
+
+        from mpqp.core.instruction import (
+            Barrier,
+            BasisMeasure,
+            Breakpoint,
+            ControlledGate,
+            CustomGate,
+            ExpectationMeasure,
+            Measure,
+        )
         from mpqp.core.instruction.gates.custom_controlled_gate import (
             CustomControlledGate,
         )
+        from mpqp.core.instruction.gates.gate import Gate
         from mpqp.core.languages import Language
-
-        from mpqp.core.instruction import (
-            Measure,
-            Breakpoint,
-            CustomGate,
-            Barrier,
-            ControlledGate,
-            BasisMeasure,
-            ExpectationMeasure,
-        )
 
         # to avoid defining twice the same parameter, we keep trace of the
         # added parameters, and we use those instead of new ones when they
         # are used more than once
-        if authorized_gates is None:
-            authorized_gates = set()
+
         qiskit_parameters = set()
         if circuit.nb_cbits == 0:
             new_circ = QuantumCircuit(circuit.nb_qubits)
@@ -105,17 +113,29 @@ if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
             if isinstance(instruction, (Measure, Breakpoint)):
                 continue
             options = (
-                {"printing": printing} if isinstance(instruction, CustomGate) else {}
+                {"printing": printing}
+                if isinstance(instruction, (CustomGate, CustomControlledGate))
+                else {}
             )
 
-            if isinstance(instruction, Gate):
-                from mpqp.translation.utils import verify_convert_instructions
+            if (
+                printing
+                and isinstance(instruction, CustomControlledGate)
+                and isinstance(instruction.non_controlled_gate, CustomGate)
+            ):
+                instr = [instruction]
 
-                instr = verify_convert_instructions(
-                    instruction, authorized_gates, printing
+            elif isinstance(instruction, Gate):
+                qiskit_gate_set = get_qiskit_gate_set()
+                instr = list(
+                    resolve_gate(
+                        instruction,
+                        qiskit_gate_set,
+                    )
                 )
             else:
                 instr = [instruction]
+
             for instruction in instr:
                 qiskit_inst = instruction.to_other_language(
                     Language.QISKIT, qiskit_parameters, **options

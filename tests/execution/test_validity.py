@@ -1,4 +1,5 @@
 from copy import deepcopy
+
 import numpy as np
 import numpy.typing as npt
 import pytest
@@ -41,6 +42,7 @@ from mpqp.tools import Matrix, atol, rand_hermitian_matrix, rtol
 from mpqp.tools.circuit import random_gate, random_noise
 from mpqp.tools.errors import (
     DeviceJobIncompatibleError,
+    UnsupportedGateError,
 )
 from mpqp.tools.maths import matrix_eq, rand_unitary_matrix
 
@@ -675,7 +677,26 @@ def circuits_type():
 def test_validity_run_job_type_qiskit(
     device: AvailableDevice, circuits_type: list[QCircuit]
 ):
-    exec_validity_run_job_type(device, circuits_type)
+    if device in {
+        IBMDevice.AER_SIMULATOR_STABILIZER,
+        IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER,
+    }:
+        with pytest.warns(UserWarning, match=rf"For {device}"):
+            exec_validity_run_job_type(device, circuits_type)
+    else:
+        exec_validity_run_job_type(device, circuits_type)
+
+
+@pytest.mark.provider("qiskit")
+def test_unsupported_non_composed_gate_is_rejected_before_translation():
+    circuit = QCircuit([T(0)])
+
+    with pytest.warns(UserWarning, match=r"AER_SIMULATOR_STABILIZER"):
+        with pytest.raises(
+            UnsupportedGateError,
+            match=r"T cannot be represented with the target gate set",
+        ):
+            circuit.to_other_device(IBMDevice.AER_SIMULATOR_STABILIZER)
 
 
 @pytest.mark.provider("cirq")
@@ -825,7 +846,15 @@ def exec_validity_native_gate_to_other_language(language: Language):
             with pytest.raises(NotImplementedError):
                 gate_build.to_other_language(language)
         else:
-            assert gate_build.to_other_language(language) is not None
+            if isinstance(gate_build, ComposedGate):
+                assert all(
+                    [
+                        gate.to_other_language(language) is not None
+                        for gate in gate_build.decompose()
+                    ]
+                )
+            else:
+                assert gate_build.to_other_language(language) is not None
 
 
 @pytest.fixture
@@ -1205,17 +1234,24 @@ def test_validity_optim_ideal_multi_diag_obs_and_regular_run(
             QUANTINUUMDevice.TKET_AER_SIMULATOR,
         ],
     )
-    br2 = run(
-        c2,
-        [
-            IBMDevice.AER_SIMULATOR,
-            ATOSDevice.MYQLM_PYLINALG,
-            AWSDevice.BRAKET_LOCAL_SIMULATOR,
-            GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
-            QUANTINUUMDevice.TKET_QULACS_SIMULATOR,
-            QUANTINUUMDevice.TKET_AER_SIMULATOR,
-        ],
-    )
+    with pytest.warns(
+        UserWarning,
+        match=(
+            r"Cannot optimize diagonal observables on "
+            r"QUANTINUUMDevice\.TKET_AER_SIMULATOR"
+        ),
+    ):
+        br2 = run(
+            c2,
+            [
+                IBMDevice.AER_SIMULATOR,
+                ATOSDevice.MYQLM_PYLINALG,
+                AWSDevice.BRAKET_LOCAL_SIMULATOR,
+                GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
+                QUANTINUUMDevice.TKET_QULACS_SIMULATOR,
+                QUANTINUUMDevice.TKET_AER_SIMULATOR,
+            ],
+        )
 
     assert isinstance(br1, BatchResult)
     assert isinstance(br2, BatchResult)
@@ -1236,8 +1272,8 @@ def test_validity_optim_ideal_multi_diag_obs_and_regular_run(
     ],
 )
 def test_global_phase_statevector(matrix: Matrix, gphase: float):
-    from math import log2
     from itertools import pairwise
+    from math import log2
 
     circuit = QCircuit([CustomGate(matrix, list(range(int(log2(len(matrix))))))])
     circuit.input_g_phase = gphase
