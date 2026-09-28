@@ -120,8 +120,8 @@ class StateVector:
             of the state represented by this StateVector.
 
         Example:
-            >>> state_vector = StateVector(np.array([1, 0, 0, -1])/np.sqrt(2), 2)
-            >>> state_vector.to_sample_list()
+            >>> state_vector = StateVector(np.array([1, 0, 0, -1])/np.sqrt(2), 2)  # doctest: +ELLIPSIS
+            >>> state_vector.to_sample_list()  # doctest: +ELLIPSIS
             [Sample(2, index=0, count=None, probability=0.5), Sample(2, index=3, count=None, probability=0.5)]
 
         """
