@@ -60,6 +60,8 @@ def run_ibm(job: Job, qiskit_params: Optional[QiskitParams] = None) -> Result:
         This function is not meant to be used directly, please use
         :func:`~mpqp.execution.runner.run` instead.
     """
+    if qiskit_params is not None and qiskit_params.qctrl_function is not None:
+        return run_qctrl_function(job, qiskit_params)
     return (
         run_aer(job)
         if not job.device.is_remote()
@@ -600,6 +602,62 @@ def run_remote_ibm(job: Job, qiskit_params: Optional[QiskitParams] = None) -> Re
     return extract_result(ibm_result, job, job.device)
 
 
+def run_qctrl_function(job: Job, qiskit_params: QiskitParams):
+    """Run a Circuit or CircuitBinding through a provided QiskitFunction."""
+    if TYPE_CHECKING:
+        assert qiskit_params.qctrl_function
+        assert isinstance(job.device, IBMDevice)
+
+    if job.device.is_simulator():
+        raise ValueError(
+            "Cannot run QiskitFunctions on local simulator please pick a real hardware to run on."
+        )
+
+    if job.measure is None or job.measure.shots == 0:
+        raise ValueError(
+            "Cannot run a STATEVECTOR or an ideal Observable job with a QiskitFunction"
+        )
+    func = qiskit_params.qctrl_function
+    if func.provider != "q-ctrl":
+        raise ValueError(
+            "Only the q-ctrl QiskitFunctions are available through MPQP at the moment."
+        )
+
+    primitive = "estimator" if job.job_type == JobType.OBSERVABLE else "sampler"
+    if job.job_type == JobType.OBSERVABLE:
+        circuit = job.circuit.without_measurements().to_other_language(Language.QISKIT)
+        measurement = job.circuit.measurements[0]
+        if TYPE_CHECKING:
+            assert isinstance(measurement, ExpectationMeasure)
+        pubs = []
+        for obs in measurement.observables:
+            pubs.append((circuit, obs.to_other_language(Language.QISKIT)))
+    else:
+        pubs = [(job.circuit.to_other_language(Language.QISKIT),)]
+    job.status = JobStatus.RUNNING
+    run = func.run(
+        primitive=primitive,
+        options={
+            "default_shots": job.measure.shots,
+            "job_tags": ["q-ctrl/test", "test-test_id"],
+        },
+        pubs=pubs,
+        backend_name=job.device.value,
+    )
+    if run.status() == "Error":
+        job.status = JobStatus.ERROR
+    else:
+        job.status = JobStatus.DONE
+    result = run.result()
+    job.id = run.job_id
+    print(type(result))
+    if TYPE_CHECKING:
+        from qiskit.primitives import EstimatorResult
+
+        assert isinstance(result, EstimatorResult)
+    return extract_result(result, job, job.device)
+
+
 def extract_result(
     result: "QiskitResult | EstimatorResult | PrimitiveResult[PubResult | SamplerPubResult]",
     job: Optional[Job],
@@ -737,7 +795,6 @@ def extract_result(
                 )
                 exp_values_dict[label] = result.values[qiskit_order]
                 errors_dict[label] = variance
-
             return Result(job, exp_values_dict, errors_dict, shots)
 
         elif isinstance(

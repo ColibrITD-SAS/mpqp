@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from pytket.partition import PauliPartitionStrat
+    from qiskit_ibm_catalog.serverless import RunnableQiskitFunction
 
 
 class ProviderParams:
@@ -22,8 +23,15 @@ class QiskitParams(ProviderParams):
 
     """
 
-    def __init__(self, instance: Optional[str] = None):
+    def __init__(
+        self,
+        instance: Optional[str] = None,
+        job_tags: Optional[str] = None,
+        qctrl_function: Optional["RunnableQiskitFunction"] = None,
+    ):
         self.instance = instance
+        self.job_tags = job_tags
+        self.qctrl_function = qctrl_function
 
 
 class QuantinuumParams(ProviderParams):

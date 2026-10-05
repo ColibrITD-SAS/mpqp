@@ -1350,7 +1350,6 @@ class QCircuit:
         skip_pre_measure: bool = False,
         backend_sim: Optional["AerSimulator"] = None,
     ) -> QuantumCircuit: ...
-
     def to_other_device(
         self,
         device: AvailableDevice,

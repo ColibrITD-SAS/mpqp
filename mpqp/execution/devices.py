@@ -241,22 +241,25 @@ class IBMDevice(AvailableDevice):
             )
             return {Rx, Ry, Rz, X, Y, Z, H, CNOT, CZ, S, S_dagger, SWAP}
         else:
-            compatibilities: dict[IBMDeviceFamily, set[type[Gate]]] = {
-                IBMDeviceFamily.HERON: {CZ, Id, Rx, Rz, X, Rzz},
-                IBMDeviceFamily.NIGHTHAWK: {CZ, Id, Rx, Rz, X},
-            }
-            family = {
-                IBMDevice.IBM_MIAMI: IBMDeviceFamily.HERON,
-                IBMDevice.IBM_BERLIN: IBMDeviceFamily.HERON,
-                IBMDevice.IBM_BOSTON: IBMDeviceFamily.NIGHTHAWK,
-                IBMDevice.IBM_KINGSTON: IBMDeviceFamily.NIGHTHAWK,
-                IBMDevice.IBM_PITTSBURGH: IBMDeviceFamily.NIGHTHAWK,
-                IBMDevice.IBM_FEZ: IBMDeviceFamily.NIGHTHAWK,
-                IBMDevice.IBM_MARRAKESH: IBMDeviceFamily.NIGHTHAWK,
-                IBMDevice.IBM_AACHEN: IBMDeviceFamily.NIGHTHAWK,
-            }
-            if self in family and family[self] in compatibilities:
-                return compatibilities[family[self]]
+            if native_set:
+                compatibilities: dict[IBMDeviceFamily, set[type[Gate]]] = {
+                    IBMDeviceFamily.HERON: {CZ, Id, Rx, Rz, X, Rzz},
+                    IBMDeviceFamily.NIGHTHAWK: {CZ, Id, Rx, Rz, X},
+                }
+                family = {
+                    IBMDevice.IBM_MIAMI: IBMDeviceFamily.HERON,
+                    IBMDevice.IBM_BERLIN: IBMDeviceFamily.HERON,
+                    IBMDevice.IBM_BOSTON: IBMDeviceFamily.NIGHTHAWK,
+                    IBMDevice.IBM_KINGSTON: IBMDeviceFamily.NIGHTHAWK,
+                    IBMDevice.IBM_PITTSBURGH: IBMDeviceFamily.NIGHTHAWK,
+                    IBMDevice.IBM_FEZ: IBMDeviceFamily.NIGHTHAWK,
+                    IBMDevice.IBM_MARRAKESH: IBMDeviceFamily.NIGHTHAWK,
+                    IBMDevice.IBM_AACHEN: IBMDeviceFamily.NIGHTHAWK,
+                }
+                if self in family and family[self] in compatibilities:
+                    return compatibilities[family[self]]
+                else:
+                    return set()
             else:
                 return set()
 
