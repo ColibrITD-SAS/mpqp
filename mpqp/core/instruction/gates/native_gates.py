@@ -52,7 +52,7 @@ def _evaluate_symbolic_expression(
     """Evaluate a SymPy expression with provider-native named parameters."""
     if not expression.free_symbols:
         return float(expression.evalf())
-    
+
     from sympy import default_sort_key, lambdify
 
     symbols = tuple(sorted(expression.free_symbols, key=default_sort_key))
@@ -126,7 +126,7 @@ def _sympy_to_braket_param(
 ) -> "FreeParameterExpression | float":
     from braket.circuits import FreeParameter as BraketFreeParameter
     from sympy import Expr
-    
+
     if isinstance(val, Expr):
         return _evaluate_symbolic_expression(
             val,
