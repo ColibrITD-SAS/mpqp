@@ -12,6 +12,9 @@ from mpqp.execution.connection.azure_connection import get_all_job_ids as azure_
 from mpqp.execution.connection.google_connection import get_all_job_ids as cirq_ids
 from mpqp.execution.connection.ibm_connection import get_all_job_ids as ibm_ids
 from mpqp.execution.connection.qlm_connection import get_all_job_ids as qlm_ids
+from mpqp.execution.connection.quantinuum_connection import (
+    get_all_job_ids as quantinuum_ids,
+)
 from mpqp.execution.devices import (
     ATOSDevice,
     AvailableDevice,
@@ -19,18 +22,20 @@ from mpqp.execution.devices import (
     AZUREDevice,
     GOOGLEDevice,
     IBMDevice,
+    QUANTINUUMDevice,
 )
 from mpqp.execution.job import Job
 from mpqp.execution.providers.atos import get_result_from_qlm_job_id
 from mpqp.execution.providers.aws import get_result_from_aws_task_arn
 from mpqp.execution.providers.azure import get_result_from_azure_job_id
 from mpqp.execution.providers.ibm import get_result_from_ibm_job_id
+from mpqp.execution.providers.quantinuum import get_result_from_quantinuum_job_id
 
 
 def get_remote_result(
     job_data: str | Job, device: Optional[AvailableDevice] = None
 ) -> Result:
-    """Retrieve and parse a remote the result from a job_id and device. If the
+    """Retrieve and parse a remote result from a job_id (or a Job) and device. If the
     job is still running, it will wait until it is done.
 
     Args:
@@ -82,31 +87,38 @@ def get_remote_result(
         if job_data.id is None:
             raise ValueError("Can't retrieve remote result for a job whose id is None.")
 
-        device = job_data.device
-        job_data = job_data.id
+        job_id = job_data.id
+        job_device = job_data.device
     else:
         if device is None:
             raise ValueError(
-                "To get a remote result from a job it, please also provide the "
-                "device to get the data from."
+                "To retrieve a remote result from a job ID, please also provide "
+                "the device on which the job was executed."
             )
+        job_id = job_data
+        job_device = device
 
-    if not device.is_remote():
+    if not job_device.is_remote():
         raise ValueError(
             "Trying to retrieve a remote result while the device of the job was local."
         )
 
-    if isinstance(device, IBMDevice):
-        return get_result_from_ibm_job_id(job_data)
-    elif isinstance(device, ATOSDevice):
-        return get_result_from_qlm_job_id(job_data)
-    elif isinstance(device, AWSDevice):
-        return get_result_from_aws_task_arn(job_data)
-    elif isinstance(device, AZUREDevice):
-        return get_result_from_azure_job_id(job_data)
+    if isinstance(job_device, IBMDevice):
+        return get_result_from_ibm_job_id(job_id)
+    elif isinstance(job_device, ATOSDevice):
+        return get_result_from_qlm_job_id(job_id)
+    elif isinstance(job_device, AWSDevice):
+        return get_result_from_aws_task_arn(job_id)
+    elif isinstance(job_device, AZUREDevice):
+        return get_result_from_azure_job_id(job_id)
+    elif isinstance(job_device, QUANTINUUMDevice):
+        return get_result_from_quantinuum_job_id(
+            job_id,
+            job=job_data if isinstance(job_data, Job) else None,
+        )
     else:
         raise NotImplementedError(
-            f"The device {device.name} is not supported for remote features."
+            f"The device {job_device.name} is not supported for remote features."
         )
 
 
@@ -124,6 +136,7 @@ def get_all_remote_job_ids() -> dict[type[AvailableDevice], list[str]]:
         IBMDevice: ibm_ids(),
         GOOGLEDevice: cirq_ids(),
         AZUREDevice: azure_ids(),
+        QUANTINUUMDevice: quantinuum_ids(),
     }
 
     return job_ids

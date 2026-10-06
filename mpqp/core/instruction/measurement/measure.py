@@ -13,7 +13,7 @@ from __future__ import annotations
 from abc import ABC
 from typing import Optional
 
-from mpqp.core.instruction import Instruction
+from mpqp.core.instruction.instruction import Instruction
 from mpqp.core.instruction.gates import Gate
 
 

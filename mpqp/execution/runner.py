@@ -40,6 +40,7 @@ from mpqp.execution.devices import (
     AZUREDevice,
     GOOGLEDevice,
     IBMDevice,
+    QUANTINUUMDevice,
 )
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.providers.atos import run_atos, submit_QLM
@@ -47,7 +48,12 @@ from mpqp.execution.providers.aws import run_braket, submit_job_braket
 from mpqp.execution.providers.azure import run_azure, submit_job_azure
 from mpqp.execution.providers.google import run_google
 from mpqp.execution.providers.ibm import run_ibm, submit_remote_ibm
-from mpqp.execution.providers.providers_params import ProviderParams, QiskitParams
+from mpqp.execution.providers.providers_params import (
+    ProviderParams,
+    QiskitParams,
+    QuantinuumParams,
+)
+from mpqp.execution.providers.quantinuum import run_quantinuum, submit_job_nexus
 from mpqp.execution.result import BatchResult, Result
 from mpqp.tools.display import state_vector_ket_shape
 from mpqp.tools.errors import DeviceJobIncompatibleError, RemoteExecutionError
@@ -57,10 +63,13 @@ if TYPE_CHECKING:
     from sympy import Expr
 
 
-def adjust_measure(measure: ExpectationMeasure, nb_qubits: int):
+def adjust_measure(
+    measure: ExpectationMeasure,
+    circuit: QCircuit,
+) -> ExpectationMeasure:
     """A measure can be incomplete and not span the entire circuit, but providers
-    usually do not support this behavior. To make this work, we tweak the measure
-    this function to match the expected behavior.
+    usually do not support this behavior. The function therefore adjusts each
+    observable to span the circuit's full qubit register.
 
     In order to do this, we place identity operators on the qubits not targeted
     by the measure. If the targets are not ordered, each observable is first
@@ -76,86 +85,123 @@ def adjust_measure(measure: ExpectationMeasure, nb_qubits: int):
     Returns:
         A measure targeting all circuit qubits, with observables embedded into
         the full register.
+
+    Raises:
+        ValueError: If the number of target qubits does not match the number
+            of qubits represented by an observable.
+
     """
     # TODO: use this only for specific provider
-    if measure.nb_qubits > nb_qubits:
+
+    nb_qubits = circuit.nb_qubits
+    targets = list(measure.targets)
+
+    observables = measure.observables
+
+    if any(observable.nb_qubits != len(targets) for observable in observables):
         raise ValueError(
-            f"Number of provided qubits: {nb_qubits} is more than the number of qubits of the measure: {measure.nb_qubits}"
+            f"Each observable must act on {len(targets)} qubits to match the "
+            "measurement targets."
         )
-    if measure.targets == list(range(nb_qubits)):
+
+    if targets == list(range(nb_qubits)):
         return measure
 
-    targets = measure.targets
-
-    targets_is_ordered = all(a < b for a, b in pairwise(targets))
-    if not targets_is_ordered:
-        ordered_targets = sorted(targets)
-        contiguous_targets = [targets.index(t) for t in ordered_targets]
-        for obs in measure.observables:
-            if (
-                obs._matrix is None  # pyright: ignore[reportPrivateUsage]
-                or measure.optimize_measurement
-            ):  # Order pauli string
-                obs._pauli_string = (  # pyright: ignore[reportPrivateUsage]
-                    obs.pauli_string.rearrange(contiguous_targets)
-                )
-            else:  # Order the matrix
-                from mpqp.tools.maths import rearrange_matrix
-
-                obs.matrix = rearrange_matrix(obs.matrix, contiguous_targets)
-
-    targets_is_contiguous = len(targets) > 0 and (
-        targets[-1] - targets[0] + 1 == len(sorted(targets))
+    targets_are_ordered = all(
+        first_target < second_target
+        for first_target, second_target in pairwise(targets)
     )
 
-    tweaked_observables: list[Observable] = []
+    if not targets_are_ordered:
+        ordered_targets = sorted(targets)
 
-    for obs in measure.observables:
-        from mpqp.core.instruction.measurement.pauli_string import (
-            PauliString,
-            PauliStringMonomial,
-        )
-        from mpqp.measures import pI
+        pauli_permutation = [ordered_targets.index(target) for target in targets]
+        # Reorder observables to match the sorted target order
+        reordered_observables: list[Observable] = []
 
+        for observable in observables:
+            if (
+                observable._matrix is None  # pyright: ignore[reportPrivateUsage]
+                or measure.optimize_measurement
+            ):
+                reordered_observables.append(
+                    Observable(
+                        observable.pauli_string.rearrange(pauli_permutation),
+                        label=observable.label,
+                    )
+                )
+            else:
+                from mpqp.tools.maths import rearrange_matrix
+
+                reordered_observables.append(
+                    Observable(
+                        rearrange_matrix(observable.matrix, targets),
+                        label=observable.label,
+                    )
+                )
+
+        targets = ordered_targets
+        observables = reordered_observables
+
+    targets_are_contiguous = bool(targets) and targets == list(
+        range(targets[0], targets[-1] + 1)
+    )
+    # Extend observables to cover the circuit's full qubit register
+    adjusted_observables: list[Observable] = []
+
+    from mpqp.core.instruction.measurement.pauli_string import (
+        PauliString,
+        PauliStringMonomial,
+        pI,
+    )
+
+    for observable in observables:
         if (
-            obs._pauli_string is None  # pyright: ignore[reportPrivateUsage]
-            and targets_is_contiguous
+            observable._pauli_string is None  # pyright: ignore[reportPrivateUsage]
+            and targets_are_contiguous
         ):
-            n_before = targets[0]
-            n_after = nb_qubits - targets[-1] - 1
+            nb_qubits_before = targets[0]
+            nb_qubits_after = nb_qubits - targets[-1] - 1
 
-            full_matrix = obs.matrix
+            full_matrix = observable.matrix
 
-            Id_before = np.eye(2**n_before)
-            Id_after = np.eye(2**n_after)
+            if nb_qubits_before > 0:
+                identity_before = np.eye(2**nb_qubits_before)
+                full_matrix = np.kron(identity_before, full_matrix)
 
-            if n_before > 0:
-                full_matrix = np.kron(Id_before, full_matrix)
+            if nb_qubits_after > 0:
+                identity_after = np.eye(2**nb_qubits_after)
+                full_matrix = np.kron(full_matrix, identity_after)
 
-            if n_after > 0:
-                full_matrix = np.kron(full_matrix, Id_after)
-
-            tweaked_observables.append(
+            adjusted_observables.append(
                 Observable(
-                    full_matrix, label=obs.label  # pyright: ignore[reportArgumentType]
+                    full_matrix,  # pyright: ignore[reportArgumentType]
+                    label=observable.label,
                 )
             )
         else:
-            pauli = obs.pauli_string
-            embedded = PauliString()
+            embedded_pauli_string = PauliString()
 
-            for mono in pauli.monomials:
-                full_register = [pI] * nb_qubits
+            for monomial in observable.pauli_string.monomials:
+                embedded_atoms = [pI] * nb_qubits
 
                 for local_idx, target in enumerate(targets):
-                    full_register[target] = mono.atoms[local_idx]
+                    embedded_atoms[target] = monomial.atoms[local_idx]
 
-                embedded += PauliStringMonomial(mono.coef, full_register)
+                embedded_pauli_string += PauliStringMonomial(
+                    monomial.coef,
+                    embedded_atoms,
+                )
 
-            tweaked_observables.append(Observable(embedded.simplify(), label=obs.label))
+            adjusted_observables.append(
+                Observable(
+                    embedded_pauli_string.simplify(),
+                    label=observable.label,
+                )
+            )
 
-    tweaked_measure = ExpectationMeasure(
-        tweaked_observables,
+    adjusted_measure = ExpectationMeasure(
+        adjusted_observables,
         list(range(nb_qubits)),
         measure.shots,
         measure.commuting_type,
@@ -164,7 +210,7 @@ def adjust_measure(measure: ExpectationMeasure, nb_qubits: int):
         optimize_measurement=measure.optimize_measurement,
         optim_diagonal=measure.optim_diagonal,
     )
-    return tweaked_measure
+    return adjusted_measure
 
 
 def generate_job(
@@ -209,10 +255,9 @@ def generate_job(
             else:
                 job = Job(JobType.SAMPLE, circuit, device)
         elif isinstance(measurement, ExpectationMeasure):
-            if not (measurement.optimize_measurement and isinstance(device, AWSDevice)):
-                m = adjust_measure(measurement, circuit.nb_qubits)
-                circuit = circuit.without_measurements(deep_copy=False)
-                circuit.add(m)
+            m = adjust_measure(measurement, circuit)
+            circuit = circuit.without_measurements(deep_copy=False)
+            circuit.add(m)
             job = Job(
                 JobType.OBSERVABLE,
                 circuit,
@@ -269,26 +314,27 @@ def _compute_result_diagonal_observables(
     error = 0 if exp_measure.shots == 0 else None
     if exp_measure.nb_observables == 1:
         exp_value = float(probas.dot(exp_measure.observables[0].diagonal_elements))
-        return Result(
+        result = Result(
             observable_job,
             exp_value,
             error,
             exp_measure.shots,
         )
+    else:
+        exp_values = dict()
+        errors = dict()
+        for obs in exp_measure.observables:
+            # 3M-TODO: replace this dot product with copy, apparently more optim
+            exp_values[obs.label] = float(probas.dot(obs.diagonal_elements))
+            errors[obs.label] = error
 
-    exp_values = dict()
-    errors = dict()
-    for obs in exp_measure.observables:
-        # 3M-TODO: replace this dot product with cupy, apparently more optim
-        exp_values[obs.label] = float(probas.dot(obs.diagonal_elements))
-        errors[obs.label] = error
-
-    return Result(
-        observable_job,
-        exp_values,
-        errors,
-        exp_measure.shots,
-    )
+        result = Result(
+            observable_job,
+            exp_values,
+            errors,
+            exp_measure.shots,
+        )
+    return result
 
 
 def _run_single(
@@ -347,7 +393,22 @@ def _run_single(
         measure = circuit.measurements[0]
         if isinstance(measure, ExpectationMeasure):
             if measure.optim_diagonal and measure.only_diagonal_observables():
-                return _run_diagonal_observables(circuit, measure, device, job, values)
+                if (measure.shots == 0 and not device.supports_state_vector()) or (
+                    measure.shots != 0 and not device.supports_samples()
+                ):
+                    from warnings import warn
+
+                    required_job_type = (
+                        JobType.STATE_VECTOR if measure.shots == 0 else JobType.SAMPLE
+                    )
+                    warn(
+                        f"Cannot optimize diagonal observables on {device}: "
+                        f"a {required_job_type.name} job is required but not supported."
+                    )
+                else:
+                    return _run_diagonal_observables(
+                        circuit, measure, device, job, values
+                    )
 
     if len(circuit.noises) != 0:
         if not device.is_noisy_simulator():
@@ -375,6 +436,15 @@ def _run_single(
         return run_google(job)
     elif isinstance(device, AZUREDevice):
         return run_azure(job)
+    elif isinstance(device, QUANTINUUMDevice):
+        if provider_params is not None and not isinstance(
+            provider_params, QuantinuumParams
+        ):
+            raise TypeError(
+                "`provider_params` must be a `QuantinuumParams` instance, "
+                f"not `{type(provider_params).__name__}`."
+            )
+        return run_quantinuum(job, provider_params)
     else:
         raise NotImplementedError(f"Device {device} not handled")
 
@@ -688,6 +758,15 @@ def submit(
         job_id, _ = submit_job_braket(job)
     elif isinstance(device, AZUREDevice):
         job_id, _ = submit_job_azure(job)
+    elif isinstance(device, QUANTINUUMDevice):
+        if provider_params is not None and not isinstance(
+            provider_params, QuantinuumParams
+        ):
+            raise TypeError(
+                "`provider_params` must be a `QuantinuumParams` instance, "
+                f"not `{type(provider_params).__name__}`."
+            )
+        job_id, _ = submit_job_nexus(job, provider_params)
     else:
         raise NotImplementedError(f"Device {device} not handled")
 

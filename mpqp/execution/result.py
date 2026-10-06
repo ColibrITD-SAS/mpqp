@@ -106,6 +106,31 @@ class StateVector:
             "nb_qubits": self.nb_qubits,
         }
 
+    def to_sample_list(self) -> list[Sample]:
+        """
+        Converts the StateVector object into a list of Samples. This allows
+        to quickly have a binary representation of the basis states composing
+        a StateVector.
+
+        Note that the samples will be instantiated with probabilities, so
+        we cannot come back after that to the StateVector amplitudes.
+
+        Returns:
+            A list of Samples representing the possible measurement outcomes
+            of the state represented by this StateVector.
+
+        Example:
+            >>> state_vector = StateVector(np.array([1, 0, 0, -1])/np.sqrt(2), 2)  # doctest: +ELLIPSIS
+            >>> state_vector.to_sample_list()  # doctest: +ELLIPSIS
+            [Sample(2, index=0, count=None, probability=0.5), Sample(2, index=3, count=None, probability=0.5)]
+
+        """
+        return [
+            Sample(self.nb_qubits, index=index, probability=proba)
+            for index, proba in enumerate(self.probabilities)
+            if not np.isclose(proba, 0)
+        ]
+
     def __eq__(self, other) -> bool:  # pyright: ignore[reportMissingParameterType]
         if not isinstance(other, StateVector):
             return False
@@ -432,8 +457,11 @@ class Result:
     def amplitudes(self) -> npt.NDArray[np.complex128]:
         """Get the amplitudes of the state of this result"""
         if self.job.job_type != JobType.STATE_VECTOR:
+            from mpqp.tools.errors import result_error_message
+
             raise ResultAttributeError(
-                "Cannot get amplitudes if the job was not of type STATE_VECTOR"
+                "Cannot get amplitudes if the job was not of type STATE_VECTOR\n"
+                + result_error_message(self.job.job_type)
             )
         if TYPE_CHECKING:
             assert self._state_vector is not None
@@ -443,8 +471,11 @@ class Result:
     def state_vector(self) -> StateVector:
         """Get the state vector of the state associated with this result"""
         if self.job.job_type != JobType.STATE_VECTOR:
+            from mpqp.tools.errors import result_error_message
+
             raise ResultAttributeError(
-                "Cannot get state vector if the job was not of type STATE_VECTOR"
+                "Cannot get state vector if the job was not of type STATE_VECTOR\n"
+                + result_error_message(self.job.job_type)
             )
         if TYPE_CHECKING:
             assert self._state_vector is not None
@@ -454,8 +485,11 @@ class Result:
     def samples(self) -> list[Sample]:
         """Get the list of samples of the result"""
         if self.job.job_type != JobType.SAMPLE:
+            from mpqp.tools.errors import result_error_message
+
             raise ResultAttributeError(
-                "Cannot get samples if the job was not of type SAMPLE"
+                "Cannot get samples if the job was not of type SAMPLE\n"
+                + result_error_message(self.job.job_type)
             )
         if TYPE_CHECKING:
             assert self._samples is not None
@@ -465,9 +499,12 @@ class Result:
     def probabilities(self) -> npt.NDArray[np.float64]:
         """Get the list of probabilities associated with this result"""
         if self.job.job_type not in (JobType.SAMPLE, JobType.STATE_VECTOR):
+            from mpqp.tools.errors import result_error_message
+
             raise ResultAttributeError(
                 "Cannot get probabilities if the job was not of"
-                " type SAMPLE or STATE_VECTOR"
+                " type SAMPLE or STATE_VECTOR\n"
+                + result_error_message(self.job.job_type)
             )
         if TYPE_CHECKING:
             assert self._probabilities is not None
@@ -477,8 +514,11 @@ class Result:
     def counts(self) -> list[int]:
         """Get the list of counts for each sample of the experiment"""
         if self.job.job_type != JobType.SAMPLE:
+            from mpqp.tools.errors import result_error_message
+
             raise ResultAttributeError(
-                "Cannot get counts if the job was not of type SAMPLE"
+                "Cannot get counts if the job was not of type SAMPLE\n"
+                + result_error_message(self.job.job_type)
             )
 
         if TYPE_CHECKING:

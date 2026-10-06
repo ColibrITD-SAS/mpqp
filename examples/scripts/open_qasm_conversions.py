@@ -1,6 +1,6 @@
 """Examples of OpenQASM conversion from 2.0 to 3.0"""
 
-from mpqp.qasm import open_qasm_2_to_3, remove_user_gates
+from mpqp.translation.qasm import open_qasm_2_to_3, remove_user_gates
 
 print("-------------------------")
 print("-------------------------")

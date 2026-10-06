@@ -1,11 +1,12 @@
-import pytest
 from typing import TYPE_CHECKING
+
+import pytest
 
 if TYPE_CHECKING:
     from braket.circuits import Operator
 
-from mpqp.translation.qasm.qasm_to_braket import qasm3_to_braket_Circuit
 from mpqp.tools import UnsupportedBraketFeaturesWarning
+from mpqp.translation.qasm.qasm_to_braket import qasm3_to_braket_Circuit
 
 
 @pytest.mark.provider("braket")

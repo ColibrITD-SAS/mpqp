@@ -217,7 +217,10 @@ class CircuitBinding:
                             "All measurements in CircuitBinding must have the same number of shots."
                         )
                 if isinstance(measure, ExpectationMeasure):
-                    measurements[index] = adjust_measure(measure, self.nb_qubits)
+
+                    measurements[index] = adjust_measure(
+                        measure, QCircuit(self.nb_qubits)
+                    )
                     if self.job_type != JobType.OBSERVABLE:
                         raise ValueError(
                             "All measurements in CircuitBinding must be of the same type."

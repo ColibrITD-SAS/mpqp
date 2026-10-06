@@ -8,11 +8,14 @@ from __future__ import annotations
 import copy
 from numbers import Real
 from typing import TYPE_CHECKING, Literal, Optional, Union, overload
+from warnings import warn
 
 import numpy as np
 import numpy.typing as npt
 from typing_extensions import Never
 
+from mpqp.core.instruction.gates.gate import Gate
+from mpqp.core.instruction.gates.native_gates import SWAP
 from mpqp.core.instruction.measurement.measure import Measure
 from mpqp.core.instruction.measurement.pauli_string import (
     CommutingTypes,
@@ -22,6 +25,7 @@ from mpqp.core.instruction.measurement.pauli_string import (
 )
 from mpqp.core.languages import Language
 from mpqp.tools.display import one_lined_repr
+from mpqp.tools.errors import NumberQubitsError
 from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import is_diagonal, is_hermitian, is_power_of_two
 
@@ -30,6 +34,7 @@ if TYPE_CHECKING:
     from cirq.circuits.circuit import Circuit as CirqCircuit
     from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
     from cirq.ops.pauli_string import PauliString as CirqPauliString
+    from pytket.utils.operators import QubitPauliOperator
     from qat.core.wrappers.observable import Observable as QLMObservable
     from qiskit._accelerate.circuit import Parameter
     from qiskit.quantum_info import SparsePauliOp
@@ -288,29 +293,56 @@ class Observable:
     ) -> QLMObservable: ...
     @overload
     def to_other_language(
-        self, language: Literal[Language.CIRQ], circuit: Optional[CirqCircuit] = None
+        self,
+        language: Literal[Language.CIRQ],
+        targets: Optional[list[int]] = None,
+        circuit: Optional[CirqCircuit] = None,
     ) -> Union[CirqPauliSum, CirqPauliString]: ...
+    @overload
+    def to_other_language(
+        self, language: Literal[Language.TKET], targets: Optional[list[int]] = None
+    ) -> QubitPauliOperator: ...
     @overload
     def to_other_language(
         self, language: Literal[Language.QASM2, Language.QASM3]
     ) -> Never: ...
     @overload
     def to_other_language(
-        self, language: Language, circuit: Optional[CirqCircuit] = None
+        self,
+        language: Language,
+        targets: Optional[list[int]] = None,
+        circuit: Optional[CirqCircuit] = None,
     ) -> Union[
-        SparsePauliOp, QLMObservable, Hermitian, CirqPauliSum, CirqPauliString
+        SparsePauliOp,
+        QLMObservable,
+        Hermitian,
+        Sum,
+        CirqPauliSum,
+        CirqPauliString,
+        QubitPauliOperator,
     ]: ...
 
     def to_other_language(
-        self, language: Language, circuit: Optional[CirqCircuit] = None
+        self,
+        language: Language,
+        targets: Optional[list[int]] = None,
+        circuit: Optional[CirqCircuit] = None,
     ) -> Union[
-        SparsePauliOp, QLMObservable, Hermitian, Sum, CirqPauliSum, CirqPauliString
+        SparsePauliOp,
+        QLMObservable,
+        Hermitian,
+        Sum,
+        CirqPauliSum,
+        CirqPauliString,
+        QubitPauliOperator,
     ]:
         """Converts the observable to the representation of another quantum
         programming language.
 
         Args:
             language: The target programming language.
+            targets: The list of qubits that the observable is acting upon
+            (required if ``language == Language.TKET``) otherwise defaults at (0,...)
             circuit: The Cirq circuit associated with the observable (required
                 if ``language == Language.CIRQ``).
 
@@ -324,7 +356,6 @@ class Observable:
             [('II', (0.425+0j)), ('IZ', (-0.575+0j)), ('ZI', (0.425+0j)), ('ZZ', (0.425+0j))]
 
         """
-        # TODO: use PauliString instead of matrix
         if language == Language.QISKIT:
             from qiskit.quantum_info import Operator, SparsePauliOp
 
@@ -356,7 +387,9 @@ class Observable:
                     ),
                 )
         elif language == Language.CIRQ:
-            return self.pauli_string.to_other_language(Language.CIRQ, circuit)
+            return self.pauli_string.to_other_language(Language.CIRQ, circuit=circuit)
+        elif language == Language.TKET:
+            return self.pauli_string.to_other_language(Language.TKET, targets=targets)
         else:
             raise ValueError(f"Unsupported language: {language}")
 
@@ -441,6 +474,12 @@ class ExpectationMeasure(Measure):
         self.optimize_measurement = optimize_measurement
         """See parameter description."""
         self.pre_transpiled = None
+        """See parameter description."""
+        self.current_grouping: Optional[
+            tuple[list[list[PauliStringMonomial]], GroupingMethods, CommutingTypes]
+        ] = None
+        """Stores the last computed Pauli grouping to avoid recomputing it."""
+
         if isinstance(observable, Observable):
             observable = [observable]
         else:
@@ -473,6 +512,7 @@ class ExpectationMeasure(Measure):
 
         if targets is None:
             self.targets = list(range(self.observables[0].nb_qubits))
+        self._check_targets_order()
 
     @property
     def nb_observables(self) -> int:
@@ -482,10 +522,68 @@ class ExpectationMeasure(Measure):
     def observables_labels(self) -> list[str]:
         return [o.label for o in self.observables if o.label is not None]
 
+    def _check_targets_order(self):
+        """Ensures target qubits are ordered and contiguous, rearranging them if
+        necessary (private)."""
+
+        if len(self.targets) == 0:
+            self._pre_measure: list[Gate] = []
+            return
+
+        if self.nb_qubits != self.observables[0].nb_qubits:
+            raise NumberQubitsError(
+                f"Target size {self.nb_qubits} doesn't match observable size "
+                f"{self.observables[0].nb_qubits}."
+            )
+
+        self._pre_measure: list[Gate] = []
+        """List of Gates added before the expectation measurement to correctly swap
+        target qubits when their are not ordered or contiguous."""
+        targets_is_ordered = all(
+            [self.targets[i] > self.targets[i - 1] for i in range(1, len(self.targets))]
+        )
+        tweaked_tgt = copy.copy(self.targets)
+        if (
+            max(tweaked_tgt) - min(tweaked_tgt) + 1 != len(tweaked_tgt)
+            or not targets_is_ordered
+        ):
+            warn(
+                "Non contiguous or non sorted observable target will introduce "
+                "additional CNOT/SWAP gates."
+            )
+
+            for t_index, target in enumerate(tweaked_tgt):  # sort the targets
+                min_index = tweaked_tgt.index(min(tweaked_tgt[t_index:]))
+                if t_index != min_index:
+                    self._pre_measure.append(SWAP(target, tweaked_tgt[min_index]))
+                    tweaked_tgt[t_index] = tweaked_tgt[min_index]
+                    tweaked_tgt[min_index] = target
+            for t_index, target in enumerate(tweaked_tgt):  # compact the targets
+                if t_index == 0:
+                    continue
+                if target != tweaked_tgt[t_index - 1] + 1:
+                    self._pre_measure.append(SWAP(target, tweaked_tgt[t_index - 1] + 1))
+                    tweaked_tgt[t_index] = tweaked_tgt[t_index - 1] + 1
+        self.rearranged_targets = tweaked_tgt
+        """Adjusted list of target qubits when they are not initially sorted and
+        contiguous."""
+
+    @property
+    def pre_measure(self) -> list[Gate]:
+        return self._pre_measure
+
     def get_pauli_grouping(self) -> list[list[PauliStringMonomial]]:
         """Return the grouped monomials of the Pauli string of the observable.
         The grouping is done according to the grouping method of the expectation
         measure and the chosen commutativity type."""
+
+        if (
+            self.current_grouping is not None
+            and self.current_grouping[1] == self.grouping_method
+            and self.current_grouping[2] == self.commuting_type
+        ):
+            return self.current_grouping[0]
+
         unique_monos = list(
             {
                 mono / mono.coef
@@ -493,10 +591,18 @@ class ExpectationMeasure(Measure):
                 for mono in obs.pauli_string.monomials
             }
         )
+
         if self.grouping_method == GroupingMethods.GREEDY:
             from mpqp.tools.pauli_grouping import pauli_grouping_greedy
 
-            return pauli_grouping_greedy(unique_monos, self.commuting_type)
+            pauli_grouping = pauli_grouping_greedy(unique_monos, self.commuting_type)
+            self.current_grouping = (
+                pauli_grouping,
+                GroupingMethods.GREEDY,
+                self.commuting_type,
+            )
+            return pauli_grouping
+
         elif self.grouping_method == GroupingMethods.QISKIT_COLORING_GREEDY:
             from qiskit.quantum_info import PauliList
 
@@ -522,8 +628,13 @@ class ExpectationMeasure(Measure):
                 ]
                 for pauli in grouped
             ]
-
+            self.current_grouping = (  # pyright: ignore[reportAttributeAccessIssue]
+                grouped_monomials,
+                GroupingMethods.QISKIT_COLORING_GREEDY,
+                self.commuting_type,
+            )
             return grouped_monomials  # pyright: ignore[reportReturnType]
+
         else:
             raise NotImplementedError(f"{self.grouping_method} is not yet supported.")
 

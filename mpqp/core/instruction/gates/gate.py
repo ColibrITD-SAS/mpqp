@@ -7,7 +7,6 @@ from typing import Optional
 from warnings import warn
 
 import numpy as np
-import numpy.typing as npt
 
 from mpqp.core.instruction.instruction import Instruction
 from mpqp.tools.errors import NumberQubitsWarning
@@ -211,12 +210,17 @@ class Gate(Instruction, ABC):
                     import braket  # pyright: ignore[reportUnusedImport]
                 except ImportError:
                     continue
+
+            try:
+                value = getattr(self, attr_name)
+            except NotImplementedError:
+                continue
+
             if (
                 attr_name not in {'_abc_impl'}
                 and not attr_name.startswith("__")
-                and not callable(getattr(self, attr_name))
+                and not callable(value)
             ):
-                value = getattr(self, attr_name)
                 if isinstance(value, np.ndarray):
                     value = value.tolist()
                 result[attr_name] = value
@@ -251,17 +255,16 @@ class Gate(Instruction, ABC):
 
         """
         # TODO: test
-        from mpqp.core.instruction.gates.custom_gate import CustomGate
         from scipy.linalg import fractional_matrix_power
+
+        from mpqp.core.instruction.gates.custom_gate import CustomGate
 
         if exponent == 1:
             return deepcopy(self)
         if exponent == -1:
             return self.inverse()
 
-        semantics: npt.NDArray[np.complex128] = fractional_matrix_power(
-            self.to_matrix(), exponent
-        )
+        semantics = fractional_matrix_power(self.to_matrix(), exponent)
 
         return CustomGate(
             matrix=semantics / np.linalg.norm(semantics, ord=2),
