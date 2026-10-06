@@ -1063,9 +1063,7 @@ class PauliStringMonomial(PauliString):
 
     coef: Coef
 
-    def __init__(
-        self, coef: Coef = 1, atoms: Optional[list["PauliStringAtom"]] = None
-    ):
+    def __init__(self, coef: Coef = 1, atoms: Optional[list["PauliStringAtom"]] = None):
         self.coef = coef
         """Coefficient of the monomial."""
         self._atoms = [] if atoms is None else atoms
@@ -1185,7 +1183,7 @@ class PauliStringMonomial(PauliString):
         return self
 
     def __itruediv__(self, other: Coef) -> PauliStringMonomial:
-        from sympy import Expr, Basic # pyright: ignore[reportUnusedImport]
+        from sympy import Expr, Basic  # pyright: ignore[reportUnusedImport]
 
         assert isinstance(
             other, Coef
