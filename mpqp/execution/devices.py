@@ -226,22 +226,22 @@ class IBMDevice(AvailableDevice):
         """List of native gate set of IBM's chips.
         Pulled from this link: https://quantum.cloud.ibm.com/computers
         """
-        if self == IBMDevice.AER_SIMULATOR_STABILIZER:
-            warnings.warn(
-                UserWarning(
-                    f"For {self} the gates Rx, Ry and Rz are allowed but only at angles 0, π, π/2 and 3*π/2"
+        if native_set:
+            if self == IBMDevice.AER_SIMULATOR_STABILIZER:
+                warnings.warn(
+                    UserWarning(
+                        f"For {self} the gates Rx, Ry and Rz are allowed but only at angles 0, π, π/2 and 3*π/2"
+                    )
                 )
-            )
-            return {Rx, Ry, Rz, X, Y, Z, H, CNOT, CZ, S, S_dagger, SWAP}
-        elif self == IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER:
-            warnings.warn(
-                UserWarning(
-                    f"For {self} the gates Rx, Ry and Rz are allowed but only at angles 0, π, π/2 and 3*π/2"
+                return {Rx, Ry, Rz, X, Y, Z, H, CNOT, CZ, S, S_dagger, SWAP}
+            elif self == IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER:
+                warnings.warn(
+                    UserWarning(
+                        f"For {self} the gates Rx, Ry and Rz are allowed but only at angles 0, π, π/2 and 3*π/2"
+                    )
                 )
-            )
-            return {Rx, Ry, Rz, X, Y, Z, H, CNOT, CZ, S, S_dagger, SWAP}
-        else:
-            if native_set:
+                return {Rx, Ry, Rz, X, Y, Z, H, CNOT, CZ, S, S_dagger, SWAP}
+            else:
                 compatibilities: dict[IBMDeviceFamily, set[type[Gate]]] = {
                     IBMDeviceFamily.HERON: {CZ, Id, Rx, Rz, X, Rzz},
                     IBMDeviceFamily.NIGHTHAWK: {CZ, Id, Rx, Rz, X},
@@ -260,8 +260,7 @@ class IBMDevice(AvailableDevice):
                     return compatibilities[family[self]]
                 else:
                     return set()
-            else:
-                return set()
+        return set()
 
 
 class IBMDeviceFamily(Enum):
