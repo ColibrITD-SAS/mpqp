@@ -221,26 +221,21 @@ class QCircuit:
 
     @property
     def instructions(self) -> list[Instruction]:
-        """Non-measurement instructions in circuit order.
+        """All instructions in circuit order.
 
         A copy is returned so the circuit cannot be modified by mutating this
         list directly. Use :meth:`add` to add instructions to the circuit.
         """
-        return [
-            instruction
-            for instruction in self._instructions
-            if not isinstance(instruction, Measure)
-        ]
-
+        return self._instructions.copy()
+    
     @property
     def measurements(self) -> list[Measure]:
-        """Measurements in the circuit, ordered by their instruction index."""
-        measurements: list[Measure] = []
-        for index in self._measurement_indexes:
-            measurement = self._instructions[index]
-            assert isinstance(measurement, Measure)
-            measurements.append(measurement)
-        return measurements
+        """Measurements in the circuit, ordered by their instruction index.
+        
+        A copy is returned so the circuit cannot be modified by mutating this
+        list directly. Use :meth:`add` to add Measure to the circuit.
+        """
+        return [self._instructions[index] for index in self._measurement_indexes] # pyright: ignore[reportReturnType]
 
     def __eq__(self, value: object) -> bool:
         return isinstance(value, type(self)) and self.to_dict() == value.to_dict()
@@ -466,11 +461,8 @@ class QCircuit:
                     f"Number of target qubits {len(components.targets)} should be higher than "
                     f"the dimension {components.dimension}."
                 )
-            hardcoded_basis_measures = [
-                instr for instr in self._instructions if isinstance(instr, BasisMeasure)
-            ]
             if any(
-                len(meas.targets) != self.nb_qubits for meas in hardcoded_basis_measures
+                len(meas.targets) != self.nb_qubits for meas in self.measurements
             ):
                 raise ValueError(
                     "In noisy circuits, BasisMeasure must span all qubits in the circuit."
