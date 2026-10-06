@@ -102,9 +102,11 @@ def test_demo_psr_matches_finite_difference(depth, method, with_boundary):
     )
     ns["compute_scaled_derivatives"] = lambda *args: {
         name: {
-            scales[name]: fx[name][(0,)]
-            if method == Optimizer.TRF
-            else 2 * residuals[name] * fx[name][(0,)]
+            scales[name]: (
+                fx[name][(0,)]
+                if method == Optimizer.TRF
+                else 2 * residuals[name] * fx[name][(0,)]
+            )
         }
         for name in names
     }
