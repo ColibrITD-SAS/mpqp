@@ -290,7 +290,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                 from mpqp.core.instruction import ExpectationMeasure
 
                 if isinstance(m, ExpectationMeasure):
-                    if any([o.is_matrix() for o in m.observables]):
+                    if any([o.is_matrix_set() for o in m.observables]):
                         # This is because of braket's programSet limitations
                         warn(
                             "To translate observables from CircuitBindings to braket we need to translate the matrix to pauli string. This process might impact performances on big matrices."
@@ -661,7 +661,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
         if binding.measurements:
             for m in binding.measurements:
                 if isinstance(m, ExpectationMeasure):
-                    if any([o.is_matrix() for o in m.observables]):
+                    if any([o.is_matrix_set() for o in m.observables]):
                         # This is because of braket's programSet limitations
                         warn(
                             "To translate observables from CircuitBindings to braket we need to translate the matrix to pauli string. This process might impact performances on big matrices."
