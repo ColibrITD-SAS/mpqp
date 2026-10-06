@@ -5,11 +5,12 @@ from __future__ import annotations
 from copy import copy, deepcopy
 from dataclasses import dataclass, field
 from numbers import Number, Real
-from typing import Callable, Optional, Sequence
+from typing import Any, Callable, Optional, Sequence, cast
 
 import numpy as np
 import numpy.typing as npt
 from scipy.optimize import Bounds, OptimizeResult
+from scipy.optimize import least_squares as scipy_least_squares
 from scipy.optimize import minimize as scipy_minimize
 from sympy import Basic, default_sort_key
 
@@ -40,6 +41,9 @@ OptimizerCallable = Callable[
 OptimizerCallback = Callable[[OptimizerInput], None]
 OptimizerBounds = Bounds | Sequence[tuple[Optional[float], Optional[float]]]
 CostFunction = Callable[[npt.NDArray[np.float64], Sequence[Result]], float]
+ResidualFunction = Callable[
+    [npt.NDArray[np.float64], Sequence[Result]], npt.NDArray[np.float64]
+]
 
 
 def _real_parameter_value(value: Number) -> float:
@@ -97,7 +101,7 @@ class OptimizerData:
     maxiter: Optional[int] = None
     optimizer_options: Optional[OptimizerOptions] = None
     callback: Optional[OptimizerCallback] = None
-    jac: Optional[Callable[[OptimizerInput], OptimizerInput]] = None
+    jac: Optional[Callable[[npt.NDArray[np.float64]], npt.NDArray[np.float64]]] = None
     bounds: Optional[OptimizerBounds] = None
 
 
@@ -128,6 +132,9 @@ class VQAModule:
             to circuit symbols sorted with SymPy's deterministic ordering.
         cost_function: Function receiving the parameter vector and raw results
             in circuit order. Defaults to the sum of all expectation values.
+        residual_function: Optional function receiving the parameter vector and
+            raw results, and returning the residual vector used by
+            :attr:`Optimizer.TRF`.
 
     Raises:
         ValueError: If circuits are empty or parameters contain duplicates,
@@ -145,6 +152,7 @@ class VQAModule:
         device: AvailableDevice,
         parameters: Optional[Sequence[Basic]] = None,
         cost_function: Optional[CostFunction] = None,
+        residual_function: Optional[ResidualFunction] = None,
     ) -> None:
         binding_execution: list[BindingExecution] = []
         if isinstance(circuits, CircuitBinding):
@@ -203,6 +211,7 @@ class VQAModule:
 
         self.backend = device
         self.cost_function = cost_function
+        self.residual_function = residual_function
         self.result = VQAResult()
         for item in self._prepared:
             item.circuit.transpiled_for_device(device)
@@ -408,6 +417,70 @@ class VQAModule:
         )
         return self._cost_from_results(values, results)
 
+    def cost_batch(
+        self,
+        parameter_batch: Sequence[OptimizerInput],
+        shots: Optional[int] = None,
+        mode: Optional[ExecutionMode] = ExecutionMode.BATCH,
+        provider_params: Optional[ProviderParams] = None,
+    ) -> tuple[float, ...]:
+        """Evaluate several parameter vectors and post-process their costs.
+
+        Args:
+            parameter_batch: Parameter vectors in the module's parameter order.
+            shots: Shot override shared by every vector in this batch.
+            mode: Provider execution mode. None selects JOB.
+            provider_params: Provider-specific execution configuration.
+
+        Returns:
+            One validated cost per parameter vector, in input order.
+
+        Note:
+            Quantum executions are submitted through evaluate_batch, so providers
+            supporting batches receive all compatible circuits at once.
+            This method does not append to optimization history.
+        """
+        vectors = [self._parameters(parameters) for parameters in parameter_batch]
+        results = self.evaluate_batch(
+            vectors,
+            shots=shots,
+            mode=mode,
+            provider_params=provider_params,
+        )
+        return tuple(
+            self._cost_from_results(vector, point_results)
+            for vector, point_results in zip(vectors, results)
+        )
+
+    def residuals(
+        self,
+        current_params: OptimizerInput,
+        shots: Optional[int] = None,
+        mode: Optional[ExecutionMode] = ExecutionMode.JOB,
+        provider_params: Optional[ProviderParams] = None,
+    ) -> npt.NDArray[np.float64]:
+        """Evaluate the user-defined residual vector for one parameter set."""
+        if self.residual_function is None:
+            raise ValueError("TRF requires a residual_function.")
+        values = self._parameters(current_params)
+        results = self.evaluate(
+            values,
+            shots=shots,
+            mode=mode,
+            provider_params=provider_params,
+        )
+        raw_residuals = np.asarray(self.residual_function(values, results))
+        if np.iscomplexobj(raw_residuals):
+            raise ValueError("Residuals must be real.")
+        residuals = np.array(raw_residuals, dtype=float, copy=True)
+        if (
+            residuals.ndim != 1
+            or residuals.size == 0
+            or not np.all(np.isfinite(residuals))
+        ):
+            raise ValueError("Residual function must return a finite 1D vector.")
+        return residuals
+
     def _cost_from_results(
         self,
         parameters: npt.NDArray[np.float64],
@@ -484,29 +557,89 @@ class VQAModule:
             self.result.loss_total.append(value)
             return value
 
+        def residual_objective(
+            params: OptimizerInput,
+        ) -> npt.NDArray[np.float64]:
+            residuals = self.residuals(
+                params,
+                shots=shots,
+                mode=mode,
+                provider_params=provider_params,
+            )
+            value = float(np.dot(residuals, residuals))
+            self.result.loss = value
+            self.result.loss_total.append(value)
+            return residuals
+
         def batch_objective(
             candidates: Sequence[npt.NDArray[np.float64]],
         ) -> list[float]:
-            vectors = [self._parameters(candidate) for candidate in candidates]
-            batches = self.evaluate_batch(
-                vectors,
-                shots=shots,
-                mode=ExecutionMode.BATCH,
-                provider_params=provider_params,
+            losses = list(
+                self.cost_batch(
+                    candidates,
+                    shots=shots,
+                    mode=ExecutionMode.BATCH,
+                    provider_params=provider_params,
+                )
             )
-            losses = [
-                self._cost_from_results(vector, results)
-                for vector, results in zip(vectors, batches)
-            ]
             self.result.loss_total.extend(losses)
             if losses:
                 self.result.loss = losses[-1]
             return losses
 
         options = deepcopy(optimizer_data.optimizer_options or {})
-        if optimizer_data.maxiter is not None:
+        if (
+            optimizer_data.method != Optimizer.TRF
+            and optimizer_data.maxiter is not None
+        ):
             options["maxiter"] = optimizer_data.maxiter
-        if optimizer_data.method == Optimizer.CMAES:
+        if optimizer_data.method == Optimizer.TRF:
+            if eval_func is not None:
+                raise ValueError(
+                    "TRF uses residual_function; eval_func is a scalar objective."
+                )
+            if "maxiter" in options and "max_nfev" in options:
+                raise ValueError("TRF options cannot contain maxiter and max_nfev.")
+            if "maxiter" in options:
+                options["max_nfev"] = options.pop("maxiter")
+            if optimizer_data.maxiter is not None:
+                options["max_nfev"] = optimizer_data.maxiter
+
+            bounds = optimizer_data.bounds
+            if bounds is None:
+                least_squares_bounds = (-np.inf, np.inf)
+            elif isinstance(bounds, Bounds):
+                least_squares_bounds = (bounds.lb, bounds.ub)
+            else:
+                bound_pairs = list(bounds)
+                if len(bound_pairs) != len(self.variables):
+                    raise ValueError("TRF bounds must match the parameter count.")
+                least_squares_bounds = (
+                    np.array(
+                        [
+                            -np.inf if lower is None else lower
+                            for lower, _ in bound_pairs
+                        ],
+                        dtype=float,
+                    ),
+                    np.array(
+                        [
+                            np.inf if upper is None else upper
+                            for _, upper in bound_pairs
+                        ],
+                        dtype=float,
+                    ),
+                )
+            res = scipy_least_squares(
+                residual_objective,
+                x0=initial,
+                jac=cast(Any, optimizer_data.jac or "2-point"),
+                bounds=least_squares_bounds,
+                method=Optimizer.TRF.value,
+                callback=optimizer_data.callback,
+                **options,
+            )
+        elif optimizer_data.method == Optimizer.CMAES:
             if optimizer_data.jac is not None or optimizer_data.bounds is not None:
                 raise ValueError(
                     "CMAES does not accept jac; configure its bounds in optimizer_options."
@@ -545,12 +678,73 @@ class VQAModule:
             loss, params = optimizer_data.method(objective, initial, options)
             res = OptimizeResult(fun=float(loss), x=self._parameters(params))
         final_params = self._parameters(res.x)
-        if not np.isfinite(res.fun):
+        final_loss = (
+            2 * float(res.cost)
+            if optimizer_data.method == Optimizer.TRF
+            else float(res.fun)
+        )
+        if not np.isfinite(final_loss):
             raise ValueError("Optimizer returned a non-finite cost.")
-        self.result.loss = float(res.fun)
+        self.result.loss = final_loss
         self.result.angles = dict(zip(self.variables, map(float, final_params)))
         self.result.optimizer_results = res
         return self.result
+
+    def minimize_stages(
+        self,
+        optimizer_stages: Sequence[OptimizerData],
+        eval_func: Optional[OptimizableFunc] = None,
+        shots: Optional[Sequence[Optional[int]]] = None,
+        mode: Optional[ExecutionMode] = ExecutionMode.JOB,
+        provider_params: Optional[ProviderParams] = None,
+    ) -> tuple[VQAResult, ...]:
+        """Run successive optimizers, carrying parameters between stages.
+
+        Args:
+            optimizer_stages: Ordered optimization configurations. When a stage
+                omits init_params, it starts from the preceding stage's final
+                parameters. An explicit vector always takes precedence.
+            eval_func: Optional full objective override forwarded to each stage.
+            shots: Optional shot count for each stage. If omitted, measurements
+                keep their configured shot counts.
+            mode: Provider execution mode forwarded to every stage.
+            provider_params: Provider-specific execution configuration.
+
+        Returns:
+            One independent result per stage, in execution order.
+
+        Raises:
+            ValueError: If no stage is supplied or shots has another length.
+
+        Note:
+            Stage configurations and their initial parameter vectors are never
+            mutated. This makes coarse-to-fine workflows reusable.
+        """
+        stages = list(optimizer_stages)
+        if not stages:
+            raise ValueError("optimizer_stages must contain at least one stage.")
+        stage_shots = [None] * len(stages) if shots is None else list(shots)
+        if len(stage_shots) != len(stages):
+            raise ValueError("shots must contain one value per optimizer stage.")
+
+        current_params: Optional[npt.NDArray[np.float64]] = None
+        stage_results: list[VQAResult] = []
+        for optimizer_data, shot_count in zip(stages, stage_shots):
+            stage = copy(optimizer_data)
+            if stage.init_params is None and current_params is not None:
+                stage.init_params = current_params.copy()
+            result = self.minimize(
+                stage,
+                eval_func=eval_func,
+                shots=shot_count,
+                mode=mode,
+                provider_params=provider_params,
+            )
+            stage_results.append(result)
+            current_params = np.array(
+                [result.angles[variable] for variable in self.variables], dtype=float
+            )
+        return tuple(stage_results)
 
 
 def minimize(

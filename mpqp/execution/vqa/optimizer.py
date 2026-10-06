@@ -25,6 +25,7 @@ class Optimizer(Enum):
     POWELL = "POWELL"
     NELDER_MEAD = "Nelder-Mead"
     SLSQP = "SLSQP"
+    TRF = "trf"
 
     CMAES = "CMAES"
 

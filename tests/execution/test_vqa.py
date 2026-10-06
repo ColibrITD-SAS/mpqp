@@ -136,6 +136,40 @@ def test_optimizer_converges_and_preserves_configuration() -> None:
     assert result.angles[theta] == pytest.approx(result.optimizer_results.x[0])
 
 
+def test_trf_minimizes_custom_residuals_and_preserves_configuration() -> None:
+    def residuals(
+        params: npt.NDArray[np.float64], results: Sequence[Result]
+    ) -> npt.NDArray[np.float64]:
+        expectation = results[0].expectation_values
+        assert not isinstance(expectation, dict)
+        return np.array([expectation])
+
+    options = {"gtol": 1e-12, "xtol": 1e-12, "ftol": 1e-12}
+    config = OptimizerData(
+        Optimizer.TRF,
+        [0.4],
+        maxiter=30,
+        optimizer_options=options,
+        bounds=[(0, np.pi)],
+    )
+    vqa = VQAModule(circuit(), DEVICE, residual_function=residuals)
+    result = vqa.minimize(config)
+
+    assert result.angles[theta] == pytest.approx(np.pi / 2, abs=1e-7)
+    assert result.loss < 1e-12
+    assert result.optimizer_results is not None
+    assert result.loss == pytest.approx(2 * result.optimizer_results.cost)
+    assert result.loss_total
+    assert options == {"gtol": 1e-12, "xtol": 1e-12, "ftol": 1e-12}
+    assert config.init_params == [0.4]
+
+
+def test_trf_requires_a_residual_function() -> None:
+    vqa = VQAModule(circuit(), DEVICE)
+    with pytest.raises(ValueError, match="requires a residual_function"):
+        vqa.minimize(OptimizerData(Optimizer.TRF, [0.4], maxiter=1))
+
+
 @pytest.mark.parametrize("values", [[1, 2], [[1]], [float("nan")], [1j]])
 def test_invalid_parameter_vectors(values: Any) -> None:
     with pytest.raises(ValueError):
@@ -269,6 +303,59 @@ def test_evaluate_and_parameter_batch_use_zip_binding(
     assert [
         result.expectation_values for point in batch for result in point
     ] == pytest.approx([1, 0, 0, 1])
+
+
+def test_cost_batch_applies_custom_post_processing_in_order() -> None:
+    vqa = VQAModule(
+        circuit(),
+        DEVICE,
+        cost_function=lambda params, results: float(
+            results[0].expectation_values + params[0] ** 2
+        ),
+    )
+    values = [0.0, 0.4, np.pi / 2]
+    assert vqa.cost_batch([[value] for value in values]) == pytest.approx(
+        [np.cos(value) + value**2 for value in values]
+    )
+
+
+def test_minimize_stages_carries_parameters_without_mutating_configs() -> None:
+    initial_values = []
+
+    def first_optimizer(
+        fun: OptimizableFunc, initial: OptimizerInput, options: OptimizerOptions
+    ) -> tuple[float, OptimizerInput]:
+        initial_values.append(np.asarray(initial).copy())
+        candidate = np.array([0.5])
+        return fun(candidate), candidate
+
+    def second_optimizer(
+        fun: OptimizableFunc, initial: OptimizerInput, options: OptimizerOptions
+    ) -> tuple[float, OptimizerInput]:
+        initial_values.append(np.asarray(initial).copy())
+        candidate = np.array([0.25])
+        return fun(candidate), candidate
+
+    stages = [
+        OptimizerData(first_optimizer, init_params=[0.8]),
+        OptimizerData(second_optimizer),
+    ]
+    vqa = VQAModule(circuit(), DEVICE)
+    results = vqa.minimize_stages(stages, eval_func=lambda x: float(x[0] ** 2))
+
+    assert initial_values[0] == pytest.approx([0.8])
+    assert initial_values[1] == pytest.approx([0.5])
+    assert [result.loss for result in results] == pytest.approx([0.25, 0.0625])
+    assert stages[0].init_params == [0.8]
+    assert stages[1].init_params is None
+
+
+def test_minimize_stages_validates_stage_configuration() -> None:
+    vqa = VQAModule(circuit(), DEVICE)
+    with pytest.raises(ValueError, match="at least one stage"):
+        vqa.minimize_stages([])
+    with pytest.raises(ValueError, match="one value per optimizer stage"):
+        vqa.minimize_stages([OptimizerData(Optimizer.BFGS)], shots=[10, 20])
 
 
 def test_shot_priority_and_vqa_provider_options(
