@@ -117,7 +117,6 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
         from mpqp.core.instruction.gates.custom_gate import CustomGate
         from mpqp.core.instruction.gates.gate import Gate
         from mpqp.core.instruction.gates.native_gates import CRk
-        from mpqp.core.languages import Language
 
         from mpqp.core.instruction import (
             Measure,
@@ -126,6 +125,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
             ControlledGate,
             BasisMeasure,
         )
+        from mpqp.core.languages import Language
         from mpqp.core.circuit import QCircuit
         from mpqp.tools.circuit import get_sorted_instructions_and_measurements
 

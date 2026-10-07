@@ -416,7 +416,7 @@ def test_instructions_cannot_be_modified_directly():
     [
         (
             QCircuit([X(0), BasisMeasure([0], shots=100), H(0)]),
-            [X(0), H(0)],
+            [X(0), BasisMeasure([0], shots=100), H(0)],
             [BasisMeasure([0], shots=100)],
             [X(0), H(0), BasisMeasure([0], shots=100)],
             [X(0), BasisMeasure([0], shots=100), H(0)],
@@ -430,9 +430,11 @@ def test_instructions_and_measurements_are_exposed_separately(
     ordered: list[Instruction],
     unordered: list[Instruction],
 ):
-    assert circuit.instructions == instructions
+    from mpqp.tools.circuit import get_sorted_instructions_and_measurements
+
+    assert repr(circuit.instructions) == repr(instructions)
     assert repr(circuit.measurements) == repr(measurements)
-    assert repr(circuit.instructions + circuit.measurements) == repr(ordered)
+    assert repr(get_sorted_instructions_and_measurements(circuit)) == repr(ordered)
     assert repr(circuit.with_measurement(deep_copy=False)) == repr(unordered)
 
 

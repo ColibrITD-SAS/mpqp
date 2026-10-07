@@ -223,10 +223,11 @@ class QCircuit:
 
     @property
     def instructions(self) -> list[Instruction]:
-        """All instructions in circuit order.
+        """All instructions in circuit order, measurements included.
 
         A copy is returned so the circuit cannot be modified by mutating this
-        list directly. Use :meth:`add` to add instructions to the circuit.
+        list directly. Use :meth:`add` to add instructions to the circuit, and
+        :attr:`measurements` to get only the measurements.
         """
         return self._instructions.copy()
 
@@ -1594,10 +1595,30 @@ class QCircuit:
         native_gates = device.compatible_gates()
 
         if native_gates:
-            translated_circuit.instructions = resolve_instructions(
-                translated_circuit.instructions,
-                native_gates,
+            measurement_indexes = set(
+                translated_circuit._measurement_indexes 
             )
+            resolved_instructions: list[Instruction] = []
+            resolved_measurement_indexes: list[int] = []
+            
+            for index, instruction in enumerate(
+                translated_circuit._instructions 
+            ):
+                if index in measurement_indexes:
+                    resolved_measurement_indexes.append(len(resolved_instructions))
+                    resolved_instructions.append(instruction)
+                else:
+                    resolved_instructions.extend(
+                        resolve_instructions([instruction], native_gates)
+                    )
+                    
+            translated_circuit._instructions = (  
+                resolved_instructions
+            )
+            translated_circuit._measurement_indexes = (  
+                resolved_measurement_indexes
+            )
+
             unsupported_gates = [
                 gate
                 for gate in translated_circuit.gates

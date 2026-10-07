@@ -370,4 +370,29 @@ def replace_custom_gate(
 
 
 def get_sorted_instructions_and_measurements(qcircuit: QCircuit) -> list[Instruction]:
-    return qcircuit.instructions + qcircuit.measurements
+    """Return the instructions of the circuit with all measurements moved to
+    the end, both groups keeping their relative circuit order.
+
+    Measurements are identified through the measurement indexes tracked by the
+    circuit, not by their type.
+
+    Args:
+        qcircuit: The circuit from which the instructions are retrieved.
+
+    Returns:
+        The non-measurement instructions followed by the measurements.
+
+    Example:
+        >>> circuit = QCircuit([X(0), BasisMeasure([0], shots=100), H(0)])
+        >>> get_sorted_instructions_and_measurements(circuit)
+        [X(0), H(0), BasisMeasure([0], shots=100)]
+    """
+    measurement_indexes = set(
+        qcircuit._measurement_indexes  # pyright: ignore[reportPrivateUsage]
+    )
+    instructions = [
+        instruction
+        for index, instruction in enumerate(qcircuit.instructions)
+        if index not in measurement_indexes
+    ]
+    return instructions + qcircuit.measurements
