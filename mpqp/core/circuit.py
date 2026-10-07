@@ -1595,15 +1595,11 @@ class QCircuit:
         native_gates = device.compatible_gates()
 
         if native_gates:
-            measurement_indexes = set(
-                translated_circuit._measurement_indexes 
-            )
+            measurement_indexes = set(translated_circuit._measurement_indexes)
             resolved_instructions: list[Instruction] = []
             resolved_measurement_indexes: list[int] = []
-            
-            for index, instruction in enumerate(
-                translated_circuit._instructions 
-            ):
+
+            for index, instruction in enumerate(translated_circuit._instructions):
                 if index in measurement_indexes:
                     resolved_measurement_indexes.append(len(resolved_instructions))
                     resolved_instructions.append(instruction)
@@ -1611,13 +1607,9 @@ class QCircuit:
                     resolved_instructions.extend(
                         resolve_instructions([instruction], native_gates)
                     )
-                    
-            translated_circuit._instructions = (  
-                resolved_instructions
-            )
-            translated_circuit._measurement_indexes = (  
-                resolved_measurement_indexes
-            )
+
+            translated_circuit._instructions = resolved_instructions
+            translated_circuit._measurement_indexes = resolved_measurement_indexes
 
             unsupported_gates = [
                 gate
