@@ -658,16 +658,25 @@ def test_variables_follow_add_and_remove():
 
 def test_variables_indexes_built_on_add():
     circuit = QCircuit([Ry(theta, 0), Ry(phi, 0)])
-    assert circuit._variables == {theta: [0], phi: [1]}  # pyright: ignore[reportPrivateUsage]
+    assert circuit._variables == {
+        theta: [0],
+        phi: [1],
+    }  # pyright: ignore[reportPrivateUsage]
 
     circuit.add([X(0), Rz(theta + phi, 0)])
-    assert circuit._variables == {theta: [0, 3], phi: [1, 3]}  # pyright: ignore[reportPrivateUsage]
+    assert circuit._variables == {
+        theta: [0, 3],
+        phi: [1, 3],
+    }  # pyright: ignore[reportPrivateUsage]
     assert circuit.variables() == {theta, phi}
 
 
 def test_variables_indexes_same_variable_in_several_parameters():
     circuit = QCircuit([U(theta, theta, phi, 0)])
-    assert circuit._variables == {theta: [0], phi: [0]}  # pyright: ignore[reportPrivateUsage]
+    assert circuit._variables == {
+        theta: [0],
+        phi: [0],
+    }  # pyright: ignore[reportPrivateUsage]
 
     circuit.remove(U(theta, theta, phi, 0))
     assert circuit._variables == {}  # pyright: ignore[reportPrivateUsage]
@@ -677,13 +686,22 @@ def test_variables_indexes_follow_remove_and_insert():
     circuit = QCircuit([Ry(theta, 0), X(0), Ry(phi, 0), Rz(theta, 0)])
 
     circuit.remove(X(0))
-    assert circuit._variables == {theta: [0, 2], phi: [1]}  # pyright: ignore[reportPrivateUsage]
+    assert circuit._variables == {
+        theta: [0, 2],
+        phi: [1],
+    }  # pyright: ignore[reportPrivateUsage]
 
     circuit.remove(Ry(theta, 0))
-    assert circuit._variables == {phi: [0], theta: [1]}  # pyright: ignore[reportPrivateUsage]
+    assert circuit._variables == {
+        phi: [0],
+        theta: [1],
+    }  # pyright: ignore[reportPrivateUsage]
 
     circuit._insert_instruction(0, Rx(phi, 0))  # pyright: ignore[reportPrivateUsage]
-    assert circuit._variables == {phi: [0, 1], theta: [2]}  # pyright: ignore[reportPrivateUsage]
+    assert circuit._variables == {
+        phi: [0, 1],
+        theta: [2],
+    }  # pyright: ignore[reportPrivateUsage]
 
     circuit.remove(Rz(theta, 0))
     assert circuit._variables == {phi: [0, 1]}  # pyright: ignore[reportPrivateUsage]
@@ -694,10 +712,16 @@ def test_variables_indexes_without_measurements():
     circuit = QCircuit(
         [Ry(theta, 0), BasisMeasure([0], shots=10), Ry(phi, 0)], nb_qubits=1
     )
-    assert circuit._variables == {theta: [0], phi: [2]}  # pyright: ignore[reportPrivateUsage]
+    assert circuit._variables == {
+        theta: [0],
+        phi: [2],
+    }  # pyright: ignore[reportPrivateUsage]
 
     without = circuit.without_measurements()
-    assert without._variables == {theta: [0], phi: [1]}  # pyright: ignore[reportPrivateUsage]
+    assert without._variables == {
+        theta: [0],
+        phi: [1],
+    }  # pyright: ignore[reportPrivateUsage]
 
 
 @pytest.mark.parametrize(

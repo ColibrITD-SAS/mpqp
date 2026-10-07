@@ -1654,10 +1654,8 @@ class QCircuit:
             resolved_instructions: list[Instruction] = []
             resolved_measurement_indexes: list[int] = []
             translated_circuit._variables = {}
-            
-            for index, instruction in enumerate(
-                translated_circuit._instructions 
-            ):
+
+            for index, instruction in enumerate(translated_circuit._instructions):
                 if index in measurement_indexes:
                     resolved_measurement_indexes.append(len(resolved_instructions))
                     resolved_instructions.append(instruction)
@@ -1667,13 +1665,9 @@ class QCircuit:
                             len(resolved_instructions), resolved
                         )
                         resolved_instructions.append(resolved)
-                    
-            translated_circuit._instructions = (  
-                resolved_instructions
-            )
-            translated_circuit._measurement_indexes = (  
-                resolved_measurement_indexes
-            )
+
+            translated_circuit._instructions = resolved_instructions
+            translated_circuit._measurement_indexes = resolved_measurement_indexes
 
             unsupported_gates = [
                 gate
