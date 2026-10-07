@@ -212,15 +212,13 @@ def test_multi_observable_measure_returns_one_result():
         ),
     )
 
-    program_set, contexts = binding.to_other_device(
-        AWSDevice.BRAKET_LOCAL_SIMULATOR
-    )
+    program_set, contexts = binding.to_other_device(AWSDevice.BRAKET_LOCAL_SIMULATOR)
     result = run(binding, AWSDevice.BRAKET_LOCAL_SIMULATOR)
 
     assert len(program_set) == 2
-    assert {context[4] for entry_contexts in contexts for context in entry_contexts} == {
-        0
-    }
+    assert {
+        context[4] for entry_contexts in contexts for context in entry_contexts
+    } == {0}
     assert len(result.results) == 1
     assert result.results[0].expectation_values == pytest.approx(
         {"Z": 1.0, "X-Z": -1.0}, abs=0.15

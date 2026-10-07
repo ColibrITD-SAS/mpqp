@@ -328,12 +328,8 @@ def run_circuit_binding(job: Job) -> BatchResult:
                     or f"observable_{index}": expectation_values[index]
                     for index in range(measurement.nb_observables)
                 }
-            local_job = Job(
-                job.job_type, circuit, job.device, measurement, variables
-            )
-            indexed_results.append(
-                (result_index, Result(local_job, result_value))
-            )
+            local_job = Job(job.job_type, circuit, job.device, measurement, variables)
+            indexed_results.append((result_index, Result(local_job, result_value)))
     else:
         for res, contexts in zip(task_result.entries, jobs):
             if len(res.entries) != len(contexts):
