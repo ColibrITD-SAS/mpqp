@@ -23,6 +23,7 @@ from mpqp.core.instruction.gates.native_gates import (
     U,
 )
 from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
+from mpqp.core.instruction.instruction import Instruction
 from mpqp.noise.noise_model import (
     NOISE_MODELS,
     AmplitudeDamping,
@@ -285,7 +286,7 @@ def compute_expected_matrix(qcircuit: QCircuit):
 
     gates = [
         instruction
-        for instruction in qcircuit.instructions
+        for instruction in qcircuit._instructions  # pyright: ignore[reportPrivateUsage]
         if isinstance(instruction, Gate)
     ]
     nb_qubits = qcircuit.nb_qubits
@@ -366,3 +367,32 @@ def replace_custom_gate(
         else:
             raise e
     return transpiled, transpiled.global_phase
+
+
+def get_sorted_instructions_and_measurements(qcircuit: QCircuit) -> list[Instruction]:
+    """Return the instructions of the circuit with all measurements moved to
+    the end, both groups keeping their relative circuit order.
+
+    Measurements are identified through the measurement indexes tracked by the
+    circuit, not by their type.
+
+    Args:
+        qcircuit: The circuit from which the instructions are retrieved.
+
+    Returns:
+        The non-measurement instructions followed by the measurements.
+
+    Example:
+        >>> circuit = QCircuit([X(0), BasisMeasure([0], shots=100), H(0)])
+        >>> get_sorted_instructions_and_measurements(circuit)
+        [X(0), H(0), BasisMeasure([0], shots=100)]
+    """
+    measurement_indexes = set(
+        qcircuit._measurement_indexes  # pyright: ignore[reportPrivateUsage]
+    )
+    instructions = [
+        instruction
+        for index, instruction in enumerate(qcircuit.instructions)
+        if index not in measurement_indexes
+    ]
+    return instructions + qcircuit.measurements

@@ -33,9 +33,19 @@ could be used to add CNOT gates to your circuit, using the two registers
 
 from __future__ import annotations
 
+from bisect import bisect_left, insort
 from copy import deepcopy
 from numbers import Complex
-from typing import TYPE_CHECKING, Literal, Optional, Sequence, Type, Union, overload
+from typing import (
+    TYPE_CHECKING,
+    KeysView,
+    Literal,
+    Optional,
+    Sequence,
+    Type,
+    Union,
+    overload,
+)
 from warnings import warn
 
 import numpy as np
@@ -69,7 +79,7 @@ if TYPE_CHECKING:
     from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
     from qiskit.circuit import QuantumCircuit
     from qiskit_aer import AerSimulator
-    from sympy import Basic, Expr
+    from sympy import Expr
 
     from mpqp.execution.devices import (
         ATOSDevice,
@@ -159,10 +169,13 @@ class QCircuit:
 
         self.label = label
         """See parameter description."""
-        self.instructions: list[Instruction] = []
-        """List of instructions with positions in the circuit."""
-        self.measurements: list[Measure] = []
-        """List of Measurements in the circuit."""
+        self._instructions: list[Instruction] = []
+        """Private list of instructions with positions in the circuit."""
+        self._measurement_indexes: list[int] = []
+        """Indexes of the measurements in ``_instructions``."""
+        self._variables: dict[Expr, list[int]] = {}
+        """Symbolic variables of the circuit, mapped to the sorted indexes (in
+        ``_instructions``) of the instructions using them."""
         self.noises: list[NoiseModel] = []
         """List of noise models attached to the circuit."""
         self._user_nb_cbits: Optional[int] = None
@@ -220,6 +233,27 @@ class QCircuit:
                     )
                 self._user_nb_qubits = nb_qubits
             self.add(data)
+
+    @property
+    def instructions(self) -> list[Instruction]:
+        """All instructions in circuit order, measurements included.
+
+        A copy is returned so the circuit cannot be modified by mutating this
+        list directly. Use :meth:`add` to add instructions to the circuit, and
+        :attr:`measurements` to get only the measurements.
+        """
+        return self._instructions.copy()
+
+    @property
+    def measurements(self) -> list[Measure]:
+        """Measurements in the circuit, ordered by their instruction index.
+
+        A copy is returned so the circuit cannot be modified by mutating this
+        list directly. Use :meth:`add` to add Measure to the circuit.
+        """
+        return [
+            self._instructions[index] for index in self._measurement_indexes
+        ]  # pyright: ignore[reportReturnType]
 
     def __eq__(self, value: object) -> bool:
         return isinstance(value, type(self)) and self.to_dict() == value.to_dict()
@@ -301,10 +335,166 @@ class QCircuit:
         if isinstance(components, NoiseModel):
             self.noises.append(components)
         else:
+            self._instructions.append(components)
+            instruction_index = len(self._instructions) - 1
             if isinstance(components, Measure):
-                self.measurements.append(components)
-            else:
-                self.instructions.append(components)
+                self._measurement_indexes.append(instruction_index)
+            self._register_variables(instruction_index, components)
+
+    def _register_variables(self, index: int, instruction: Instruction) -> None:
+        """Record in ``_variables`` the free symbolic variables of the
+        parameters of ``instruction``, the instruction being added at ``index``
+        in ``_instructions``.
+
+        Only the instruction being added is inspected, never the rest of the
+        circuit. Indexes already stored must have been shifted beforehand if
+        needed.
+        """
+        from sympy import Expr
+
+        if not isinstance(instruction, ParametrizedGate):
+            return
+
+        symbols = {
+            symbol
+            for parameter in instruction.parameters
+            if isinstance(parameter, Expr)
+            for symbol in parameter.free_symbols
+            if isinstance(symbol, Expr)
+        }
+        for symbol in symbols:
+            insort(self._variables.setdefault(symbol, []), index)
+
+    def _shift_variables_indexes(self, start: int, offset: int) -> None:
+        """Shift by ``offset`` all variable indexes greater or equal to
+        ``start``."""
+        for indexes in self._variables.values():
+            for position in range(bisect_left(indexes, start), len(indexes)):
+                indexes[position] += offset
+
+    def _unregister_variables(self, index: int) -> None:
+        """Remove ``index`` from ``_variables`` and shift the following
+        indexes, deleting the variables that are no longer used."""
+        for variable in list(self._variables):
+            indexes = self._variables[variable]
+            position = bisect_left(indexes, index)
+            if position < len(indexes) and indexes[position] == index:
+                del indexes[position]
+            for following in range(position, len(indexes)):
+                indexes[following] -= 1
+            if not indexes:
+                del self._variables[variable]
+
+    def remove(self, instructions: OneOrMany[Instruction]) -> None:
+        """Remove one or several instructions from the circuit.
+
+        When several equal instructions are present, only the first matching
+        instruction is removed for each instruction provided.
+
+        Args:
+            instructions: Instruction(s) to remove from the circuit.
+
+        Raises:
+            ValueError: If an instruction is not present in the circuit.
+
+        Examples:
+            >>> circuit = QCircuit([X(0), H(1), CNOT(0, 1)])
+            >>> circuit.remove(H(1))
+            >>> circuit.instructions
+            [X(0), CNOT(0, 1)]
+            >>> circuit.remove([X(0), CNOT(0, 1)])
+            >>> circuit.instructions
+            []
+        """
+        if isinstance(instructions, Instruction):
+            index = self._instructions.index(instructions)
+            self._pop_instruction(index)
+            return
+
+        try:
+            for instruction in instructions:
+                index = self._instructions.index(instruction)
+                self._pop_instruction(index, recompute_dimensions=False)
+        finally:
+            self._recompute_dynamic_dimensions()
+
+    def _insert_instruction(self, index: int, instruction: Instruction) -> None:
+        """Insert an instruction while keeping instruction storage encapsulated."""
+        if isinstance(instruction, Measure):
+            raise ValueError("Measurements cannot be inserted among instructions.")
+
+        self.add(instruction)
+        inserted_instruction = self._pop_instruction(recompute_dimensions=False)
+        normalized_index = (
+            min(index, len(self._instructions))
+            if index >= 0
+            else max(0, len(self._instructions) + index)
+        )
+        self._measurement_indexes = [
+            (
+                measurement_index + 1
+                if measurement_index >= normalized_index
+                else measurement_index
+            )
+            for measurement_index in self._measurement_indexes
+        ]
+        self._shift_variables_indexes(normalized_index, 1)
+        self._instructions.insert(index, inserted_instruction)
+        self._register_variables(normalized_index, inserted_instruction)
+
+    def _pop_instruction(
+        self, index: int = -1, recompute_dimensions: bool = True
+    ) -> Instruction:
+        """Remove and return an instruction at ``index``.
+
+        This internal method lets MPQP transformations modify a circuit without
+        exposing its instruction storage.
+
+        Args:
+            index: Index of the instruction to remove.
+            recompute_dimensions: Whether to recompute dynamic circuit dimensions
+                after removal. Disable this for temporary removals or batched edits.
+        """
+        normalized_index = index if index >= 0 else len(self._instructions) + index
+        instruction = self._instructions.pop(index)
+        self._measurement_indexes = [
+            (
+                measurement_index - 1
+                if measurement_index > normalized_index
+                else measurement_index
+            )
+            for measurement_index in self._measurement_indexes
+            if measurement_index != normalized_index
+        ]
+        self._unregister_variables(normalized_index)
+        if recompute_dimensions:
+            self._recompute_dynamic_dimensions()
+        return instruction
+
+    def _recompute_dynamic_dimensions(self) -> None:
+        """Recompute dimensions that were not explicitly set by the user."""
+        if self._user_nb_qubits is None:
+            static_components = [
+                component
+                for component in [*self._instructions, *self.noises]
+                if not component._dynamic  # pyright: ignore[reportPrivateUsage]
+            ]
+            connections = {
+                connection
+                for component in static_components
+                for connection in component.connections()
+            }
+            self._set_nb_qubits_dynamic(max(connections, default=-1) + 1)
+
+        if self._user_nb_cbits is None:
+            classical_targets = {
+                target
+                for measurement in self.measurements
+                if isinstance(measurement, BasisMeasure)
+                and measurement.c_targets is not None
+                for target in measurement.c_targets
+            }
+            self._nb_cbits = max(classical_targets, default=-1) + 1
 
     def _check_components_targets(self, components: Instruction | NoiseModel):
         if isinstance(components, BasisMeasure):
@@ -321,12 +511,7 @@ class QCircuit:
                     f"Number of target qubits {len(components.targets)} should be higher than "
                     f"the dimension {components.dimension}."
                 )
-            hardcoded_basis_measures = [
-                instr for instr in self.instructions if isinstance(instr, BasisMeasure)
-            ]
-            if any(
-                len(meas.targets) != self.nb_qubits for meas in hardcoded_basis_measures
-            ):
+            if any(len(meas.targets) != self.nb_qubits for meas in self.measurements):
                 raise ValueError(
                     "In noisy circuits, BasisMeasure must span all qubits in the circuit."
                 )
@@ -528,7 +713,7 @@ class QCircuit:
                 " index and the size of this circuit"
             )
 
-        for inst in deepcopy(other.instructions + other.measurements):
+        for inst in other.with_measurement(deep_copy=True):
             inst.targets = [qubit + qubits_offset for qubit in inst.targets]
             if isinstance(inst, ControlledGate):
                 inst.controls = [qubit + qubits_offset for qubit in inst.controls]
@@ -721,7 +906,9 @@ class QCircuit:
 
         current_layer = 0
         last_barrier = 0
-        for instr in self.instructions:
+        for instr in self._instructions:
+            if isinstance(instr, Measure):
+                continue
             if isinstance(instr, Barrier):
                 last_barrier = current_layer
                 current_layer += 1
@@ -750,7 +937,7 @@ class QCircuit:
             4
 
         """
-        return len(self.instructions) + len(self.measurements)
+        return len(self._instructions)
 
     def is_equivalent(self, circuit: QCircuit) -> bool:
         """Whether the circuit in parameter is equivalent to this circuit, in
@@ -866,7 +1053,7 @@ class QCircuit:
             deep_copy=True,
         )
 
-        for instr in reversed(self.instructions):
+        for instr in reversed(self._instructions):
             if isinstance(instr, Gate):
                 dagger.add(instr.inverse())
             elif not isinstance(instr, Measure):
@@ -978,12 +1165,12 @@ class QCircuit:
 
         """
         filter2 = Gate if gate is None else gate
-        return len([inst for inst in self.instructions if isinstance(inst, filter2)])
+        return len([inst for inst in self._instructions if isinstance(inst, filter2)])
 
     @property
     def breakpoints(self) -> list[Breakpoint]:
         """Returns the breakpoints of the circuit in order."""
-        return [inst for inst in self.instructions if isinstance(inst, Breakpoint)]
+        return [inst for inst in self._instructions if isinstance(inst, Breakpoint)]
 
     def _clone_without(
         self, exclude_attrs: Optional[list[str] | str] = None, deep_copy: bool = True
@@ -1002,9 +1189,14 @@ class QCircuit:
             exclude_attrs = []
         if isinstance(exclude_attrs, str):
             exclude_attrs = [exclude_attrs]
+        excluded_attrs = set(exclude_attrs)
+        if {"instructions", "measurements"} & excluded_attrs:
+            excluded_attrs.update(
+                {"_instructions", "_measurement_indexes", "_variables"}
+            )
         new_obj = QCircuit()
         for attr, val in self.__dict__.items():
-            if attr not in exclude_attrs:
+            if attr not in excluded_attrs:
                 if deep_copy is True:
                     setattr(new_obj, attr, deepcopy(val))
                 else:
@@ -1020,7 +1212,7 @@ class QCircuit:
 
         """
         gates: list[Gate] = []
-        for g in self.instructions:
+        for g in self._instructions:
             if isinstance(g, Gate):
                 gates.append(g)
 
@@ -1054,22 +1246,36 @@ class QCircuit:
 
         """
         new_circuit = self._clone_without(
-            ["measurements", "_nb_cbits"], deep_copy=deep_copy
+            ["instructions", "measurements", "_nb_cbits"], deep_copy=deep_copy
         )
+        measurement_indexes = set(self._measurement_indexes)
+        instructions = [
+            instruction
+            for index, instruction in enumerate(self._instructions)
+            if index not in measurement_indexes
+        ]
+        new_circuit._instructions = (
+            deepcopy(instructions) if deep_copy else instructions
+        )
+
+        new_circuit._variables = {
+            variable: [
+                index - bisect_left(self._measurement_indexes, index)
+                for index in indexes
+            ]
+            for variable, indexes in self._variables.items()
+        }
 
         return new_circuit
 
     def with_measurement(self, deep_copy: bool = True) -> list[Instruction]:
-        """Returns the instructions with the measurements added at the back.
-        Args:
-            deep_copy: If True, returns the deepcopy of the resulting list, otherwise returns a shallow copy.
-        """
-        if deep_copy:
-            from copy import deepcopy
+        """Return all instructions, including measurements, in circuit order.
 
-            return deepcopy(self.instructions + self.measurements)
-        else:
-            return self.instructions + self.measurements
+        Args:
+            deep_copy: If True, returns a deep copy of the resulting list;
+                otherwise, returns a shallow copy.
+        """
+        return deepcopy(self._instructions) if deep_copy else self._instructions.copy()
 
     def without_noises(self, deep_copy: bool = True) -> QCircuit:
         """Provides a shallow copy of this circuit with all the noise models removed.
@@ -1444,10 +1650,25 @@ class QCircuit:
         native_gates = device.compatible_gates()
 
         if native_gates:
-            translated_circuit.instructions = resolve_instructions(
-                translated_circuit.instructions,
-                native_gates,
-            )
+            measurement_indexes = set(translated_circuit._measurement_indexes)
+            resolved_instructions: list[Instruction] = []
+            resolved_measurement_indexes: list[int] = []
+            translated_circuit._variables = {}
+
+            for index, instruction in enumerate(translated_circuit._instructions):
+                if index in measurement_indexes:
+                    resolved_measurement_indexes.append(len(resolved_instructions))
+                    resolved_instructions.append(instruction)
+                else:
+                    for resolved in resolve_instructions([instruction], native_gates):
+                        translated_circuit._register_variables(
+                            len(resolved_instructions), resolved
+                        )
+                        resolved_instructions.append(resolved)
+
+            translated_circuit._instructions = resolved_instructions
+            translated_circuit._measurement_indexes = resolved_measurement_indexes
+
             unsupported_gates = [
                 gate
                 for gate in translated_circuit.gates
@@ -1580,7 +1801,7 @@ class QCircuit:
                 qiskit_circuit = pm.run(qiskit_circuit)
             # TODO: removed with PR - Circuit Handling and PauliString Utilities #154
             if any(
-                isinstance(gate, CustomControlledGate) for gate in self.instructions
+                isinstance(gate, CustomControlledGate) for gate in self._instructions
             ):
                 from qiskit import transpile
 
@@ -1893,7 +2114,10 @@ class QCircuit:
 
         """
         new_circuit = deepcopy(self)
-        new_circuit.instructions = [inst.subs(values) for inst in self.instructions]
+        new_circuit._instructions = [inst.subs(values) for inst in self._instructions]
+        new_circuit._variables = {}
+        for index, instruction in enumerate(new_circuit._instructions):
+            new_circuit._register_variables(index, instruction)
         return new_circuit
 
     def pretty_print(self):
@@ -1955,8 +2179,11 @@ class QCircuit:
 
         return f'QCircuit({args_repr})'
 
-    def variables(self) -> set[Basic]:
+    def variables(self) -> KeysView[Expr]:
         """Returns all the symbolic parameters involved in this circuit.
+
+        The variables are tracked when instructions are added or removed, so
+        this method does not iterate over the instructions.
 
         Returns:
             All the parameters of the circuit.
@@ -1970,12 +2197,4 @@ class QCircuit:
             {θ, k}
 
         """
-        from sympy import Expr
-
-        params: set[Basic] = set()
-        for inst in self.instructions:
-            if isinstance(inst, ParametrizedGate):
-                for param in inst.parameters:
-                    if isinstance(param, Expr):
-                        params.update(param.free_symbols)
-        return params
+        return self._variables.keys()

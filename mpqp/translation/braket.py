@@ -103,6 +103,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
             T  : │  0  │  1  │
         """
         from mpqp.core.circuit import QCircuit
+        from mpqp.execution.providers.aws import apply_noise_to_braket_circuit
         from mpqp.core.instruction import (
             Barrier,
             BasisMeasure,
@@ -116,11 +117,22 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
         from mpqp.core.instruction.gates.custom_gate import CustomGate
         from mpqp.core.instruction.gates.gate import Gate
         from mpqp.core.instruction.gates.native_gates import CRk
+
+        from mpqp.core.instruction import (
+            Measure,
+            Breakpoint,
+            Barrier,
+            ControlledGate,
+            BasisMeasure,
+        )
         from mpqp.core.languages import Language
-        from mpqp.execution.providers.aws import apply_noise_to_braket_circuit
+        from mpqp.core.circuit import QCircuit
+        from mpqp.tools.circuit import get_sorted_instructions_and_measurements
+
+        instructions = get_sorted_instructions_and_measurements(circuit)
 
         if len(circuit.noises) != 0:
-            if any(isinstance(instr, CRk) for instr in circuit.instructions):
+            if any(isinstance(instr, CRk) for instr in instructions):
                 raise NotImplementedError(
                     "Cannot simulate noisy circuit with CRk gate due to "
                     "an error on AWS Braket side."
@@ -132,11 +144,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
         # Otherwise the circuit can remain non continuous.
         if circuit._user_nb_qubits is not None:  # pyright: ignore[reportPrivateUsage]
             used_qubits = set().union(
-                *(
-                    inst.connections()
-                    for inst in circuit.instructions
-                    if isinstance(inst, Gate)
-                )
+                *(inst.connections() for inst in instructions if isinstance(inst, Gate))
             )
             if len(used_qubits) != circuit.nb_qubits:
                 from copy import deepcopy
@@ -151,8 +159,9 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                     ],
                     nb_qubits=circuit.nb_qubits,
                 ) + deepcopy(circuit)
+                instructions = get_sorted_instructions_and_measurements(circuit)
 
-        for instruction in circuit.instructions + circuit.measurements:
+        for instruction in instructions:
             targets = [target for target in instruction.targets]
             if isinstance(instruction, (Barrier, Breakpoint)):
                 continue
