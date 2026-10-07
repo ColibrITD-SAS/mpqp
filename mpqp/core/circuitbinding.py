@@ -592,16 +592,14 @@ class CircuitBinding:
         return f"CircuitBinding(circuits={repr(self.circuits)}, values={repr(self.value)}, measurements={repr(self.measurements)}, mode={repr(self.mode)}, noises={repr(self.noises)}, shots={repr(self.shots)})"
 
     @overload
-    def to_other_device(
-        self, device: AWSDevice
-    ) -> tuple["ProgramSet", list[tuple[Any]]]: ...
+    def to_other_device(self, device: AWSDevice) -> tuple["ProgramSet", list[Any]]: ...
     @overload
     def to_other_device(
         self, device: IBMDevice
     ) -> list[tuple["EstimatorPubLike", list["Job"]]]: ...
     def to_other_device(
         self, device: AvailableDevice
-    ) -> "CircuitBinding | tuple[ProgramSet, list[tuple[Any]]] | list[tuple[EstimatorPubLike, list[Job]]]":
+    ) -> "CircuitBinding | tuple[ProgramSet, list[Any]]":
         """Translate a binding for the selected provider.
 
         Args:
