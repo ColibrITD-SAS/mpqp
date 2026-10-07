@@ -1650,9 +1650,7 @@ class QCircuit:
         native_gates = device.compatible_gates()
 
         if native_gates:
-            measurement_indexes = set(
-                translated_circuit._measurement_indexes 
-            )
+            measurement_indexes = set(translated_circuit._measurement_indexes)
             resolved_instructions: list[Instruction] = []
             resolved_measurement_indexes: list[int] = []
             translated_circuit._variables = {}
