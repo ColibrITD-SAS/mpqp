@@ -919,15 +919,18 @@ def run_qctrl_function(job: Job, qiskit_params: QiskitParams):
 
     primitive = "estimator" if job.job_type == JobType.OBSERVABLE else "sampler"
     if job.job_type == JobType.OBSERVABLE:
-        circuit = job.circuit.without_measurements().to_other_language(Language.QISKIT)
-        measurement = job.circuit.measurements[0]
-        if TYPE_CHECKING:
-            assert isinstance(measurement, ExpectationMeasure)
-        pubs = []
-        for obs in measurement.observables:
-            pubs.append((circuit, obs.to_other_language(Language.QISKIT)))
+        if isinstance(job.circuit, QCircuit):
+            circuit = CircuitBinding(job.circuit)
+        else:
+            circuit = job.circuit
+        pubs_with_context = circuit.to_other_device(job.device)
+        pubs = [item[0] for item in pubs_with_context]
+        jobs = [item[1] for item in pubs_with_context]
     else:
-        pubs = [(job.circuit.to_other_language(Language.QISKIT),)]
+        if isinstance(job.circuit, CircuitBinding):
+            raise ValueError("WIP: cannot run a pubs with BasisMeasure inside of them.")
+        pubs = [(job.circuit.to_other_device(job.device),)]
+        jobs = [job]
     job.status = JobStatus.RUNNING
     run = func.run(
         primitive=primitive,
