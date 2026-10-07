@@ -38,7 +38,8 @@ if TYPE_CHECKING:
     from qiskit.quantum_info import SparsePauliOp
     from sympy import Basic, Expr
 
-    Coef = Union[Real, float, Expr, Basic]
+
+Coef = Union[Real, float, "Expr", "Basic"]
 
 
 class CommutingTypes(Enum):
@@ -226,26 +227,26 @@ class PauliString:
     def __sub__(self, other: "PauliString") -> "PauliString":
         return self + (-1) * other
 
-    def __imul__(self, other: "Coef") -> "PauliString":
+    def __imul__(self, other: Coef) -> "PauliString":
         for i, mono in enumerate(self._monomials):
             if isinstance(mono, PauliStringAtom):
                 self.monomials[i] = PauliStringMonomial(atoms=[mono])
             self.monomials[i] *= other
         return self
 
-    def __mul__(self, other: "Coef") -> "PauliString":
+    def __mul__(self, other: Coef) -> "PauliString":
         res = deepcopy(self)
         res *= other
         return res
 
-    def __rmul__(self, other: "Coef") -> "PauliString":
+    def __rmul__(self, other: Coef) -> "PauliString":
         return self * other
 
-    def __itruediv__(self, other: "Coef") -> "PauliString":
+    def __itruediv__(self, other: Coef) -> "PauliString":
         self *= 1 / other  # pyright: ignore[reportOperatorIssue]
         return self
 
-    def __truediv__(self, other: "Coef") -> "PauliString":
+    def __truediv__(self, other: Coef) -> "PauliString":
         return self * (1 / other)  # pyright: ignore[reportOperatorIssue]
 
     def __imatmul__(self, other: "PauliString") -> "PauliString":
@@ -357,7 +358,7 @@ class PauliString:
         res = PauliString()
         res._initial_nb_qubits = self.nb_qubits
         for mono in self.monomials:
-            coef: "Coef" = format_element(mono.coef)  # type: ignore[reportArgumentType]
+            coef: Coef = format_element(mono.coef)  # type: ignore[reportArgumentType]
             if isinstance(coef, (Expr, Basic)):
                 res.monomials.append(PauliStringMonomial(mono.coef, mono.atoms))
             else:
@@ -965,13 +966,13 @@ class PauliString:
 
         """
         me = self.simplify(precision=255)
-        result_dict: dict[str, "Coef"] = {}
+        result_dict: dict[str, Coef] = {}
         for mono in me.monomials:
             atom_str = "".join(str(atom) for atom in mono.atoms)
             if atom_str not in result_dict:
                 result_dict[atom_str] = mono.coef
             else:
-                coef: "Coef" = (
+                coef: Coef = (
                     result_dict[atom_str]
                     + mono.coef  # pyright: ignore[reportOperatorIssue, reportAssignmentType]
                 )
@@ -1062,9 +1063,7 @@ class PauliStringMonomial(PauliString):
 
     coef: Coef
 
-    def __init__(
-        self, coef: "Coef" = 1, atoms: Optional[list["PauliStringAtom"]] = None
-    ):
+    def __init__(self, coef: Coef = 1, atoms: Optional[list["PauliStringAtom"]] = None):
         self.coef = coef
         """Coefficient of the monomial."""
         self._atoms = [] if atoms is None else atoms
@@ -1176,22 +1175,27 @@ class PauliStringMonomial(PauliString):
         res += other
         return res
 
-    def __imul__(self, other: "Coef") -> PauliStringMonomial:
-        new_coef: "Coef" = (
+    def __imul__(self, other: Coef) -> PauliStringMonomial:
+        new_coef: Coef = (
             self.coef * other
         )  # pyright: ignore[reportAssignmentType, reportOperatorIssue]
         self.coef = new_coef
         return self
 
-    def __itruediv__(self, other: "Coef") -> PauliStringMonomial:
-        new_coef: "Coef" = (
+    def __itruediv__(self, other: Coef) -> PauliStringMonomial:
+        from sympy import Expr, Basic  # pyright: ignore[reportUnusedImport]
+
+        assert isinstance(
+            other, Coef
+        ), f"Expected a coefficient of type (int, float, complex, Expr), got {type(other)}"
+        new_coef: Coef = (
             self.coef
             / other  # pyright: ignore[reportOperatorIssue, reportAssignmentType]
         )
         self.coef = new_coef
         return self
 
-    def __truediv__(self, other: "Coef") -> PauliStringMonomial:
+    def __truediv__(self, other: Coef) -> PauliStringMonomial:
         res = deepcopy(self)
         res /= other
         return res
@@ -1201,7 +1205,7 @@ class PauliStringMonomial(PauliString):
             self.atoms.append(other)
             return self
         elif isinstance(other, PauliStringMonomial):
-            new_coef: "Coef" = (
+            new_coef: Coef = (
                 self.coef
                 * other.coef  # pyright: ignore[reportOperatorIssue, reportAssignmentType]
             )
@@ -1221,7 +1225,7 @@ class PauliStringMonomial(PauliString):
         return res
 
     def simplify(self, inplace: bool = False, precision: int = 10):
-        return deepcopy(self)
+        return self if inplace else deepcopy(self)
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, PauliStringMonomial):
@@ -1314,7 +1318,7 @@ class PauliStringMonomial(PauliString):
         new_monomial = deepcopy(self)
         caster = lambda v: _unpack_expr(v) if isinstance(v, Expr) else v
         if isinstance(new_monomial.coef, Expr):
-            new_coef: "Coef" = caster(
+            new_coef: Coef = caster(
                 new_monomial.coef.subs(
                     values  # pyright: ignore[reportArgumentType, reportCallIssue]
                 )
@@ -1496,7 +1500,7 @@ class PauliStringAtom(PauliStringMonomial):
         return [self]
 
     @property
-    def coef(self) -> "Coef":  # pyright: ignore[reportIncompatibleVariableOverride]
+    def coef(self) -> Coef:  # pyright: ignore[reportIncompatibleVariableOverride]
         """Coefficient of the monomial."""
         return 1
 
@@ -1524,24 +1528,29 @@ class PauliStringAtom(PauliStringMonomial):
     def __repr__(self):
         return str(self)
 
-    def __itruediv__(self, other: "Coef") -> PauliStringMonomial:
+    def __itruediv__(self, other: Coef) -> PauliStringMonomial:
         self = self / other
         return self
 
-    def __truediv__(self, other: "Coef") -> PauliStringMonomial:
+    def __truediv__(self, other: Coef) -> PauliStringMonomial:
         return PauliStringMonomial(
             1 / other,  # pyright: ignore[reportOperatorIssue, reportArgumentType]
             [self],
         )
 
-    def __imul__(self, other: "Coef") -> PauliStringMonomial:
+    def __imul__(self, other: Coef) -> PauliStringMonomial:
+        from sympy import Expr
+
+        assert isinstance(
+            other, (int, float, complex, Expr)
+        ), f"Expected a coefficient of type (int, float, complex, Expr), got {type(other)}"
         self = self * other
         return self
 
-    def __mul__(self, other: "Coef") -> PauliStringMonomial:
+    def __mul__(self, other: Coef) -> PauliStringMonomial:
         return PauliStringMonomial(other, [self])
 
-    def __rmul__(self, other: "Coef") -> PauliStringMonomial:
+    def __rmul__(self, other: Coef) -> PauliStringMonomial:
         return PauliStringMonomial(other, [self])
 
     def __imatmul__(self, other: PauliString) -> PauliString:
