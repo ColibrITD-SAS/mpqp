@@ -138,7 +138,6 @@ if InstalledProviders.CIRQ in _INSTALLED_MPQP_PROVIDERS:
         from mpqp.core.languages import Language
         from mpqp.tools.circuit import get_sorted_instructions_and_measurements
 
-
         cirq_qubits = [NamedQubit(f"q_{i}") for i in range(circuit.nb_qubits)]
         cirq_circuit = CirqCircuit()
 
