@@ -5,6 +5,7 @@ from mpqp import (
     ExpectationMeasure,
     GOOGLEDevice,
     IBMDevice,
+    QUANTINUUMDevice,
     Observable,
     QCircuit,
     pI,
@@ -30,6 +31,11 @@ def test_expectation_cirq():
 @pytest.mark.provider("braket")
 def test_expectation_braket():
     exec_expectation_value_check(AWSDevice.BRAKET_LOCAL_SIMULATOR)
+
+
+@pytest.mark.provider("quantinuum")
+def test_expectation_quantinuum():
+    exec_expectation_value_check(QUANTINUUMDevice.TKET_QULACS_SIMULATOR)
 
 
 def exec_expectation_value_check(device: AvailableDevice):

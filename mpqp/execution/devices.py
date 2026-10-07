@@ -7,14 +7,16 @@ Each supported provider has its available devices listed as these enums:
 - :class:`IBMDevice`,
 - :class:`ATOSDevice`,
 - :class:`AWSDevice`,
-- :class:`GOOGLEDevice`.
-- :class:`AZUREDevice`.
+- :class:`GOOGLEDevice`,
+- :class:`AZUREDevice`,
+- :class:`QUANTINUUMDevice`.
 
 Not all combinations of :class:`AvailableDevice` and
 :class:`~mpqp.execution.job.JobType` are possible. Here is the list of
-compatible jobs types and devices.
+compatible job types and devices.
 
-For more information about handling Remote devices, please refer to the `Remote devices handling <execution-extras.html>`_ section.
+For more information about handling remote devices, please refer to the
+`Remote devices handling <execution-extras.html>`_ section.
 
 .. csv-table:: Job/Device Compatibility Matrix
    :file: ../../docs/resources/job-device_compat.csv
@@ -28,8 +30,30 @@ import warnings
 from abc import abstractmethod
 from enum import Enum, auto
 
+from typing_extensions import override
+
 from mpqp.core.instruction.gates import Gate
-from mpqp.core.instruction.gates.native_gates import *
+from mpqp.core.instruction.gates.native_gates import (
+    CNOT,
+    CZ,
+    PRX,
+    SWAP,
+    TOF,
+    H,
+    Id,
+    Rx,
+    Rxx,
+    Ry,
+    Ryy,
+    Rz,
+    Rzz,
+    S,
+    S_dagger,
+    T,
+    X,
+    Y,
+    Z,
+)
 from mpqp.environment.env_manager import get_env_variable
 
 
@@ -120,6 +144,10 @@ class IBMDevice(AvailableDevice):
     AER_SIMULATOR_EXTENDED_STABILIZER = "extended_stabilizer"
     AER_SIMULATOR_MATRIX_PRODUCT_STATE = "matrix_product_state"
 
+    IBM_SHERBROOKE = "ibm_sherbrooke"
+    IBM_BRISBANE = "ibm_brisbane"
+    IBM_KYIV = "ibm_kyiv"
+
     IBM_RENSSELAER = "ibm_rensselaer"
     IBM_KAWASAKI = "ibm_kawasaki"
     IBM_QUEBEC = "ibm_quebec"
@@ -135,6 +163,10 @@ class IBMDevice(AvailableDevice):
     # Heron chips
     IBM_MIAMI = "ibm_miami"
     IBM_BERLIN = "ibm_berlin"
+
+    IBM_TORINO = "ibm_torino"
+    IBM_NAZCA = "ibm_nazca"
+    IBM_STRASBOURG = "ibm_strasbourg"
 
     IBM_CLEVELAND = "ibm_cleveland"
     IBM_PEEKSKILL = "ibm_peekskill"
@@ -191,6 +223,9 @@ class IBMDevice(AvailableDevice):
         }
 
     def compatible_gates(self, native_set: bool = False) -> set[type[Gate]]:
+        """List of native gate set of IBM's chips.
+        Pulled from this link: https://quantum.cloud.ibm.com/computers
+        """
         if self == IBMDevice.AER_SIMULATOR_STABILIZER:
             warnings.warn(
                 UserWarning(
@@ -207,7 +242,7 @@ class IBMDevice(AvailableDevice):
             return {Rx, Ry, Rz, X, Y, Z, H, CNOT, CZ, S, S_dagger, SWAP}
         else:
             compatibilities: dict[IBMDeviceFamily, set[type[Gate]]] = {
-                IBMDeviceFamily.HERON: {CZ, Id, Rx, Rz, X},  # add Rzz
+                IBMDeviceFamily.HERON: {CZ, Id, Rx, Rz, X, Rzz},
                 IBMDeviceFamily.NIGHTHAWK: {CZ, Id, Rx, Rz, X},
             }
             family = {
@@ -395,6 +430,74 @@ class AWSDevice(AvailableDevice):
         else:
             return get_env_variable("AWS_DEFAULT_REGION")
 
+    @override
+    def compatible_gates(self, native_set: bool = False) -> set[type[Gate]]:
+        """List of compatible gates with the devices that can be found in MPQP.
+        Lists pulled from here: https://docs.aws.amazon.com/braket/latest/developerguide/braket-submit-tasks.html#braket-qpu-partner-iqm
+        """
+        if self == AWSDevice.IQM_GARNET or self == AWSDevice.IQM_EMERALD:
+            if native_set:  # authorized: cz, prx
+                return set([CZ, PRX])
+            else:
+                """authorized gates from doc:
+                "ccnot", "cnot",
+                "cphaseshift", "cphaseshift00", "cphaseshift01", "cphaseshift10", "phaseshift"
+                "cswap", "swap", "iswap", "pswap",
+                "ecr", "cy", "cz", "xy", "xx", "yy", "zz", "h", "i", "rx", "ry", "rz", "s", "si", "t", "ti", "v", "vi", "x", "y", "z"
+                """
+                return set(
+                    [
+                        TOF,
+                        CNOT,
+                        SWAP,
+                        PRX,
+                        CZ,
+                        H,
+                        Id,
+                        Rx,
+                        Rxx,
+                        Ry,
+                        Ryy,
+                        Rz,
+                        Rzz,
+                        S,
+                        T,
+                        X,
+                        Y,
+                        Z,
+                    ]
+                )
+
+        elif self == AWSDevice.RIGETTI_ANKAA_3:
+            if native_set:  # 'rx', 'rz', 'iswap'
+                return {Rz, Rx}
+                # TODO: add (ISWAP) to the set
+            else:
+                """
+                'cz', 'xy', 'ccnot', 'cnot',
+                'cphaseshift', 'cphaseshift00', 'cphaseshift01', 'cphaseshift10',
+                'cswap', 'h', 'i', 'iswap', 'phaseshift', 'pswap',
+                'rx', 'ry', 'rz', 's', 'si', 'swap', 't', 'ti', 'x', 'y', 'z'
+                """
+                authorized = [
+                    TOF,
+                    CNOT,
+                    CZ,
+                    H,
+                    Id,
+                    Rx,
+                    Ry,
+                    Rz,
+                    S,
+                    T,
+                    X,
+                    Y,
+                    Z,
+                ]
+                return set(authorized)
+
+        return set()
+
     @staticmethod
     def from_arn(arn: str):
         """Returns the right AWSDevice from the arn given in parameter.
@@ -546,3 +649,63 @@ class AZUREDevice(AvailableDevice):
 
     def supports_observable_ideal(self) -> bool:
         return False
+
+
+class QUANTINUUMDevice(AvailableDevice):
+    """Enum regrouping all available devices provided by Quantinuum."""
+
+    TKET_AER_SIMULATOR = "tket-aer"
+    TKET_AER_STATEVECTOR_SIMULATOR = "tket-aer-state"
+    TKET_QULACS_SIMULATOR = "tket-qulacs"
+
+    NEXUS_AER_SIMULATOR = "aer"
+    NEXUS_AER_STATEVECTOR_SIMULATOR = "aer-state"
+    NEXUS_QULACS_SIMULATOR = "qulacs"
+
+    H1_1LE = "H1-1LE"
+    H2_1LE = "H2-1LE"
+    H1_EMULATOR = "H1-Emulator"
+    H2_EMULATOR = "H2-Emulator"
+
+    def is_remote(self) -> bool:
+        return self not in {
+            QUANTINUUMDevice.TKET_AER_SIMULATOR,
+            QUANTINUUMDevice.TKET_AER_STATEVECTOR_SIMULATOR,
+            QUANTINUUMDevice.TKET_QULACS_SIMULATOR,
+        }
+
+    def is_gate_based(self) -> bool:
+        return True
+
+    def is_simulator(self) -> bool:
+        return True
+
+    def is_noisy_simulator(self) -> bool:
+        return self in {
+            QUANTINUUMDevice.H1_EMULATOR,
+            QUANTINUUMDevice.H2_EMULATOR,
+        }
+
+    def supports_samples(self) -> bool:
+        return self not in {
+            QUANTINUUMDevice.NEXUS_AER_STATEVECTOR_SIMULATOR,
+            QUANTINUUMDevice.TKET_AER_STATEVECTOR_SIMULATOR,
+        }
+
+    def supports_state_vector(self) -> bool:
+        return self in {
+            QUANTINUUMDevice.NEXUS_AER_STATEVECTOR_SIMULATOR,
+            QUANTINUUMDevice.NEXUS_QULACS_SIMULATOR,
+            QUANTINUUMDevice.TKET_AER_STATEVECTOR_SIMULATOR,
+            QUANTINUUMDevice.TKET_QULACS_SIMULATOR,
+        }
+
+    def supports_observable(self) -> bool:
+        return self.supports_samples() or not self.is_remote()
+
+    def supports_observable_ideal(self) -> bool:
+        return self in {
+            QUANTINUUMDevice.TKET_AER_SIMULATOR,
+            QUANTINUUMDevice.TKET_AER_STATEVECTOR_SIMULATOR,
+            QUANTINUUMDevice.TKET_QULACS_SIMULATOR,
+        }

@@ -19,6 +19,7 @@ def print_config_info():
     import mpqp.execution.connection.azure_connection as azuc
     import mpqp.execution.connection.ibm_connection as ibmqc
     import mpqp.execution.connection.ionq_connection as ionqc
+    import mpqp.execution.connection.quantinuum_connection as quantc
     from mpqp.tools.errors import IBMRemoteExecutionError
 
     """Prints the info concerning each provider's registered account."""
@@ -57,6 +58,11 @@ def print_config_info():
         print(azuc.get_azure_account_info())
     except Exception as err:
         print("Error occurred when getting Azure account info.")
+    print("===== Quantinuum Nexus info : ===== ")
+    try:
+        print(quantc.get_quantinuum_account_info())
+    except Exception as err:
+        print("Error occurred when getting Quantinuum account info: " f"{err}")
     input("Press 'Enter' to continue")
     return "", []
 
@@ -69,6 +75,9 @@ def delete_config():
     from mpqp.execution.connection.ibm_connection import delete_ibm_account
     from mpqp.execution.connection.ionq_connection import delete_ionq_account
     from mpqp.execution.connection.qlm_connection import delete_qlm_account
+    from mpqp.execution.connection.quantinuum_connection import (
+        delete_quantinuum_account,
+    )
     from mpqp.tools.choice_tree import AnswerNode, QuestionNode, run_choice_tree
 
     def delete_all():
@@ -82,6 +91,8 @@ def delete_config():
             delete_ionq_account()
         if get_env_variable("AZURE_CONFIGURED") == "True":
             delete_azure_account()
+        if get_env_variable("QUANTINUUM_CONFIGURED") == "True":
+            delete_quantinuum_account()
 
         return "All accounts deleted", []
 
@@ -93,6 +104,7 @@ def delete_config():
             AnswerNode("Braket", delete_aws_braket_account),
             AnswerNode("IonQ", delete_ionq_account),
             AnswerNode("Azure", delete_azure_account),
+            AnswerNode("Quantinuum Nexus", delete_quantinuum_account),
             AnswerNode("All", delete_all),
         ],
         leaf_loop_to_here=True,
@@ -112,6 +124,9 @@ def main_setup():
     from mpqp.execution.connection.ibm_connection import setup_ibm_account
     from mpqp.execution.connection.ionq_connection import config_ionq_key
     from mpqp.execution.connection.qlm_connection import setup_qlm_account
+    from mpqp.execution.connection.quantinuum_connection import (
+        setup_quantinuum_account,
+    )
     from mpqp.tools.choice_tree import AnswerNode, QuestionNode, run_choice_tree
 
     setup_tree = QuestionNode(
@@ -122,6 +137,7 @@ def main_setup():
             AnswerNode("Amazon Braket", setup_aws_braket_account),
             AnswerNode("IonQ", config_ionq_key),
             AnswerNode("Azure", config_azure_account),
+            AnswerNode("Quantinuum Nexus", setup_quantinuum_account),
             AnswerNode("Recap", print_config_info),
             AnswerNode("Delete a configuration", delete_config),
         ],

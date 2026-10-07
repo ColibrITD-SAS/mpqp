@@ -7,7 +7,7 @@ from mpqp.execution import run
 from mpqp.execution.devices import ATOSDevice, AWSDevice
 from mpqp.gates import *
 from mpqp.measures import BasisMeasure
-from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
+from mpqp.translation.qasm.qasm_to_braket import qasm3_to_braket_Circuit
 
 device = LocalSimulator()
 
