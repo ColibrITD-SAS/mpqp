@@ -166,10 +166,10 @@ def run_circuit_binding(job: Job) -> BatchResult:
 
     circuitBinding = job.circuit
     assert isinstance(circuitBinding, CircuitBinding)
-    """if job.job_type == JobType.STATE_VECTOR:
+    if job.job_type == JobType.STATE_VECTOR:
         raise ValueError(
             "Cannot run state vectors through CircuitBinding on braket because of braket's ProgramSet limitations."
-        )"""
+        )
     if not isinstance(job.device, AWSDevice):
         raise ValueError(
             "`job` must correspond to an `AWSDevice`, but corresponds to a "
@@ -184,7 +184,7 @@ def run_circuit_binding(job: Job) -> BatchResult:
         assert isinstance(braket_circuit, braket_Circuit)
     task = device.run(braket_circuit, shots=None, inputs=None)
     task_result = task.result()
-
+    nbr_shots = circuitBinding.shots if circuitBinding.shots is not None else 0
     job.id = task.id
     job.status = JobStatus.DONE
 
@@ -328,11 +328,11 @@ def run_circuit_binding(job: Job) -> BatchResult:
                     or f"observable_{index}": expectation_values[index]
                     for index in range(measurement.nb_observables)
                 }
-            local_job = Job(
-                job.job_type, circuit, job.device, measurement, variables
-            )
+            local_job = Job(job.job_type, circuit, job.device, measurement, variables)
+            local_job.id = job.id
+            local_job.status = job.status
             indexed_results.append(
-                (result_index, Result(local_job, result_value))
+                (result_index, Result(local_job, result_value, shots=nbr_shots))
             )
     else:
         for res, contexts in zip(task_result.entries, jobs):
@@ -368,7 +368,7 @@ def run_circuit_binding(job: Job) -> BatchResult:
                         Result(
                             local_job,
                             sample_info,
-                            shots=circuitBinding.shots if circuitBinding.shots else 0,
+                            shots=nbr_shots,
                         ),
                     )
                 )

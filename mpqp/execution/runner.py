@@ -457,6 +457,7 @@ def _run_circuit_binding(
     circuit_binding: CircuitBinding,
     device: AvailableDevice,
     display_breakpoints: bool = True,
+    provider_params: Optional[ProviderParams] = None,
 ) -> BatchResult:
     """Execute every expansion of a circuit binding on one device.
 
@@ -502,7 +503,11 @@ def _run_circuit_binding(
     job = generate_job(circuit_binding, device)
 
     if isinstance(device, (IBMDevice, StaticIBMSimulatedDevice)):
-        result = run_ibm(job)
+        if not (provider_params is None or isinstance(provider_params, QiskitParams)):
+            raise ValueError(
+                f"IBM runs only handles QiskitParams got: {type(provider_params)}"
+            )
+        result = run_ibm(job, qiskit_params=provider_params)
     elif isinstance(device, ATOSDevice):
         raise NotImplementedError(f"Device {device} not handled")
         result = run_atos(jobs)  # TODO
@@ -669,7 +674,9 @@ def run(
             else:
                 if values is not None:
                     raise ValueError("values must be specified in CircuitBinding")
-                result = _run_circuit_binding(circuit, dev, display_breakpoints)
+                result = _run_circuit_binding(
+                    circuit, dev, display_breakpoints, provider_params
+                )
                 results.extend(result.results)
         return BatchResult(results)
     else:
@@ -693,7 +700,9 @@ def run(
         else:
             if values is not None:
                 raise ValueError("values must be specified in CircuitBinding")
-            return _run_circuit_binding(circuit, device, display_breakpoints)
+            return _run_circuit_binding(
+                circuit, device, display_breakpoints, provider_params
+            )
 
 
 def submit(

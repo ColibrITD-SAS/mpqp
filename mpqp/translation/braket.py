@@ -651,6 +651,9 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
         from mpqp.core import Language, QCircuit
         from mpqp.core.instruction import BasisMeasure
 
+        if binding.shots == 0:
+            raise ValueError("Braket's ProgramSets are not available with shots at 0.")
+
         def parameter_key(
             values: BindingParameters | None,
         ) -> tuple[tuple[str, str], ...] | None:
