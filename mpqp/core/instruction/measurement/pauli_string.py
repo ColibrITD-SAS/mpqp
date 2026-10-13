@@ -1185,9 +1185,6 @@ class PauliStringMonomial(PauliString):
     def __itruediv__(self, other: Coef) -> PauliStringMonomial:
         from sympy import Expr, Basic  # pyright: ignore[reportUnusedImport]
 
-        """assert isinstance(
-            other, Coef
-        ), f"Expected a coefficient of type (int, float, complex, Expr), got {type(other)}"""
         new_coef: Coef = (
             self.coef
             / other  # pyright: ignore[reportOperatorIssue, reportAssignmentType]

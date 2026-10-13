@@ -13,10 +13,11 @@ from mpqp.execution.devices import (
 )
 
 from mpqp import (
-    CNOT,
     BasisMeasure,
     ExpectationMeasure,
-    H,
+    X,
+    Y,
+    Id,
     IBMDevice,
     Language,
     Observable,
@@ -32,9 +33,9 @@ from sympy import Symbol
 
 theta, phi, psi = Symbol('θ'), Symbol('phi'), Symbol('psi')
 c1 = QCircuit([U(theta, phi, psi, 0)], label="c1")
-c2 = QCircuit([H(0)], label="c2")
-c3 = QCircuit([H(0), CNOT(0, 1)], label="c3")
-c4 = QCircuit([H(0), H(1), CNOT(0, 1)], label="c4")
+c2 = QCircuit([Y(0)], label="c2")
+c3 = QCircuit([X(0), Id(1)], label="c3")
+c4 = QCircuit([Id(0), X(1)], label="c4")
 
 v1 = {'θ': 1.0, 'phi': 1.0, 'psi': 1.0}
 v2 = {'θ': 2.0, 'phi': 2.0, 'psi': 2.0}
@@ -42,7 +43,7 @@ v3 = {'θ': 3.0, 'phi': 3.0, 'psi': 3.0}
 v4 = {'θ': 4.0, 'phi': 4.0, 'psi': 4.0}
 
 m1 = ExpectationMeasure(Observable(pI), label="Exp1", shots=2024)
-m2 = ExpectationMeasure(Observable(pX @ pZ), label="Exp2", shots=2024)
+m2 = ExpectationMeasure(Observable(pZ @ pZ), label="Exp2", shots=2024)
 m3 = BasisMeasure(label="b3", shots=2024)
 m4 = None
 
@@ -113,7 +114,7 @@ def product_tests_observable():
             if isinstance(res[0].expectation_values, dict)
             else res[0].expectation_values
         )
-        assert val == pytest.approx(0.0, abs=1e-1)
+        assert val == -1
 
     cb_prod_ind = CircuitBinding(
         circuits=c1, values=[v1, v2, v3], measurements=m1, mode=BindingMode.PRODUCT
@@ -136,20 +137,19 @@ def product_tests_observable():
 @pytest.fixture
 def product_tests_sample():
     cb_prod = CircuitBinding(
-        circuits=[c2, c3], measurements=m3, mode=BindingMode.PRODUCT
+        circuits=[c3, c4], measurements=m3, mode=BindingMode.PRODUCT
     )
 
+    # c3 = 10, c4 = 01 ie: XI and IX
     def val_prod(res: BatchResult):
         assert isinstance(res, BatchResult)
         assert len(res.results) == 2
 
         r_c2 = res.results[0]
-        assert r_c2.counts[0] == pytest.approx(1012, abs=50)
-        assert r_c2.counts[1] == pytest.approx(1012, abs=50)
+        assert r_c2.counts[2] == 2024
 
         r_c3 = res.results[1]
-        assert r_c3.counts[0] == pytest.approx(1012, abs=50)
-        assert r_c3.counts[3] == pytest.approx(1012, abs=50)
+        assert r_c3.counts[1] == 2024
 
     return [(cb_prod, val_prod)]
 
@@ -164,12 +164,10 @@ def product_tests_state_vector():
         assert np.allclose(
             res.results[0].state_vector.vector, [0.87758, 0.25903 + 0.40342j], atol=1e-5
         )
-        assert np.allclose(
-            res.results[1].state_vector.vector, [0.70710678, 0.70710678], atol=1e-5
-        )
+        assert np.allclose(res.results[1].state_vector.vector, [0, 1.0j], atol=1e-5)
         assert np.allclose(
             res.results[2].state_vector.vector,
-            [0.70710678, 0, 0, 0.70710678],
+            [0, 0, 1, 0],
             atol=1e-5,
         )
 
@@ -188,14 +186,14 @@ def zip_tests_observable():
     def val_zip(res: BatchResult):
         assert isinstance(res, BatchResult)
         assert len(res.results) == 3
-        values = [1.0, 0, 0]
+        values = [1.0, -1, -1]
         for i, r in enumerate(res.results):
             val = (
                 list(r.expectation_values.values())[0]
                 if isinstance(r.expectation_values, dict)
                 else r.expectation_values
             )
-            assert val == pytest.approx(values[i], abs=1e-1)
+            assert val == values[i]
 
     return [(cb_zip, val_zip)]
 
@@ -211,14 +209,12 @@ def zip_tests_sample():
         assert len(res.results) == 2
 
         r_c2 = res.results[0]
-        assert r_c2.counts[0] == pytest.approx(1012, abs=50)
-        assert r_c2.counts[1] == pytest.approx(1012, abs=50)
+        assert len(r_c2.counts) == 2
+        assert r_c2.counts[1] == 2024
 
         r_c4 = res.results[1]
-        assert r_c4.counts[0] == pytest.approx(505, abs=50)
-        assert r_c4.counts[1] == pytest.approx(505, abs=50)
-        assert r_c4.counts[2] == pytest.approx(505, abs=50)
-        assert r_c4.counts[3] == pytest.approx(505, abs=50)
+        assert len(r_c4.counts) == 4
+        assert r_c4.counts[1] == 2024
 
     return [(cb_zip, val_zip)]
 

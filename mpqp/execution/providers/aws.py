@@ -5,7 +5,8 @@ from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 
-from mpqp.core.circuitbinding import BindingParameters, CircuitBinding, QCircuit
+from mpqp.core import QCircuit
+from mpqp.core.circuitbinding import BindingParameters, CircuitBinding
 from mpqp.core.instruction.gates import CRk
 from mpqp.core.instruction.measurement import (
     BasisMeasure,

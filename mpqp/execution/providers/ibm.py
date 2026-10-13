@@ -69,11 +69,11 @@ def run_ibm(
 
 
 def compute_expectation_value(
-    job: "Job",
+    job: Job,
     simulator: Optional["AerSimulator"],
     ibm_circuit: Optional["QuantumCircuit"] = None,
     pubs: Optional[list["EstimatorPubLike"]] = None,
-    pubs_contexts: Optional[list[list["Job"]]] = None,
+    pubs_contexts: Optional[list[list[Job]]] = None,
     shots: Optional[int] = None,
 ) -> Result | BatchResult:
     """Configures observable job and run it locally, and returns the
@@ -81,6 +81,15 @@ def compute_expectation_value(
 
     Each batched PUB has an ordered list of context jobs, one for each
     parameter/measurement pair resolved by the binding mode.
+
+    Args:
+        job: Job containing the execution input data.
+        simulator: AerSimulator to be used to set the EstimatorV2 options.
+        ibm_circuit: QuantumCircuit (with its qubits already reversed) for which we want
+                    to estimate the expectation value.
+        pubs: Equivalent pubs of the inputted CircuitBinding to be ran.
+        pubs_context: List of Job to sort the pubs' result by afterwards.
+        shots: optional number of shots per executables.
     """
     from qiskit.quantum_info import SparsePauliOp
     from qiskit.primitives import PubResult
