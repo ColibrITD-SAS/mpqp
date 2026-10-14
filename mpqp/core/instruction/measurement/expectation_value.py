@@ -203,6 +203,14 @@ class Observable:
         self._pauli_string = None
         self._matrix = None
 
+    def is_matrix_set(self):
+        """Returns if the matrix is already set in the observable."""
+        return not self._matrix is None
+
+    def is_pauli_set(self):
+        """Returns if the pauli string is already set in the observable."""
+        return not self._pauli_string is None
+
     @property
     def is_diagonal(self) -> bool:
         """Returns True if this observable is diagonal.

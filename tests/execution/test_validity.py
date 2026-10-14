@@ -683,8 +683,7 @@ def test_validity_run_job_type_qiskit(
     }:
         with pytest.warns(UserWarning, match=rf"For {device}"):
             exec_validity_run_job_type(device, circuits_type)
-    else:
-        exec_validity_run_job_type(device, circuits_type)
+    exec_validity_run_job_type(device, circuits_type)
 
 
 @pytest.mark.provider("qiskit")
@@ -696,7 +695,9 @@ def test_unsupported_non_composed_gate_is_rejected_before_translation():
             UnsupportedGateError,
             match=r"T cannot be represented with the target gate set",
         ):
-            circuit.to_other_device(IBMDevice.AER_SIMULATOR_STABILIZER)
+            circuit.to_other_device(
+                IBMDevice.AER_SIMULATOR_STABILIZER, native_gate_set=True
+            )
 
 
 @pytest.mark.provider("cirq")

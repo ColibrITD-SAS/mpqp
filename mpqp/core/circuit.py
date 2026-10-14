@@ -35,7 +35,15 @@ from __future__ import annotations
 
 from copy import deepcopy
 from numbers import Complex
-from typing import TYPE_CHECKING, Literal, Optional, Sequence, Type, Union, overload
+from typing import (
+    TYPE_CHECKING,
+    Literal,
+    Optional,
+    Sequence,
+    Type,
+    Union,
+    overload,
+)
 from warnings import warn
 
 import numpy as np
@@ -70,6 +78,7 @@ if TYPE_CHECKING:
     from qiskit.circuit import QuantumCircuit
     from qiskit_aer import AerSimulator
     from sympy import Basic, Expr
+    from mpqp.execution.job import JobType
 
     from mpqp.execution.devices import (
         ATOSDevice,
@@ -1320,6 +1329,7 @@ class QCircuit:
         self,
         device: ATOSDevice,
         skip_pre_measure: bool = False,
+        native_gate_set: bool = False,
     ) -> myQLM_Circuit: ...
 
     @overload
@@ -1327,6 +1337,7 @@ class QCircuit:
         self,
         device: AWSDevice,
         skip_pre_measure: bool = False,
+        native_gate_set: bool = False,
     ) -> braket_Circuit: ...
 
     @overload
@@ -1334,6 +1345,7 @@ class QCircuit:
         self,
         device: GOOGLEDevice,
         skip_pre_measure: bool = False,
+        native_gate_set: bool = False,
     ) -> cirq_Circuit: ...
 
     @overload
@@ -1341,6 +1353,7 @@ class QCircuit:
         self,
         device: QUANTINUUMDevice,
         skip_pre_measure: bool = False,
+        native_gate_set: bool = False,
     ) -> tket_Circuit: ...
 
     @overload
@@ -1348,13 +1361,24 @@ class QCircuit:
         self,
         device: Union[IBMDevice, StaticIBMSimulatedDevice],
         skip_pre_measure: bool = False,
+        native_gate_set: bool = False,
         backend_sim: Optional["AerSimulator"] = None,
     ) -> QuantumCircuit: ...
+
+    @overload
+    def to_other_device(
+        self,
+        device: AvailableDevice,
+        skip_pre_measure: bool = False,
+        native_gate_set: bool = False,
+        backend_sim: Optional["AerSimulator"] = None,
+    ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit: ...
 
     def to_other_device(
         self,
         device: AvailableDevice,
         skip_pre_measure: bool = False,
+        native_gate_set: bool = False,
         backend_sim: Optional["AerSimulator"] = None,
     ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit | tket_Circuit:
         """Transforms this circuit into the corresponding device specified
@@ -1370,6 +1394,7 @@ class QCircuit:
             device: representing the target device.
             skip_pre_measure: If true, the ``pre_measure`` circuit will not be
                 added to the output.
+            native_gate_set: If true, checks if every gates in the circuits are natively supported by the device.
             backend_sim: Simulator backend for Qiskit devices.
 
         Returns:
@@ -1441,7 +1466,7 @@ class QCircuit:
         )
 
         translated_circuit = deepcopy(self)
-        native_gates = device.compatible_gates()
+        native_gates = device.compatible_gates(native_set=native_gate_set)
 
         if native_gates:
             translated_circuit.instructions = resolve_instructions(
@@ -1481,7 +1506,7 @@ class QCircuit:
 
                         if backend_sim is None:
                             if isinstance(device, StaticIBMSimulatedDevice):
-                                if len(self.noises) != 0:
+                                if self.is_noisy:
                                     warn(
                                         "NoiseModel are ignored when running the circuit on a "
                                         "SimulatedDevice"
@@ -1490,7 +1515,7 @@ class QCircuit:
                                     # (grab qiskit NoiseModel from AerSimulator generated below, and add
                                     # to it directly)
                                 backend_sim = device.to_noisy_simulator()
-                            elif len(self.noises) != 0:
+                            elif self.is_noisy:
                                 from qiskit_aer import AerSimulator
 
                                 if self.transpiled_noise_model is None:
@@ -1850,6 +1875,30 @@ class QCircuit:
             f"Error: {type(qcircuit)} is not supported, or sdk not installed."
         )
 
+    @property
+    def job_type(self) -> "JobType":
+        """
+        Returns the type of job associated with the circuit based on its measurements.
+        """
+        from mpqp.execution.job import JobType
+
+        for measurement in self.measurements:
+            if isinstance(measurement, BasisMeasure):
+                if measurement.shots <= 0:
+                    return JobType.STATE_VECTOR
+                else:
+                    return JobType.SAMPLE
+            elif isinstance(measurement, ExpectationMeasure):
+                return JobType.OBSERVABLE
+        return JobType.STATE_VECTOR
+
+    @property
+    def is_noisy(self) -> bool:
+        """
+        Returns True if the circuit has any noise instructions, False otherwise.
+        """
+        return len(self.noises) > 0
+
     def subs(self, values: dict[Expr | str, Complex]) -> QCircuit:
         r"""Substitute the parameters of the circuit with values for each of the
         specified parameters. Optionally also remove all symbolic variables such
@@ -1930,7 +1979,7 @@ class QCircuit:
 
             assert isinstance(qiskit_circ, QuantumCircuit)
         output = str(qiskit_circ.draw(output="text", fold=0))
-        if len(self.noises) != 0:
+        if self.is_noisy:
             noises = "\n    ".join(str(noise) for noise in self.noises)
             output += f"\nNoiseModel:\n    {noises}"
         return output
