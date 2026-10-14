@@ -29,7 +29,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
         from braket.program_sets import ProgramSet
 
         from mpqp.core.circuitbinding import CircuitBinding
-        from mpqp.execution.devices import AvailableDevice
+        from mpqp.execution.devices import AWSDevice
 
     def braket_to_mpqp(qcircuit: "braket_Circuit") -> "QCircuit":
 
@@ -614,7 +614,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
         return ps, context
 
     def _grouped_cb_to_programset(
-        binding: "CircuitBinding", device: "AvailableDevice"
+        binding: "CircuitBinding", device: "AWSDevice"
     ) -> "tuple[ProgramSet, list[list[tuple[QCircuit, Measure | None, BindingParameters | None, int, int, int | None]]]]":
         """Translate a binding while sharing one Braket program per circuit.
 
@@ -697,7 +697,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                 if not isinstance(value, Real):
                     raise TypeError(
                         "Braket circuit parameters must be real numbers, "
-                        f"but parameter {key!s} has value {value!r}."
+                        f"but parameter {key} has value {value}."
                     )
                 converted[str(key)] = float(value)
             return converted
@@ -763,13 +763,19 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
         # in the provider-circuit identity.
         circuit_groups: "OrderedDict[Any, Any]" = OrderedDict()
         translated_circuits: dict[int, braket_Circuit] = {}
+        from mpqp.execution.providers.aws import apply_noise_to_braket_circuit
+
         result_index = 0
         for circuit, values, measure in binding.unroll():
             circuit_id = id(circuit)
             translated_circuit = translated_circuits.get(circuit_id)
             if translated_circuit is None:
                 if not isinstance(circuit.transpiled_circuit, braket_Circuit):
-                    circuit.transpiled_circuit = circuit.to_other_device(device=device)
+                    circuit.transpiled_circuit = apply_noise_to_braket_circuit(
+                        circuit.to_other_device(device=device),
+                        binding.noises or [],
+                        circuit.nb_qubits,
+                    )
                 translated_circuit = circuit.transpiled_circuit
                 if TYPE_CHECKING:
                     assert isinstance(translated_circuit, braket_Circuit)
@@ -1026,7 +1032,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
         return ProgramSet(entries, binding.shots), entry_contexts
 
     def circuitbinding_to_programset(
-        binding: "CircuitBinding", device: "AvailableDevice"
+        binding: "CircuitBinding", device: "AWSDevice"
     ) -> "tuple[ProgramSet, list[Any]]":
         """Convert an MPQP circuit binding to an AWS Braket ``ProgramSet``.
 

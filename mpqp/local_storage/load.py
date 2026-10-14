@@ -77,12 +77,13 @@ def results_local_storage_to_mpqp(
         Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR), [Sample(...), ...], None, 1024)
 
     """
+    # can be used when we call eval.
+    import numpy as np  # pyright: ignore[reportUnusedImport]
+
     if results is None:
         return []
     results_mpqp = []
     if isinstance(results, dict):
-        import numpy as np  # pyright: ignore[reportUnusedImport]
-
         error = eval(eval(results['error'])) if results['error'] is not None else None
         job = fetch_jobs_with_id(results['job_id'])
         if len(job) == 0:

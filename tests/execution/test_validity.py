@@ -677,6 +677,12 @@ def circuits_type():
 def test_validity_run_job_type_qiskit(
     device: AvailableDevice, circuits_type: list[QCircuit]
 ):
+    if device in {
+        IBMDevice.AER_SIMULATOR_STABILIZER,
+        IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER,
+    }:
+        with pytest.warns(UserWarning, match=rf"For {device}"):
+            exec_validity_run_job_type(device, circuits_type)
     exec_validity_run_job_type(device, circuits_type)
 
 
