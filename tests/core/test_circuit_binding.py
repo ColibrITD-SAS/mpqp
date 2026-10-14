@@ -25,7 +25,6 @@ from mpqp import (
     U,
     pI,
     pZ,
-    pX,
     run,
 )
 from mpqp.execution.result import BatchResult
@@ -129,7 +128,7 @@ def product_tests_observable():
                 if isinstance(r.expectation_values, dict)
                 else r.expectation_values
             )
-            assert val == pytest.approx(1.0, abs=1e-5)
+            assert val == 1.0
 
     return [(cb_prod, val_prod), (cb_single, val_single), (cb_prod_ind, val_prod_ind)]
 

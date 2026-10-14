@@ -940,11 +940,25 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                     partitions.append(simple_partition)
 
                 for partition in partitions:
+                    partition_has_observables = any(
+                        translation_info[info_index][1] is not None
+                        for info_index in partition
+                    )
                     input_sets: list[dict[str, float]] = []
                     for parameter_group in parameter_groups:
                         parameter_values = parameter_group[0]  # MPQP parameter mapping.
                         if parameter_values is not None:
-                            input_sets.append(braket_values(parameter_values))
+                            converted_values = braket_values(parameter_values)
+                            # Without an observable axis, each item in the
+                            # partition is a distinct execution. Keep repeated
+                            # parameter rows so Braket performs every run,
+                            # including byte-for-byte identical ones.
+                            repeat_count = (
+                                1 if partition_has_observables else len(partition)
+                            )
+                            input_sets.extend(
+                                converted_values.copy() for _ in range(repeat_count)
+                            )
                     provider_observable_list: list[BraketObservable] = []
                     for info_index in partition:
                         provider_observable = translation_info[info_index][
@@ -963,17 +977,6 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                             provider_observables = single_provider_observable
                     if not provider_observable_list:
                         provider_observables = None
-
-                    if input_sets or provider_observables is not None:
-                        entries.append(
-                            BraketBinding(
-                                provider_circuit,
-                                input_sets=input_sets or None,
-                                observables=provider_observables,
-                            )
-                        )
-                    else:
-                        entries.append(provider_circuit)
 
                     contexts: list[
                         tuple[
@@ -1002,7 +1005,23 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                                     info[4],  # Observable index in the measurement.
                                 )
                             )
-                    entry_contexts.append(contexts)
+
+                    if input_sets or provider_observables is not None:
+                        entries.append(
+                            BraketBinding(
+                                provider_circuit,
+                                input_sets=input_sets or None,
+                                observables=provider_observables,
+                            )
+                        )
+                        entry_contexts.append(contexts)
+                    else:
+                        # A bare circuit has no Braket binding axis on which to
+                        # encode multiplicity. Add it once per logical
+                        # occurrence instead of collapsing identical runs.
+                        for context in contexts:
+                            entries.append(provider_circuit)
+                            entry_contexts.append([context])
 
         return ProgramSet(entries, binding.shots), entry_contexts
 
