@@ -340,7 +340,7 @@ class ATOSDevice(AvailableDevice):
 
 
 class AWSDevice(AvailableDevice):
-    """Enum regrouping all available devices provided by AWS."""
+    """Enum regrouping devices provided through Amazon Braket."""
 
     BRAKET_LOCAL_SIMULATOR = "LocalSimulator"
 
@@ -348,20 +348,35 @@ class AWSDevice(AvailableDevice):
     BRAKET_DM1_SIMULATOR = "quantum-simulator/amazon/dm1"
     BRAKET_TN1_SIMULATOR = "quantum-simulator/amazon/tn1"
 
+    AQT_IBEX_Q1 = "qpu/aqt/Ibex-Q1"
     IONQ_ARIA_1 = "qpu/ionq/Aria-1"
     IONQ_ARIA_2 = "qpu/ionq/Aria-2"
     IONQ_FORTE_1 = "qpu/ionq/Forte-1"
     IONQ_FORTE_ENTERPRISE_1 = "qpu/ionq/Forte-Enterprise-1"
     QUERA_AQUILA = "qpu/quera/Aquila"
     RIGETTI_ANKAA_3 = "qpu/rigetti/Ankaa-3"
+    RIGETTI_CEPHEUS_1_108Q = "qpu/rigetti/Cepheus-1-108Q"
     IQM_GARNET = "qpu/iqm/Garnet"
     IQM_EMERALD = "qpu/iqm/Emerald"
 
     def is_remote(self):
         return self != AWSDevice.BRAKET_LOCAL_SIMULATOR
 
+    def is_retired(self) -> bool:
+        """Indicate whether AWS has retired this device.
+
+        Retired devices remain temporarily so existing code can still reference
+        them, but MPQP cannot use them for new executions.
+        """
+
+        return self in {
+            AWSDevice.BRAKET_TN1_SIMULATOR,
+            AWSDevice.IONQ_ARIA_1,
+            AWSDevice.IONQ_ARIA_2,
+        }
+
     def is_gate_based(self) -> bool:
-        return True
+        return self != AWSDevice.QUERA_AQUILA
 
     def is_simulator(self) -> bool:
         return "SIMULATOR" in self.name
@@ -379,122 +394,174 @@ class AWSDevice(AvailableDevice):
             The arn of the device.
 
         Examples:
-            >>> AWSDevice.IONQ_ARIA_1.get_arn()
-            'arn:aws:braket:us-east-1::device/qpu/ionq/Aria-1'
+            >>> AWSDevice.AQT_IBEX_Q1.get_arn()
+            'arn:aws:braket:eu-north-1::device/qpu/aqt/Ibex-Q1'
             >>> AWSDevice.BRAKET_SV1_SIMULATOR.get_arn()
             'arn:aws:braket:::device/quantum-simulator/amazon/sv1'
             >>> AWSDevice.RIGETTI_ANKAA_3.get_arn()
             'arn:aws:braket:us-west-1::device/qpu/rigetti/Ankaa-3'
 
         """
-        region = self.get_region()
-        if self.is_simulator():
-            region = ""
+        if not self.is_remote():
+            raise ValueError("The local simulator does not have an AWS ARN.")
+        region = "" if self.is_simulator() else self.get_region()
         return "arn:aws:braket:" + region + "::device/" + self.value
 
-    def get_region(self) -> str:
-        """Retrieve the AWS region from this AWSDevice element.
+    def get_region(self, default_region: str | None = None) -> str:
+        """Retrieve the AWS region associated with the selected device.
+
+        Remote simulators use ``default_region``. QPUs return the region where
+        the device is available.
+
+        Args:
+            default_region: Region to use for a remote simulator.
 
         Returns:
             The region of the device.
 
         Raises:
-            ValueError: If called on a local (non-remote) simulator that has no AWS region.
+            ValueError: If the local simulator is selected or no supported AWS
+                region is provided for a remote simulator.
 
         Examples:
-            >>> AWSDevice.IONQ_ARIA_1.get_region()
-            'us-east-1'
-            >>> AWSDevice.BRAKET_SV1_SIMULATOR.get_region() == get_env_variable("AWS_DEFAULT_REGION")
-            True
+            >>> AWSDevice.AQT_IBEX_Q1.get_region()
+            'eu-north-1'
+            >>> AWSDevice.BRAKET_SV1_SIMULATOR.get_region("us-west-2")
+            'us-west-2'
             >>> AWSDevice.RIGETTI_ANKAA_3.get_region()
             'us-west-1'
 
         """
         if not self.is_remote():
-            raise ValueError(
-                "Cannot retrieve AWS region for non-remote device (local simulator)"
-            )
-        elif self == AWSDevice.RIGETTI_ANKAA_3:
+            raise ValueError("Cannot retrieve an AWS region for the local simulator.")
+        elif self in {
+            AWSDevice.RIGETTI_ANKAA_3,
+            AWSDevice.RIGETTI_CEPHEUS_1_108Q,
+        }:
             return "us-west-1"
 
-        elif self in [AWSDevice.IQM_GARNET, AWSDevice.IQM_EMERALD]:
+        elif self in {
+            AWSDevice.AQT_IBEX_Q1,
+            AWSDevice.IQM_GARNET,
+            AWSDevice.IQM_EMERALD,
+        }:
             return "eu-north-1"
-        elif self in [
+        elif self in {
             AWSDevice.IONQ_ARIA_1,
             AWSDevice.IONQ_ARIA_2,
             AWSDevice.IONQ_FORTE_1,
             AWSDevice.IONQ_FORTE_ENTERPRISE_1,
             AWSDevice.QUERA_AQUILA,
-        ]:
+        }:
             return "us-east-1"
         else:
-            return get_env_variable("AWS_DEFAULT_REGION")
+            region = default_region
+            if region is None:
+                region = get_env_variable("AWS_DEFAULT_REGION")
+            if not region:
+                raise ValueError(
+                    f"{self.name} is available in multiple AWS regions. "
+                    "Provide a region."
+                )
+
+            supported_regions = {
+                "eu-west-2",
+                "us-east-1",
+                "us-west-1",
+                "us-west-2",
+            }
+            if region not in supported_regions:
+                raise ValueError(
+                    f"{self.name} is not available in AWS region '{region}'. "
+                    "Use one of: us-east-1, eu-west-2, us-west-1, us-west-2."
+                )
+            return region
 
     @override
     def compatible_gates(self, native_set: bool = False) -> set[type[Gate]]:
-        """List of compatible gates with the devices that can be found in MPQP.
-        Lists pulled from here: https://docs.aws.amazon.com/braket/latest/developerguide/braket-submit-tasks.html#braket-qpu-partner-iqm
-        """
-        if self == AWSDevice.IQM_GARNET or self == AWSDevice.IQM_EMERALD:
-            if native_set:  # authorized: cz, prx
-                return set([CZ, PRX])
-            else:
-                """authorized gates from doc:
-                "ccnot", "cnot",
-                "cphaseshift", "cphaseshift00", "cphaseshift01", "cphaseshift10", "phaseshift"
-                "cswap", "swap", "iswap", "pswap",
-                "ecr", "cy", "cz", "xy", "xx", "yy", "zz", "h", "i", "rx", "ry", "rz", "s", "si", "t", "ti", "v", "vi", "x", "y", "z"
-                """
-                return set(
-                    [
-                        TOF,
-                        CNOT,
-                        SWAP,
-                        PRX,
-                        CZ,
-                        H,
-                        Id,
-                        Rx,
-                        Rxx,
-                        Ry,
-                        Ryy,
-                        Rz,
-                        Rzz,
-                        S,
-                        T,
-                        X,
-                        Y,
-                        Z,
-                    ]
-                )
+        """Return the MPQP gates supported by this Braket device.
 
-        elif self == AWSDevice.RIGETTI_ANKAA_3:
-            if native_set:  # 'rx', 'rz', 'iswap'
-                return {Rz, Rx}
-                # TODO: add (ISWAP) to the set
-            else:
-                """
-                'cz', 'xy', 'ccnot', 'cnot',
-                'cphaseshift', 'cphaseshift00', 'cphaseshift01', 'cphaseshift10',
-                'cswap', 'h', 'i', 'iswap', 'phaseshift', 'pswap',
-                'rx', 'ry', 'rz', 's', 'si', 'swap', 't', 'ti', 'x', 'y', 'z'
-                """
-                authorized = [
-                    TOF,
-                    CNOT,
-                    CZ,
-                    H,
-                    Id,
-                    Rx,
-                    Ry,
-                    Rz,
-                    S,
-                    T,
-                    X,
-                    Y,
-                    Z,
-                ]
-                return set(authorized)
+        The gate sets are based on Amazon Braket's QPU documentation:
+        https://docs.aws.amazon.com/braket/latest/developerguide/braket-submit-tasks.html
+        """
+        aqt_iqm_supported_gates: set[type[Gate]] = {
+            TOF,
+            CNOT,
+            SWAP,
+            CZ,
+            H,
+            Id,
+            Rx,
+            Rxx,
+            Ry,
+            Ryy,
+            Rz,
+            Rzz,
+            S,
+            S_dagger,
+            T,
+            X,
+            Y,
+            Z,
+        }
+
+        if self in {AWSDevice.IQM_GARNET, AWSDevice.IQM_EMERALD}:
+            if native_set:
+                return {CZ, PRX}
+            return aqt_iqm_supported_gates
+
+        elif self == AWSDevice.AQT_IBEX_Q1:
+            if native_set:
+                return {PRX, Rxx, Rz}
+            return aqt_iqm_supported_gates | {PRX}
+
+        elif self in {
+            AWSDevice.IONQ_FORTE_1,
+            AWSDevice.IONQ_FORTE_ENTERPRISE_1,
+        }:
+            if native_set:
+                return {Rzz}
+            return {
+                CNOT,
+                SWAP,
+                H,
+                Rx,
+                Rxx,
+                Ry,
+                Ryy,
+                Rz,
+                Rzz,
+                S,
+                S_dagger,
+                T,
+                X,
+                Y,
+                Z,
+            }
+
+        elif self in {
+            AWSDevice.RIGETTI_ANKAA_3,
+            AWSDevice.RIGETTI_CEPHEUS_1_108Q,
+        }:
+            if native_set:
+                return {Rx, Rz} if self == AWSDevice.RIGETTI_ANKAA_3 else set()
+            return {
+                TOF,
+                CNOT,
+                SWAP,
+                CZ,
+                H,
+                Id,
+                Rx,
+                Ry,
+                Rz,
+                S,
+                S_dagger,
+                T,
+                X,
+                Y,
+                Z,
+            }
 
         return set()
 
@@ -506,8 +573,8 @@ class AWSDevice(AvailableDevice):
             arn: The AWS arn identifying the AWSDevice.
 
         Examples:
-            >>> AWSDevice.from_arn('arn:aws:braket:us-east-1::device/qpu/ionq/Aria-1')
-            <AWSDevice.IONQ_ARIA_1: 'qpu/ionq/Aria-1'>
+            >>> AWSDevice.from_arn('arn:aws:braket:eu-north-1::device/qpu/aqt/Ibex-Q1')
+            <AWSDevice.AQT_IBEX_Q1: 'qpu/aqt/Ibex-Q1'>
             >>> AWSDevice.from_arn('arn:aws:braket:::device/quantum-simulator/amazon/sv1')
             <AWSDevice.BRAKET_SV1_SIMULATOR: 'quantum-simulator/amazon/sv1'>
 
@@ -518,21 +585,21 @@ class AWSDevice(AvailableDevice):
         raise ValueError(f"No device found for ARN `{arn}`.")
 
     def supports_samples(self) -> bool:
-        return True
+        return self.is_gate_based() and not self.is_retired()
 
     def supports_state_vector(self) -> bool:
         return self in {
             AWSDevice.BRAKET_LOCAL_SIMULATOR,
-            AWSDevice.BRAKET_SV1_SIMULATOR,
         }
 
     def supports_observable(self) -> bool:
-        return True
+        return self.is_gate_based() and not self.is_retired()
 
     def supports_observable_ideal(self) -> bool:
         return self in {
             AWSDevice.BRAKET_LOCAL_SIMULATOR,
-            AWSDevice.BRAKET_TN1_SIMULATOR,
+            AWSDevice.BRAKET_SV1_SIMULATOR,
+            AWSDevice.BRAKET_DM1_SIMULATOR,
         }
 
 
