@@ -268,7 +268,7 @@ def run_circuit_binding(job: Job) -> BatchResult:
                 QCircuit,
                 ExpectationMeasure,
                 BindingParameters | None,
-                dict[int, float],
+                dict[int, tuple[float, float]],
             ],
         ] = {}
         for execution, contexts in zip(task_result.entries, jobs):
@@ -296,44 +296,66 @@ def run_circuit_binding(job: Job) -> BatchResult:
                         "Observable execution context is missing its observable index."
                     )
                 exp_value = 0
+                error = 0
                 for result in execution.entries[
                     executable_index : executable_index + span
                 ]:
                     expectation = result.expectation
                     if expectation is None:
                         raise ValueError("Braket returned no observable expectation.")
+                    c = (
+                        result.observable.coefficient  # pyright: ignore[reportOptionalMemberAccess]
+                    )
+                    var = (c**2 - expectation**2) / nbr_shots  # cannot be 0
                     exp_value += expectation
+                    error += var
                 executable_index += span
                 result_data = observable_results.get(result_index)
                 if result_data is None:
                     result_data = (circuit, measurement, variables, {})
                     observable_results[result_index] = result_data
-                result_data[3][observable_index] = exp_value
+                result_data[3][observable_index] = (exp_value, error)
 
         for result_index, (
             circuit,
             measurement,
             variables,
-            expectation_values,
+            results,
         ) in observable_results.items():
-            if len(expectation_values) != measurement.nb_observables:
+            if len(results) != measurement.nb_observables:
                 raise ValueError(
                     "Braket did not return every observable from the "
                     "ExpectationMeasure."
                 )
             if measurement.nb_observables == 1:
-                result_value: float | dict[str, float] = expectation_values[0]
+                result_value, error_value = results[0]
             else:
-                result_value = {
-                    measurement.observables[index].label
-                    or f"observable_{index}": expectation_values[index]
-                    for index in range(measurement.nb_observables)
-                }
+                result_value = {}
+                error_value = {}
+                for index in range(measurement.nb_observables):
+                    exp_value, error = results[index]
+                    result_value.update(
+                        {
+                            measurement.observables[index].label
+                            or f"observable_{index}": exp_value
+                        }
+                    )
+                    error_value.update(
+                        {
+                            measurement.observables[index].label
+                            or f"observable_{index}": error
+                        }
+                    )
             local_job = Job(job.job_type, circuit, job.device, measurement, variables)
             local_job.id = job.id
             local_job.status = job.status
             indexed_results.append(
-                (result_index, Result(local_job, result_value, shots=nbr_shots))
+                (
+                    result_index,
+                    Result(
+                        local_job, result_value, errors=error_value, shots=nbr_shots
+                    ),
+                )
             )
     else:
         for res, contexts in zip(task_result.entries, jobs):

@@ -61,6 +61,10 @@ def run_ibm(
         This function is not meant to be used directly, please use
         :func:`~mpqp.execution.runner.run` instead.
     """
+    if job.device.is_remote() and isinstance(job.circuit, CircuitBinding):
+        raise NotImplementedError(
+            "CircuitBinding is not currently supported for remote runs in MPQP."
+        )
     return (
         run_aer(job)
         if not job.device.is_remote()
