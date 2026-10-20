@@ -53,6 +53,16 @@ Extras can be combined, for example:
 pip install "mpqp[braket,cirq]"
 ```
 
+For Amazon Braket, `setup_connections` supports existing AWS profiles and
+short-term credentials. Profiles that use AWS IAM Identity Center require AWS
+CLI v2, installed separately using AWS's instructions for Linux, macOS, or
+Windows, the MPQP Docker image already includes it. Configure an IAM Identity
+Center profile once, select it in MPQP, and run `aws sso login` later only if
+its session expires. Removing the connection from MPQP does not delete the AWS
+profile. See the
+[AWS Braket connection guide](docs/getting-started.rst#aws-braket) for setup and
+renewal commands.
+
 <details>
 <summary><strong>Provider SDK versions</strong></summary>
 

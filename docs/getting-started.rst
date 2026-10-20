@@ -203,72 +203,83 @@ You should have received you username and password by email.
 AWS Braket
 ^^^^^^^^^^
 
-For configuring access to AWS Braket, you first need to have ``awscli`` installed on your machine. To check if it is
-already installed, you can run this command:
+Run ``setup_connections``, select Amazon Braket, and choose one of the two
+connection methods below. MPQP validates the selected identity with AWS STS
+before saving the connection.
+
+- **Option 1 — Existing AWS profile**: Use a profile already configured in the
+    standard AWS configuration files. MPQP passes its name to Boto3, which
+    resolves the profile's authentication method. This supports IAM Identity
+    Center, assume-role, and other profiles supported by Boto3. MPQP stores only
+    the selected name, it does not copy or modify the profile.
+
+    For an IAM Identity Center profile, follow this flow:
+
+    1. Configure the AWS profile once with AWS CLI v2:
+
+       .. code-block:: console
+
+           $ aws configure sso --profile my-aws-profile
+
+    2. Connect MPQP to the profile:
+
+       .. code-block:: console
+
+           $ setup_connections
+
+    Select ``Option 1: Existing AWS profile`` and enter ``my-aws-profile``.
+    For IAM Identity Center, enter the profile name, not the ``sso-session``
+    name stored in the AWS config file.
+
+    If you later remove the Amazon Braket connection from MPQP, the AWS profile
+    remains available. Run ``setup_connections`` and select the same profile to
+    reconnect, you do not need to configure it again. Only renew the session if
+    it has expired:
+
+    .. code-block:: console
+
+        $ aws sso login --profile my-aws-profile
+
+- **Option 2 — Short-term credentials**: Use credentials supplied by an AWS
+    portal or another temporary credential source. MPQP asks for:
+
+    + ``AWS access key ID``
+    + ``AWS secret access key``
+    + ``AWS session token``
+    + ``AWS region``
+
+    MPQP stores them in an AWS profile named ``mpqp-temporary``. Removing the
+    Amazon Braket connection deletes this profile. When the credentials expire,
+    obtain new credentials and configure this option again.
+
+AWS CLI v2 is required only for configuring and renewing IAM Identity Center
+profiles. The Python package does not install it. Follow the official `AWS CLI
+v2 installation guide
+<https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html>`_
+and select the instructions for your operating system:
+
+- Linux, including x86-64 and ARM64
+- macOS
+- Windows
+
+After installation, check that CLI v2 is available:
 
 .. code-block:: console
 
-    $ aws --version
+    aws --version
 
-- For ``Windows``, installing ``mpqp`` can be sufficient since the Python package ``aws-configure`` (in the requirements) also installs ``awscli`` locally. If it is not the case, you can execute the following command (in a terminal where you have admin access) to install ``awscliV2``:
+The output should start with ``aws-cli/2.x.x``, for example
+``aws-cli/2.22.12``.
 
-    .. code-block:: console
+The MPQP Docker image already includes CLI v2. If AWS CLI cannot open a
+browser, for example inside Docker, add ``--use-device-code`` at the end of the
+``aws configure sso`` or ``aws sso login`` command, for example:
 
-        > msiexec.exe /i https://awscli.amazonaws.com/AWSCLIV2.msi
+.. code-block:: console
 
-- For ``MacOS``, on some versions, the installation of ``aws-configure`` can be sufficient. If it is not the case, you can install it using ``brew``:
+    $ aws sso login --profile my-aws-profile --use-device-code
 
-    .. code-block:: console
-
-        $ brew install awscli
-
-    or execute the script we prepared for installing ``awscliv2``:
-
-    .. code-block:: console
-
-        $ ./mpqp/mpqp_scripts/awscli_installation/mac_awscli_install.sh
-
-- For ``Linux``, one can use the dedicated script for installing ``awscliv2``:
-
-    .. code-block:: console
-
-        $ ./mpqp/mpqp_scripts/awscli_installation/linux_awscli_install.sh
-
-
-Amazon Web Services propose two different ways to authenticate for access remote services (including remote
-simulators and QPUs via Braket): the ``IAM`` authentication, and the ``SSO`` one. When you run the ``setup_connections``
-script and select AWS configuration, you will have to choose between one of the two above.
-
-
-- IAM: All the necessary credentials can be found in your `AWS console <https://console.aws.amazon.com/console/home?nc2=h_ct&src=header-signin>`_.
-    In the console, go to ``IAM``. In the ``Users`` tab, click on your
-    username. In the ``Security credential`` tab, you'll find an ``Access keys``
-    section. In this section, you can create a new access key for ``MPQP/Braket`` (with "Local code" or
-    "Third-party service" as usecase), or use an existing one. You
-    should save the secret access key because you will not be able to recover it later.
-    This will give you your key and your secret, but for the configuration, you
-    also need to input a region (for example ``us-east-1``). In short, when running ``setup_connections``,
-    it will execute the ``aws configure`` command that will ask you the following credentials:
-
-    + ``AWS Access Key ID``,
-    + ``AWS Secret Access Key``,
-    + ``Default region name``.
-
-- SSO: Standing for "Single-Sign-On", SSO enables organizations to simplify and strengthen password security by giving
-    access to all connected services with a signe login. It is the recommended way to authenticate to Amazon Web Services.
-    To recover your SSO credentials, you have to follow the ``SSO start url`` provided by your AWS administrator, (for
-    example https://d-4859u1689s.awsapps.com/start ).
-
-    You will need you username and password attached (and potentially MFA) to login. Then, in the ``AWS Access Portal``,
-    you can find the different sso sessions and profile associated with your company account. Click on the
-    ``Access key`` (with the key symbol) to retrieve your SSO credentials. When running ``setup_connections``,
-    you will be asked for:
-
-    + ``AWS Access Key ID``,
-    + ``AWS Secret Access Key``,
-    + ``AWS Session Token``,
-    + ``Default region name``.
-
+AWS CLI will then display the instructions for signing in from a browser.
 
 Quantinuum Nexus
 ^^^^^^^^^^^^^^^^

@@ -103,15 +103,29 @@ def _get_aws_profile_region(profile_name: str) -> Optional[str]:
     return region.strip()
 
 
+def _is_identity_center_profile(profile_name: str) -> bool:
+    """Check whether the AWS profile is configured for IAM Identity Center."""
+
+    from botocore.session import Session as BotocoreSession
+
+    profile = BotocoreSession(profile=profile_name).get_scoped_config()
+    if profile.get("sso_session"):
+        return True
+    return all(
+        profile.get(key)
+        for key in ("sso_start_url", "sso_region", "sso_account_id", "sso_role_name")
+    )
+
+
 def setup_aws_braket_account() -> tuple[str, list[Any]]:
     """Set up or update the Amazon Braket connection.
 
-    The user can select an existing AWS profile or provide long-term IAM or
-    short-term credentials.
+    The user can select an existing AWS profile or provide short-term
+    credentials.
 
-    An existing profile is recommended for IAM Identity Center (SSO). MPQP
-    does not modify profiles selected by the user. Credentials entered directly
-    in MPQP are saved as separate AWS profiles.
+    For an existing AWS profile, MPQP saves only its name and does not write to
+    the profile. Short-term credentials entered in MPQP are stored in the
+    ``mpqp-temporary`` AWS profile.
 
     Returns:
         A tuple containing a message indicating whether the setup finished or
@@ -135,15 +149,11 @@ def setup_aws_braket_account() -> tuple[str, list[Any]]:
         "Choose an Amazon Braket connection method:",
         [
             AnswerNode(
-                "Option 1: AWS profile " "(IAM Identity Center/SSO recommended)",
+                "Option 1: Existing AWS profile",
                 configure_account_profile,
             ),
             AnswerNode(
-                "Option 2: IAM credentials",
-                configure_account_iam,
-            ),
-            AnswerNode(
-                "Option 3: Short-term credentials",
+                "Option 2: Short-term credentials",
                 configure_account_temporary_credentials,
             ),
         ],
@@ -159,7 +169,7 @@ def update_aws_credentials_file(
     profile_name: str,
     access_key_id: str,
     secret_access_key: str,
-    session_token: Optional[str],
+    session_token: str,
     region: str,
 ) -> None:
     """Save AWS credentials and configuration under a profile name.
@@ -178,8 +188,7 @@ def update_aws_credentials_file(
     credentials.add_section(profile_name)
     credentials[profile_name]["aws_access_key_id"] = access_key_id
     credentials[profile_name]["aws_secret_access_key"] = secret_access_key
-    if session_token is not None:
-        credentials[profile_name]["aws_session_token"] = session_token
+    credentials[profile_name]["aws_session_token"] = session_token
 
     config = _load_aws_file(config_file)
 
@@ -192,52 +201,6 @@ def update_aws_credentials_file(
 
     _save_aws_file(credentials_file, credentials)
     _save_aws_file(config_file, config)
-
-
-def configure_account_iam() -> tuple[str, list[Any]]:
-    """Configure long-term IAM access keys in the ``mpqp-iam`` profile."""
-
-    from getpass import getpass
-
-    print("Please enter your IAM access keys and AWS region:")
-
-    access_key_id = input("Enter AWS access key ID: ").strip()
-    secret_access_key = getpass("Enter AWS secret access key (hidden): ").strip()
-    region = input("Enter AWS region: ").strip()
-
-    if not access_key_id or not secret_access_key or not region:
-        return "AWS access key, secret access key, and region are required.", []
-
-    import boto3
-
-    try:
-        session = boto3.Session(
-            aws_access_key_id=access_key_id,
-            aws_secret_access_key=secret_access_key,
-            region_name=region,
-        )
-        session.client("sts").get_caller_identity()
-    except Exception as error:
-        return f"Invalid IAM access keys.\nTrace: {error}", []
-
-    profile_name = "mpqp-iam"
-    try:
-        update_aws_credentials_file(
-            profile_name=profile_name,
-            access_key_id=access_key_id,
-            secret_access_key=secret_access_key,
-            session_token=None,
-            region=region,
-        )
-    except Exception as error:
-        return f"Unable to save the IAM profile.\nTrace: {error}", []
-    remove_env_variable("AWS_DEFAULT_REGION")
-
-    save_env_variable("BRAKET_AUTH_METHOD", "IAM")
-    save_env_variable("BRAKET_PROFILE", profile_name)
-    save_env_variable("BRAKET_CONFIGURED", "True")
-
-    return "IAM credentials configured successfully.", []
 
 
 def configure_account_temporary_credentials() -> tuple[str, list[Any]]:
@@ -294,9 +257,9 @@ def configure_account_temporary_credentials() -> tuple[str, list[Any]]:
 def delete_aws_braket_account() -> tuple[str, list[Any]]:
     """Remove the Amazon Braket configuration saved in MPQP.
 
-    Local profiles created by MPQP for IAM or temporary credentials are
-    deleted. If the user selected an existing AWS profile, only its name is
-    removed from MPQP's configuration. The AWS profile and account are kept.
+    The local profile created by MPQP for temporary credentials is deleted. If
+    the user selected an existing AWS profile, only its name is removed from
+    MPQP's configuration. The AWS profile and account are kept.
 
     Returns:
         A tuple containing a message describing the result and an empty list.
@@ -305,24 +268,15 @@ def delete_aws_braket_account() -> tuple[str, list[Any]]:
     authentication_method = get_env_variable("BRAKET_AUTH_METHOD")
     configured_profile = get_env_variable("BRAKET_PROFILE")
     profile_name = configured_profile or "default"
-    managed_profile = {
-        "IAM": "mpqp-iam",
-        "TEMPORARY": "mpqp-temporary",
-    }.get(authentication_method)
+    managed_profile = {"TEMPORARY": "mpqp-temporary"}.get(authentication_method)
     profile_is_managed = (
         managed_profile is not None and configured_profile == managed_profile
     )
     if profile_is_managed:
-        if authentication_method == "IAM":
-            deletion_description = (
-                "This will delete the IAM access keys stored by MPQP in the AWS "
-                f"'{profile_name}' profile."
-            )
-        else:
-            deletion_description = (
-                "This will delete the temporary AWS credentials stored in the "
-                f"'{profile_name}' profile."
-            )
+        deletion_description = (
+            "This will delete the temporary AWS credentials stored in the "
+            f"'{profile_name}' profile."
+        )
     else:
         deletion_description = (
             "This will remove the AWS configuration saved in MPQP. "
@@ -341,9 +295,7 @@ def delete_aws_braket_account() -> tuple[str, list[Any]]:
 
     if profile_is_managed:
         credentials_file, config_file = _get_aws_files()
-        config_profile = (
-            "default" if profile_name == "default" else f"profile {profile_name}"
-        )
+        config_profile = f"profile {profile_name}"
         for path, section, label in (
             (credentials_file, profile_name, "credentials"),
             (config_file, config_profile, "config"),
@@ -372,8 +324,8 @@ def delete_aws_braket_account() -> tuple[str, list[Any]]:
             [],
         )
     return (
-        f"AWS configuration removed from MPQP. The AWS '{profile_name}' profile "
-        "was not deleted.",
+        "Amazon Braket configuration removed from MPQP. "
+        f"AWS profile '{profile_name}' remains available.",
         [],
     )
 
@@ -384,11 +336,13 @@ def configure_account_profile(
     """Configure MPQP to use an existing AWS profile."""
 
     if profile_name is None:
-        profile_name = input("Enter an existing AWS profile name [default]: ").strip()
+        profile_name = input("Enter AWS profile name: ").strip()
     if not profile_name:
-        profile_name = "default"
+        return "AWS profile name is required.", []
 
+    identity_center_profile = False
     try:
+        identity_center_profile = _is_identity_center_profile(profile_name)
         profile_region = _get_aws_profile_region(profile_name)
         if profile_region is None:
             return (
@@ -402,12 +356,16 @@ def configure_account_profile(
         )
         session.client("sts").get_caller_identity()
     except Exception as error:
-        return (
+        message = (
             f"Unable to authenticate with AWS profile '{profile_name}'. Verify "
-            "that the profile exists and its credentials or session are valid."
-            f"\nTrace: {error}",
-            [],
+            "that the profile exists and its credentials are valid."
         )
+        if identity_center_profile:
+            message += (
+                "\nIf its IAM Identity Center session has expired, run "
+                f"'aws sso login --profile {profile_name}', then try again."
+            )
+        return f"{message}\nTrace: {error}", []
 
     remove_env_variable("AWS_DEFAULT_REGION")
     save_env_variable("BRAKET_AUTH_METHOD", "PROFILE")
@@ -424,7 +382,8 @@ def get_aws_braket_account_info() -> str:
 
     Returns:
         A formatted string containing the credential source, profile name,
-        region, and connection status.
+        profile authentication type when applicable, region, and connection
+        status.
 
     Raises:
         AWSBraketRemoteExecutionError: If Amazon Braket is not configured or the
@@ -432,14 +391,15 @@ def get_aws_braket_account_info() -> str:
 
     Examples:
         >>> print(get_aws_braket_account_info())
-            Credential source: AWS profile (IAM Identity Center/SSO)
-            AWS profile: 'aws-sso-profile'
+            Credential source: Existing AWS profile
+            Profile name: 'aws-sso-profile'
+            Profile authentication: IAM Identity Center (SSO)
             Region: 'us-east-1'
             Connection status: Connected
 
         >>> print(get_aws_braket_account_info())
             Credential source: Short-term credentials
-            AWS profile: 'mpqp-temporary'
+            Profile name: 'mpqp-temporary'
             Region: 'us-east-1'
             Connection status: Connected
     """
@@ -456,24 +416,36 @@ def get_aws_braket_account_info() -> str:
             "Braket account is configured.\nTrace: " + str(error)
         ) from error
 
+    profile_name = get_env_variable("BRAKET_PROFILE") or "default"
     stored_auth_method = get_env_variable("BRAKET_AUTH_METHOD")
     credential_source = {
-        "PROFILE": "AWS profile",
-        "IAM": "IAM credentials",
+        "PROFILE": "Existing AWS profile",
         "TEMPORARY": "Short-term credentials",
     }.get(stored_auth_method, "Unknown")
-    credentials = session.get_credentials()
-    if (
-        stored_auth_method == "PROFILE"
-        and credentials is not None
-        and credentials.method == "sso"
-    ):
-        credential_source += " (IAM Identity Center/SSO)"
-    profile_name = get_env_variable("BRAKET_PROFILE") or "default"
-    return f"""    Credential source: {credential_source}
-    AWS profile: '{profile_name}'
-    Region: '{session.region_name}'
-    Connection status: Connected"""
+    information = [
+        f"    Credential source: {credential_source}",
+        f"    Profile name: '{profile_name}'",
+    ]
+    if stored_auth_method == "PROFILE":
+        credentials = session.get_credentials()
+        credential_method = getattr(credentials, "method", "")
+        if not isinstance(credential_method, str):
+            credential_method = ""
+        authentication_type = {
+            "sso": "IAM Identity Center (SSO)",
+            "assume-role": "Assume role",
+            "shared-credentials-file": "Access keys",
+            "config-file": "Access keys",
+            "custom-process": "Credential process",
+        }.get(credential_method, "Other")
+        information.append(f"    Profile authentication: {authentication_type}")
+    information.extend(
+        [
+            f"    Region: '{session.region_name}'",
+            "    Connection status: Connected",
+        ]
+    )
+    return "\n".join(information)
 
 
 def get_braket_device(
@@ -495,8 +467,8 @@ def get_braket_device(
     Raises:
         AWSBraketRemoteExecutionError: If the remote device or its region cannot
             be retrieved.
-        DeviceJobIncompatibleError: If the selected device does not support
-            gate-based circuits.
+        DeviceJobIncompatibleError: If the selected device is retired or does
+            not support gate-based circuits.
 
     Example:
         >>> device = get_braket_device(AWSDevice.RIGETTI_ANKAA_3)
@@ -507,12 +479,23 @@ def get_braket_device(
          ResultType(name='Probability', observables=None, minShots=10, maxShots=50000)]
     """
 
-    from braket.devices import LocalSimulator
-
     from mpqp.tools.errors import (
         AWSBraketRemoteExecutionError,
         DeviceJobIncompatibleError,
     )
+
+    if device.is_retired():
+        raise DeviceJobIncompatibleError(
+            f"{device.name} has been retired by Amazon Braket and cannot run new "
+            "jobs."
+        )
+    if is_gate_model and not device.is_gate_based():
+        raise DeviceJobIncompatibleError(
+            f"{device.name} supports Analog Hamiltonian Simulation, not MPQP "
+            "QCircuit jobs."
+        )
+
+    from braket.devices import LocalSimulator
 
     if not device.is_remote():
         if is_noisy:
@@ -556,21 +539,6 @@ def get_braket_device(
             "'setup_connections'."
             "\nTrace: " + str(err)
         )
-
-    if is_gate_model:
-        actions = getattr(getattr(braket_device, "properties", None), "action", None)
-        if actions is not None:
-            supported = [getattr(k, "value", str(k)) for k in actions.keys()]
-            supports_gate_model = any(
-                ("openqasm" in action.lower()) or ("jaqcd" in action.lower())
-                for action in supported
-            )
-            if not supports_gate_model:
-                raise DeviceJobIncompatibleError(
-                    f"{device.name} does not support gate-model workloads. "
-                    f"Supported Braket action types: {supported}. "
-                    "This is an AHS device, which cannot run MPQP QCircuit."
-                )
 
     return braket_device
 
