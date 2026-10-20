@@ -16,11 +16,11 @@ RUN apt-get update && \
         unzip && \
     rm -rf /var/lib/apt/lists/*
 
-COPY mpqp_scripts/awscli_installation/linux_awscli_install.sh /tmp/linux_awscli_install.sh
-RUN sed -i 's/\r$//' /tmp/linux_awscli_install.sh && \
-    chmod +x /tmp/linux_awscli_install.sh && \
-    /tmp/linux_awscli_install.sh && \
-    rm /tmp/linux_awscli_install.sh
+RUN curl -fsSL https://awscli.amazonaws.com/v2/install.sh \
+        -o /tmp/install-aws-cli.sh && \
+    bash /tmp/install-aws-cli.sh --system && \
+    rm /tmp/install-aws-cli.sh && \
+    aws --version
 
 WORKDIR /usr/src/app/mpqp
 COPY . .
