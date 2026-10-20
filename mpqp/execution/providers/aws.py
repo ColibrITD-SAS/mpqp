@@ -72,7 +72,6 @@ def apply_noise_to_braket_circuit(
                 "Cannot simulate noisy circuit with CRk gate due to an error on"
                 " AWS Braket side."
             )
-
         noisy_circuit.apply_gate_noise(
             braket_noise,  # pyright: ignore[reportArgumentType]
             target_gates=(
@@ -85,7 +84,9 @@ def apply_noise_to_braket_circuit(
                 else None
             ),
             target_qubits=(
-                noise.targets if set(noise.targets) != set(range(nb_qubits)) else None
+                noise.targets
+                if noise.targets and set(noise.targets) != set(range(nb_qubits))
+                else None
             ),
         )
 

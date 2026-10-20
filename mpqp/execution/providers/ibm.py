@@ -548,7 +548,11 @@ def run_aer(job: Job) -> Result | BatchResult:
             contexts = [item[1] for item in pubs_with_context]
 
             return compute_expectation_value(
-                job, backend_sim, pubs=pubs, pubs_contexts=contexts, shots=binding.shots
+                job,
+                backend_sim,
+                pubs=pubs,  # pyright: ignore[reportArgumentType]
+                pubs_contexts=contexts,  # pyright: ignore[reportArgumentType]
+                shots=binding.shots,
             )
         elif job.job_type in (JobType.SAMPLE, JobType.STATE_VECTOR):
             unrolled_items = binding.unroll()
@@ -822,7 +826,7 @@ def submit_remote_ibm_pubs(jobs: list[Job]):
 
         if TYPE_CHECKING:
             assert isinstance(job.device, IBMDevice)
-
+            assert isinstance(job.circuit, QCircuit)
         if job.circuit.transpiled_circuit is None:
             qiskit_circ = job.circuit.to_other_device(job.device)
         else:

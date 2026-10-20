@@ -1,8 +1,6 @@
 from typing import (
     TYPE_CHECKING,
     Any,
-    Literal,
-    overload,
 )
 from warnings import warn
 
@@ -218,7 +216,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
             )
         return braket_circuit
 
-    @overload
+    """@overload
     def _cb_to_programset_pauli_grouping(
         binding: "CircuitBinding", device: "AvailableDevice", depth: Literal[0]
     ) -> "tuple[ProgramSet, list[tuple[Any]]]": ...
@@ -235,7 +233,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
         device: "AvailableDevice",
         depth: Literal[0, 1, 2] = 0,
     ) -> "tuple[ProgramSet, list[tuple[Any]]] | CircuitBinding":
-        """Translate a binding to a Braket program set using Pauli grouping.
+        Translate a binding to a Braket program set using Pauli grouping.
 
         Nested bindings are translated recursively and retain their translated
         circuits, observables and variables until the root binding assembles
@@ -254,7 +252,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
         Raises:
             ValueError: If both a nested binding and its parent define values
                 or observables for the same execution axis.
-        """
+
         from braket.program_sets import ProgramSet
         from braket.circuits import Circuit as braket_Circuit
         from mpqp.core import Language, QCircuit
@@ -611,7 +609,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
         from braket.program_sets import ProgramSet
 
         ps = ProgramSet(executable_list, binding.shots)
-        return ps, context
+        return ps, context"""
 
     def _grouped_cb_to_programset(
         binding: "CircuitBinding", device: "AWSDevice"
@@ -763,7 +761,6 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
         # in the provider-circuit identity.
         circuit_groups: "OrderedDict[Any, Any]" = OrderedDict()
         translated_circuits: dict[int, braket_Circuit] = {}
-        from mpqp.execution.providers.aws import apply_noise_to_braket_circuit
 
         result_index = 0
         for circuit, values, measure in binding.unroll():
@@ -771,12 +768,19 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
             translated_circuit = translated_circuits.get(circuit_id)
             if translated_circuit is None:
                 if not isinstance(circuit.transpiled_circuit, braket_Circuit):
-                    circuit.transpiled_circuit = apply_noise_to_braket_circuit(
-                        circuit.to_other_device(device=device),
-                        binding.noises or [],
-                        circuit.nb_qubits,
+                    translated_circuit = (
+                        circuit + QCircuit(binding.noises)
+                    ).to_other_device(device=device)
+                else:
+                    from mpqp.execution.providers.aws import (
+                        apply_noise_to_braket_circuit,
                     )
-                translated_circuit = circuit.transpiled_circuit
+
+                    translated_circuit = apply_noise_to_braket_circuit(
+                        circuit.transpiled_circuit,
+                        noises=binding.noises if binding.noises is not None else [],
+                        nb_qubits=circuit.nb_qubits,
+                    )
                 if TYPE_CHECKING:
                     assert isinstance(translated_circuit, braket_Circuit)
                 translated_circuits[circuit_id] = translated_circuit

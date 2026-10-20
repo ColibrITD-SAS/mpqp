@@ -631,15 +631,10 @@ class CircuitBinding:
             are grouped by circuit. PUB fields are circuit, observables and
             parameter values; absent trailing fields are omitted.
         """
-        from mpqp.execution.job import Job
         from mpqp.execution.devices import (
             IBMDevice,
             AWSDevice,
         )
-        from mpqp.execution.providers.ibm import JobType
-        from copy import deepcopy
-        from mpqp.core.instruction.measurement import ExpectationMeasure
-        from mpqp.core.languages import Language
         from mpqp.execution.devices import IBMDevice, AWSDevice
 
         if isinstance(device, IBMDevice):

@@ -150,7 +150,7 @@ def test_groups_parameter_sets_for_one_circuit():
 
     assert len(program_set) == 1
     assert program_set.total_executables == 2
-    assert len(program_set[0].input_sets) == 2
+    assert len(program_set[0].input_sets) == 2  # type: ignore
     assert len(contexts) == 1
     assert len(contexts[0]) == 2
 
@@ -178,7 +178,7 @@ def test_preserves_repeated_parameterized_executions():
 
     assert len(program_set) == 1
     assert program_set.total_executables == 2
-    assert program_set[0].input_sets == [values, values]
+    assert program_set[0].input_sets == [values, values]  # type: ignore
     assert len(contexts) == 1
     assert len(contexts[0]) == 2
 
@@ -192,7 +192,7 @@ def test_preserves_repeated_observable_executions():
 
     assert len(program_set) == 1
     assert program_set.total_executables == 2
-    assert len(program_set[0].observables) == 2
+    assert len(program_set[0].observables) == 2  # type: ignore
     assert len(contexts) == 1
     assert len(contexts[0]) == 2
 
@@ -214,8 +214,8 @@ def test_groups_simple_observables_and_parameter_sets_for_one_circuit():
 
     assert len(program_set) == 1
     assert program_set.total_executables == 4
-    assert len(program_set[0].input_sets) == 2
-    assert len(program_set[0].observables) == 2
+    assert len(program_set[0].input_sets) == 2  # type: ignore
+    assert len(program_set[0].observables) == 2  # type: ignore
     assert len(contexts[0]) == 4
 
 

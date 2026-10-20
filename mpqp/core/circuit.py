@@ -567,6 +567,7 @@ class QCircuit:
 
     def __iadd__(self, other: QCircuit):
         self.append(other)
+        self.noises.extend(other.noises)
         return self
 
     def __add__(self, other: QCircuit) -> QCircuit:
