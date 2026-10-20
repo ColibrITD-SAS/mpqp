@@ -32,15 +32,11 @@ def test_zip_keeps_observables_on_their_own_register():
         ExpectationMeasure(Observable(pI @ pI @ pI @ pZ)),
     ]
     original = deepcopy(measurements)
-    binding = CircuitBinding(
-        circuits, measurements=measurements, mode=BindingMode.ZIP
-    )
+    binding = CircuitBinding(circuits, measurements=measurements, mode=BindingMode.ZIP)
     for _ in range(2):
         executions = binding.unroll()
         assert [c.nb_qubits for c, _, _ in executions] == [3, 4]
-        assert [
-            m.observables[0].nb_qubits for _, _, m in executions
-        ] == [3, 4]
+        assert [m.observables[0].nb_qubits for _, _, m in executions] == [3, 4]
     assert measurements == original
     assert all(not c.measurements for c in circuits)
 
