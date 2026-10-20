@@ -346,7 +346,7 @@ def test_braket_parameterized_state_vectors():
 
 
 @pytest.mark.provider("qiskit")
-def test_braket_parameterized_state_vectors():
+def test_qiskit_parameterized_state_vectors():
     theta = Symbol('theta')
     circuit = QCircuit([Ry(theta, 0), CNOT(0, 1)])
     angles = [0.0, np.pi / 2, np.pi]
