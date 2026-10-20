@@ -141,6 +141,8 @@ def adjust_measure(measure: ExpectationMeasure, nb_qubits: int):
 
                 obs.matrix = rearrange_matrix(obs.matrix, contiguous_targets)
 
+        targets = ordered_targets
+
     targets_is_contiguous = len(targets) > 0 and (
         targets[-1] - targets[0] + 1 == len(sorted(targets))
     )
