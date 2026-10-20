@@ -1896,7 +1896,7 @@ class QCircuit:
     @property
     def is_noisy(self) -> bool:
         """
-        Returns True if the circuit has any noise instructions, False otherwise.
+        Returns `True` if the circuit has any noise instructions, `False` otherwise.
         """
         return len(self.noises) > 0
 
