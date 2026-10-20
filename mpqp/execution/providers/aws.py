@@ -146,6 +146,73 @@ def run_braket(job: Job) -> Result | BatchResult:
         )
 
 
+def run_pseudo_circuit_binding(job: Job) -> BatchResult:
+    """Execute a pseudo circuit binding job through AWS Braket.
+    This function is used if the requested job type is not supported by ``ProgramSet`` which is STATE_VECTOR and OBSERVABLE_ideal.
+
+    So instead of running a ``ProgramSet`` it's going to unroll the CircuitBinding and execute iteratively the jobs.
+    """
+    from mpqp.tools.circuitbinding_utils import (
+        translate_circuitbinding_circuits,
+        translate_circuitbinding_measurements,
+    )
+    from braket.circuits import Circuit as braket_Circuit
+
+    if job.job_type == JobType.OBSERVABLE:
+        raise NotImplementedError
+    cb = job.circuit
+    if TYPE_CHECKING:
+        assert isinstance(cb, CircuitBinding)
+        assert isinstance(job.device, AWSDevice)
+
+    translated_circuit = translate_circuitbinding_circuits(cb, job.device)
+    translated_measurement = translate_circuitbinding_measurements(cb, job.device)
+    device = get_braket_device(job.device, is_noisy=cb.is_noisy)
+    results = []
+
+    job.status = JobStatus.RUNNING
+    for c, v, m in cb.unroll():
+        transpiled_circuit = translated_circuit[id(c)]
+        transpiled_measurement = (
+            translated_measurement[id(m)] if m is not None else None
+        )
+        braket_inputs = (
+            {str(key): value for key, value in v.items()} if v is not None else None
+        )
+
+        if TYPE_CHECKING:
+            assert isinstance(transpiled_circuit, braket_Circuit)
+            assert isinstance(transpiled_measurement, braket_Circuit)
+
+        executable_circuit = transpiled_circuit
+        if (
+            transpiled_measurement
+            is not None  # pyright: ignore[reportUnnecessaryComparison]
+        ):
+            executable_circuit += transpiled_measurement
+
+        if job.job_type == JobType.STATE_VECTOR:
+            executable_circuit.state_vector()  # pyright: ignore[reportAttributeAccessIssue]
+
+        task = device.run(
+            executable_circuit,
+            shots=0,
+            inputs=braket_inputs,  # pyright: ignore[reportArgumentType]
+        )
+
+        local_job = Job(job.job_type, c, job.device, m, v)
+        local_job.id = task.id
+        local_job.status = JobStatus.DONE
+        if job.job_type == JobType.STATE_VECTOR:
+            vector = task.result().values[0]  # pyright: ignore
+            if TYPE_CHECKING:
+                assert isinstance(vector, (list, np.ndarray))
+            state_vector = StateVector(vector, nb_qubits=job.circuit.nb_qubits)
+            results.append(Result(local_job, state_vector, 0, 0))
+
+    return BatchResult(results)
+
+
 def run_circuit_binding(job: Job) -> BatchResult:
     """Execute a circuit binding through an AWS Braket ``ProgramSet``.
 
@@ -169,9 +236,7 @@ def run_circuit_binding(job: Job) -> BatchResult:
     circuitBinding = job.circuit
     assert isinstance(circuitBinding, CircuitBinding)
     if job.job_type == JobType.STATE_VECTOR:
-        raise ValueError(
-            "Cannot run state vectors through CircuitBinding on braket because of braket's ProgramSet limitations."
-        )
+        return run_pseudo_circuit_binding(job)
     if not isinstance(job.device, AWSDevice):
         raise ValueError(
             "`job` must correspond to an `AWSDevice`, but corresponds to a "

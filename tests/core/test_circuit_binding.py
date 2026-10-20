@@ -14,6 +14,7 @@ from mpqp.execution.devices import (
 
 from mpqp import (
     BasisMeasure,
+    CNOT,
     ExpectationMeasure,
     X,
     Y,
@@ -22,6 +23,7 @@ from mpqp import (
     Language,
     Observable,
     QCircuit,
+    Ry,
     U,
     pI,
     pZ,
@@ -312,3 +314,52 @@ def test_braket_zip_recursive(
     zip_tests_recursive: list[tuple[CircuitBinding, Callable[..., Any]]],
 ):
     execute_and_validate(zip_tests_recursive, device=AWSDevice.BRAKET_LOCAL_SIMULATOR)
+
+
+@pytest.mark.provider("braket")
+def test_braket_product_state_vector(
+    product_tests_state_vector: list[tuple[CircuitBinding, Callable[..., Any]]],
+):
+    execute_and_validate(
+        product_tests_state_vector, device=AWSDevice.BRAKET_LOCAL_SIMULATOR
+    )
+
+
+@pytest.mark.provider("braket")
+def test_braket_parameterized_state_vectors():
+    theta = Symbol('theta')
+    circuit = QCircuit([Ry(theta, 0), CNOT(0, 1)])
+    angles = [0.0, np.pi / 2, np.pi]
+    binding = CircuitBinding(
+        circuit,
+        values=[{theta: value} for value in angles],
+        mode=BindingMode.PRODUCT,
+    )
+
+    result = run(binding, AWSDevice.BRAKET_LOCAL_SIMULATOR)
+
+    assert isinstance(result, BatchResult)
+    assert len(result.results) == len(angles)
+    for execution, value in zip(result.results, angles):
+        expected = [np.cos(value / 2), 0, 0, np.sin(value / 2)]
+        assert np.allclose(execution.state_vector.vector, expected, atol=1e-7)
+
+
+@pytest.mark.provider("qiskit")
+def test_braket_parameterized_state_vectors():
+    theta = Symbol('theta')
+    circuit = QCircuit([Ry(theta, 0), CNOT(0, 1)])
+    angles = [0.0, np.pi / 2, np.pi]
+    binding = CircuitBinding(
+        circuit,
+        values=[{theta: value} for value in angles],
+        mode=BindingMode.PRODUCT,
+    )
+
+    result = run(binding, IBMDevice.AER_SIMULATOR)
+
+    assert isinstance(result, BatchResult)
+    assert len(result.results) == len(angles)
+    for execution, value in zip(result.results, angles):
+        expected = [np.cos(value / 2), 0, 0, np.sin(value / 2)]
+        assert np.allclose(execution.state_vector.vector, expected, atol=1e-7)
