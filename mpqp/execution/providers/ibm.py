@@ -67,7 +67,12 @@ class _IBMSamplerBinding:
 def _normalize_estimator_pubs(
     pubs: Sequence["EstimatorPubLike"],
 ) -> list["EstimatorPubLike"]:
-    """Flatten observable batches into the shape expected by Estimator V2."""
+    """Broadcast each parameter set over its observables, allowing grouping.
+
+    Parameterized PUBs have shape (executions, observables). Ragged observable
+    rows repeat their last observable; extraction discards these padding values.
+    Repeating an observable introduces no additional measurement basis.
+    """
     normalized: list["EstimatorPubLike"] = []
     for pub in pubs:
         fields = cast(tuple[Any, ...], pub)
@@ -75,38 +80,37 @@ def _normalize_estimator_pubs(
         observable_batches = fields[1] if len(fields) > 1 else None
         parameter_batches = fields[2] if len(fields) > 2 else None
 
-        if observable_batches is not None:
-            if parameter_batches is not None:
-                parameter_batches = [
-                    values
-                    for observables, values in zip(
-                        observable_batches, parameter_batches
-                    )
-                    for _ in observables
-                ]
-            observable_batches = [
-                observable
-                for observables in observable_batches
-                for observable in observables
-            ]
-
-        if observable_batches is not None and circuit.layout is not None:
-            observable_batches = [
+        if not observable_batches or any(not row for row in observable_batches):
+            raise ValueError("An IBM Estimator PUB must contain observables.")
+        observable_batches = [
+            [
                 observable.apply_layout(circuit.layout)
-                for observable in observable_batches
+                if circuit.layout is not None
+                else observable
+                for observable in row
             ]
+            for row in observable_batches
+        ]
 
         if parameter_batches is not None:
+            if len(parameter_batches) != len(observable_batches):
+                raise ValueError("Observable and parameter batch lengths must match.")
+            width = max(len(row) for row in observable_batches)
+            observable_batches = [
+                row + [row[-1]] * (width - len(row)) for row in observable_batches
+            ]
+            # (executions, 1) broadcasts across observables without creating a
+            # distinct parameter index (and measurement circuit) for each one.
+            parameter_batches = [[values] for values in parameter_batches]
             normalized.append(
                 cast(
                     "EstimatorPubLike",
                     (circuit, observable_batches, parameter_batches),
                 )
             )
-        elif observable_batches is not None:
-            normalized.append(cast("EstimatorPubLike", (circuit, observable_batches)))
         else:
-            raise ValueError("An IBM Estimator PUB must contain observables.")
+            observable_batches = [obs for row in observable_batches for obs in row]
+            normalized.append(cast("EstimatorPubLike", (circuit, observable_batches)))
     return normalized
 
 
@@ -185,16 +189,27 @@ def _extract_ibm_binding_results(
     for pub_index, contexts in enumerate(binding.contexts):
         offset = 0
         provider_result = estimator_result[pub_index]
-        for context_job in contexts:
+        parameterized = len(cast(tuple[Any, ...], binding.pubs[pub_index])) > 2
+        for context_index, context_job in enumerate(contexts):
             measure = context_job.measure
             if not isinstance(measure, ExpectationMeasure):
                 raise TypeError("IBM observable context is missing its measurement.")
             count = len(measure.observables)
             data = provider_result.data
+            evs = (
+                data.evs[context_index, :count]
+                if parameterized
+                else data.evs[offset : offset + count]
+            )
+            stds = (
+                data.stds[context_index, :count]
+                if parameterized
+                else data.stds[offset : offset + count]
+            )
             sliced_result = PubResult(
                 DataBin(
-                    evs=data.evs[offset : offset + count],
-                    stds=data.stds[offset : offset + count],
+                    evs=evs,
+                    stds=stds,
                     shape=(count,),
                 ),
                 metadata=provider_result.metadata,

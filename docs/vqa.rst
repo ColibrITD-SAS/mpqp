@@ -157,3 +157,8 @@ execution; a sampling binding is submitted as one Sampler call containing its
 PUBs. This does not enable sampling for the separate list-of-jobs batch API.
 State-vector execution remains unavailable on remote IBM devices. Regression
 tests simulate Runtime submissions locally; they do not validate hardware access.
+
+Observable bindings broadcast each parameter set across its observables within
+the same Estimator PUB, allowing qubit-wise commuting Paulis to share measurement
+circuits. Each observable retains its own expectation value in the returned
+result; grouping does not replace the observables with their sum.
