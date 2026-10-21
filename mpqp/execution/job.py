@@ -25,11 +25,9 @@ if TYPE_CHECKING:
     from enum import Enum
     from sympy import Expr
     from numbers import Complex
-
+    from ..core.circuit import QCircuit
+    from ..core.circuitbinding import CircuitBinding
 from mpqp.core.instruction.measurement import BasisMeasure, ExpectationMeasure, Measure
-
-from ..core.circuit import QCircuit
-from ..core.circuitbinding import CircuitBinding
 from ..tools.errors import IBMRemoteExecutionError, QLMRemoteExecutionError
 from .connection.azure_connection import get_jobs_by_id
 from .connection.ibm_connection import get_QiskitRuntimeService
@@ -150,6 +148,8 @@ class Job:
     @property
     def measure(self) -> Optional[Measure]:
         """Returns the first measurement from the circuit's measurements."""
+        from ..core.circuitbinding import CircuitBinding
+
         if isinstance(self.circuit, CircuitBinding):
             return None
 

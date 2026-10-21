@@ -25,7 +25,6 @@ from typing import TYPE_CHECKING, Iterable, Optional, Sequence, overload
 
 import numpy as np
 
-from mpqp.core.circuitbinding import CircuitBinding
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.breakpoint import Breakpoint
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
@@ -61,6 +60,7 @@ from mpqp.tools.generics import OneOrMany, find_index, flatten
 
 if TYPE_CHECKING:
     from sympy import Expr
+    from mpqp.core.circuitbinding import CircuitBinding
 
 
 def adjust_measure(
@@ -233,6 +233,8 @@ def generate_job(
     Returns:
         The Job containing information about the execution of the circuit.
     """
+    from ..core.circuitbinding import CircuitBinding
+
     if values is not None:
         if isinstance(circuit, CircuitBinding):
             raise ValueError("values must be specified in CircuitBinding")
@@ -288,6 +290,7 @@ def _run_diagonal_observables(
     adapted_circuit.add(BasisMeasure(exp_measure.targets, shots=exp_measure.shots))
 
     result = _run_single(adapted_circuit, device, values, False)
+
     return _compute_result_diagonal_observables(result, exp_measure, observable_job)
 
 
@@ -310,6 +313,8 @@ def _compute_result_diagonal_observables(
     """
 
     probas = result.probabilities
+    observable_job.id = result.job.id
+    observable_job.status = JobStatus.DONE
 
     error = 0 if exp_measure.shots == 0 else None
     if exp_measure.nb_observables == 1:
@@ -327,7 +332,6 @@ def _compute_result_diagonal_observables(
             # 3M-TODO: replace this dot product with copy, apparently more optim
             exp_values[obs.label] = float(probas.dot(obs.diagonal_elements))
             errors[obs.label] = error
-
         result = Result(
             observable_job,
             exp_values,
@@ -457,6 +461,7 @@ def _run_circuit_binding(
     circuit_binding: CircuitBinding,
     device: AvailableDevice,
     display_breakpoints: bool = True,
+    provider_params: Optional[ProviderParams] = None,
 ) -> BatchResult:
     """Execute every expansion of a circuit binding on one device.
 
@@ -502,7 +507,11 @@ def _run_circuit_binding(
     job = generate_job(circuit_binding, device)
 
     if isinstance(device, (IBMDevice, StaticIBMSimulatedDevice)):
-        result = run_ibm(job)
+        if not (provider_params is None or isinstance(provider_params, QiskitParams)):
+            raise ValueError(
+                f"IBM runs only handles QiskitParams got: {type(provider_params)}"
+            )
+        result = run_ibm(job, qiskit_params=provider_params)
     elif isinstance(device, ATOSDevice):
         raise NotImplementedError(f"Device {device} not handled")
         result = run_atos(jobs)  # TODO
@@ -669,7 +678,9 @@ def run(
             else:
                 if values is not None:
                     raise ValueError("values must be specified in CircuitBinding")
-                result = _run_circuit_binding(circuit, dev, display_breakpoints)
+                result = _run_circuit_binding(
+                    circuit, dev, display_breakpoints, provider_params
+                )
                 results.extend(result.results)
         return BatchResult(results)
     else:
@@ -693,7 +704,9 @@ def run(
         else:
             if values is not None:
                 raise ValueError("values must be specified in CircuitBinding")
-            return _run_circuit_binding(circuit, device, display_breakpoints)
+            return _run_circuit_binding(
+                circuit, device, display_breakpoints, provider_params
+            )
 
 
 def submit(

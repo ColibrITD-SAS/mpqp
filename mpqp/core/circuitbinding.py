@@ -7,13 +7,13 @@ from mpqp.core.instruction.measurement.measure import Measure
 from mpqp.tools.generics import OneOrMany
 from sympy import Expr
 from mpqp.noise.noise_model import NoiseModel
-from mpqp.execution.devices import AWSDevice, AvailableDevice, IBMDevice
 
 if TYPE_CHECKING:
     from mpqp.execution.job import Job
     from qiskit_aer import AerSimulator
     from qiskit.primitives.containers import EstimatorPubLike
     from braket.program_sets import ProgramSet
+    from mpqp.execution.devices import AWSDevice, AvailableDevice, IBMDevice
 
 
 BindingParameters = dict[Union["Expr", str], Union[Complex, float]]
@@ -81,6 +81,11 @@ class CircuitBinding:
             ExpectationMeasure,
             BasisMeasure,
         )
+
+        if circuits == []:
+            raise ValueError(
+                "At least one Circuit/CircuitBinding must be provided to a CircuitBinding."
+            )
 
         if mode == BindingMode.ZIP and measurements is not None and values is not None:
             m = measurements if isinstance(measurements, Sequence) else [measurements]
@@ -240,7 +245,7 @@ class CircuitBinding:
         ):
             shots = -1
             for circuit in circuits:
-                if isinstance(circuit, 'CircuitBinding'):
+                if isinstance(circuit, CircuitBinding):
                     for c in circuit.circuits:
                         if TYPE_CHECKING:
                             assert c.measurements is not None
@@ -273,7 +278,7 @@ class CircuitBinding:
 
     def transpiled_circuits(
         self,
-        device: AvailableDevice,
+        device: "AvailableDevice",
         skip_pre_measure: bool = False,
         backend_sim: Optional["AerSimulator"] = None,
     ) -> None:
@@ -308,7 +313,7 @@ class CircuitBinding:
 
                         modified_circuit.transpiled_circuit = (
                             modified_circuit.to_other_device(
-                                device, skip_pre_measure, backend_sim
+                                device, skip_pre_measure, backend_sim=backend_sim
                             )
                         )
                         self.circuits[i] = (
@@ -316,7 +321,7 @@ class CircuitBinding:
                         )
                 else:
                     c.transpiled_circuit = c.to_other_device(
-                        device, skip_pre_measure, backend_sim
+                        device, skip_pre_measure, backend_sim=backend_sim
                     )
             else:
                 c.transpiled_circuits(device, skip_pre_measure, backend_sim)
@@ -593,15 +598,19 @@ class CircuitBinding:
 
     @overload
     def to_other_device(
-        self, device: AWSDevice
-    ) -> tuple["ProgramSet", list[tuple[Any]]]: ...
+        self, device: "AWSDevice"
+    ) -> tuple["ProgramSet", list[Any]]: ...
     @overload
     def to_other_device(
-        self, device: IBMDevice
+        self, device: "IBMDevice"
     ) -> list[tuple["EstimatorPubLike", list["Job"]]]: ...
+    @overload
     def to_other_device(
-        self, device: AvailableDevice
-    ) -> "CircuitBinding | tuple[ProgramSet, list[tuple[Any]]] | list[tuple[EstimatorPubLike, list[Job]]]":
+        self, device: "AvailableDevice"
+    ) -> "list[tuple[EstimatorPubLike, list[Job]]] | tuple[ProgramSet, list[Any]]": ...
+    def to_other_device(
+        self, device: "AvailableDevice"
+    ) -> "list[tuple[EstimatorPubLike, list[Job]]] | tuple[ProgramSet, list[Any]]":
         """Translate a binding for the selected provider.
 
         Args:
@@ -622,86 +631,17 @@ class CircuitBinding:
             are grouped by circuit. PUB fields are circuit, observables and
             parameter values; absent trailing fields are omitted.
         """
-        from mpqp.execution.job import Job
         from mpqp.execution.devices import (
             IBMDevice,
             AWSDevice,
         )
-        from mpqp.execution.providers.ibm import JobType
-        from copy import deepcopy
-        from mpqp.core.instruction.measurement import ExpectationMeasure
-        from mpqp.core.languages import Language
+        from mpqp.execution.devices import IBMDevice, AWSDevice
 
         if isinstance(device, IBMDevice):
-            if self.job_type != JobType.OBSERVABLE:
-                raise ValueError(
-                    "to_other_device is only supported for circuits with expectation measurements."
-                )
+            from mpqp.translation.qiskit import circuitbinding_to_pubs
 
-            unrolled = self.unroll()
-            if any(c.transpiled_circuit is None for c, _, _ in unrolled):
-                self.transpiled_circuits(device=device)
+            return circuitbinding_to_pubs(self, device)
 
-            grouped = {}
-            for c, values, measure in unrolled:
-                grouped.setdefault(id(c), []).append((c, values, measure))
-
-            pubs_with_context = []
-            for executions in grouped.values():
-                q_c = executions[0][0].transpiled_circuit
-                if TYPE_CHECKING:
-                    from qiskit.circuit import QuantumCircuit
-
-                    assert isinstance(q_c, QuantumCircuit)
-                parameter_names = [p.name for p in q_c.parameters]
-                params = []
-                q_obs = []
-                contexts = []
-                for c, values, measure in executions:
-                    normalized_values = {str(k): v for k, v in (values or {}).items()}
-                    missing = [
-                        name
-                        for name in parameter_names
-                        if name not in normalized_values
-                    ]
-                    if missing:
-                        raise ValueError(
-                            f"Missing values for circuit parameters: {missing}"
-                        )
-                    params.append([normalized_values[name] for name in parameter_names])
-                    if not isinstance(measure, ExpectationMeasure):
-                        raise ValueError(
-                            "Observable bindings require expectation measures."
-                        )
-                    q_obs.append(
-                        [
-                            (
-                                obs.pre_transpiled
-                                if obs.pre_transpiled is not None
-                                else obs.to_other_language(Language.QISKIT)
-                            )
-                            for obs in measure.observables
-                        ]
-                    )
-                    context = c.without_measurements(deep_copy=False)
-                    context.add(deepcopy(measure))
-                    contexts.append(Job(self.job_type, context, device, values=values))
-
-                if all(len(p) == 0 for p in params):
-                    params = None
-                if all(len(o) == 0 for o in q_obs):
-                    q_obs = None
-                if q_obs and params:
-                    pub = (q_c, q_obs, params)
-                elif q_obs:
-                    pub = (q_c, q_obs)
-                elif params:
-                    pub = (q_c, None, params)
-                else:
-                    pub = (q_c,)
-                pubs_with_context.append((pub, contexts))
-
-            return pubs_with_context
         elif isinstance(device, AWSDevice):
             from mpqp.translation.braket import circuitbinding_to_programset
 

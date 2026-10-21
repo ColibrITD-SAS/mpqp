@@ -63,6 +63,10 @@ def run_ibm(
     """
     if qiskit_params is not None and qiskit_params.qctrl_function is not None:
         return run_qctrl_function(job, qiskit_params)
+    if job.device.is_remote() and isinstance(job.circuit, CircuitBinding):
+        raise NotImplementedError(
+            "CircuitBinding is not currently supported for remote runs in MPQP."
+        )
     return (
         run_aer(job)
         if not job.device.is_remote()
@@ -71,11 +75,11 @@ def run_ibm(
 
 
 def compute_expectation_value(
-    job: "Job",
+    job: Job,
     simulator: Optional["AerSimulator"],
     ibm_circuit: Optional["QuantumCircuit"] = None,
     pubs: Optional[list["EstimatorPubLike"]] = None,
-    pubs_contexts: Optional[list[list["Job"]]] = None,
+    pubs_contexts: Optional[list[list[Job]]] = None,
     shots: Optional[int] = None,
 ) -> Result | BatchResult:
     """Configures observable job and run it locally, and returns the
@@ -83,6 +87,15 @@ def compute_expectation_value(
 
     Each batched PUB has an ordered list of context jobs, one for each
     parameter/measurement pair resolved by the binding mode.
+
+    Args:
+        job: Job containing the execution input data.
+        simulator: AerSimulator to be used to set the EstimatorV2 options.
+        ibm_circuit: QuantumCircuit (with its qubits already reversed) for which we want
+                    to estimate the expectation value.
+        pubs: Equivalent pubs of the inputted CircuitBinding to be ran.
+        pubs_context: List of Job to sort the pubs' result by afterwards.
+        shots: optional number of shots per executables.
     """
     from qiskit.quantum_info import SparsePauliOp
     from qiskit.primitives import PubResult
@@ -537,7 +550,11 @@ def run_aer(job: Job) -> Result | BatchResult:
             contexts = [item[1] for item in pubs_with_context]
 
             return compute_expectation_value(
-                job, backend_sim, pubs=pubs, pubs_contexts=contexts, shots=binding.shots
+                job,
+                backend_sim,
+                pubs=pubs,  # pyright: ignore[reportArgumentType]
+                pubs_contexts=contexts,  # pyright: ignore[reportArgumentType]
+                shots=binding.shots,
             )
         elif job.job_type in (JobType.SAMPLE, JobType.STATE_VECTOR):
             unrolled_items = binding.unroll()
@@ -811,7 +828,7 @@ def submit_remote_ibm_pubs(jobs: list[Job]):
 
         if TYPE_CHECKING:
             assert isinstance(job.device, IBMDevice)
-
+            assert isinstance(job.circuit, QCircuit)
         if job.circuit.transpiled_circuit is None:
             qiskit_circ = job.circuit.to_other_device(job.device)
         else:

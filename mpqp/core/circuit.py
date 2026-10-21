@@ -546,6 +546,7 @@ class QCircuit:
                     inst.c_targets = None
 
             self.add(inst)
+        self.noises.extend(other.noises)
 
     def to_dict(self) -> dict[str, int | str | list[str] | float | None]:
         """
@@ -1330,6 +1331,7 @@ class QCircuit:
         device: ATOSDevice,
         skip_pre_measure: bool = False,
         native_gate_set: bool = False,
+        backend_sim: Optional["AerSimulator"] = None,
     ) -> myQLM_Circuit: ...
 
     @overload
@@ -1338,6 +1340,7 @@ class QCircuit:
         device: AWSDevice,
         skip_pre_measure: bool = False,
         native_gate_set: bool = False,
+        backend_sim: Optional["AerSimulator"] = None,
     ) -> braket_Circuit: ...
 
     @overload
@@ -1346,6 +1349,7 @@ class QCircuit:
         device: GOOGLEDevice,
         skip_pre_measure: bool = False,
         native_gate_set: bool = False,
+        backend_sim: Optional["AerSimulator"] = None,
     ) -> cirq_Circuit: ...
 
     @overload
@@ -1354,6 +1358,7 @@ class QCircuit:
         device: QUANTINUUMDevice,
         skip_pre_measure: bool = False,
         native_gate_set: bool = False,
+        backend_sim: Optional["AerSimulator"] = None,
     ) -> tket_Circuit: ...
 
     @overload
@@ -1895,7 +1900,7 @@ class QCircuit:
     @property
     def is_noisy(self) -> bool:
         """
-        Returns True if the circuit has any noise instructions, False otherwise.
+        Returns `True` if the circuit has any noise instructions, `False` otherwise.
         """
         return len(self.noises) > 0
 
