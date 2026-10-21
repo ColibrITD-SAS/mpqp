@@ -256,7 +256,6 @@ def test_CRk(angle_bin_pow: int, result_matrix: Matrix):
     assert matrix_eq(CRk(angle_bin_pow, 0, 1).to_matrix(), result_matrix)
 
 
-
 @pytest.mark.provider("qiskit")
 def test_qiskit_expression_preserves_symbols():
     from qiskit.quantum_info import Statevector
