@@ -777,7 +777,11 @@ class Result:
         Uses :func:`~mpqp.local_storage.load.get_results_with_result`.
 
         Example:
-            >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR), StateVector([1, 0, 0, 0]), 0, 0)
+            >>> result = Result(Job(
+            ...     JobType.STATE_VECTOR,
+            ...     QCircuit([], nb_qubits=2, label="circuit 1"),
+            ...     IBMDevice.AER_SIMULATOR
+            ... ), StateVector([1, 0, 0, 0]), 0, 0)
             >>> for result in result.load_similar(): # doctest: +ELLIPSIS
             ...     print(repr(result))
             Result(Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR), StateVector(...), 0, 0)
