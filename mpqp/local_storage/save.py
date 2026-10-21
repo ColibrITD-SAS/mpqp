@@ -165,22 +165,18 @@ def _insert_result(result: Result, reuse_similar_job: bool = True):
 
                 # Optional additive metadata keeps version-1.0 databases usable.
                 # The payload is JSON data, never an executable representation.
-                cursor.execute(
-                    '''
+                cursor.execute('''
                     CREATE TABLE IF NOT EXISTS result_keys (
                         result_id INTEGER PRIMARY KEY,
                         circuit_key TEXT NOT NULL
                     )
-                '''
-                )
-                cursor.execute(
-                    '''
+                ''')
+                cursor.execute('''
                     CREATE TRIGGER IF NOT EXISTS delete_result_key
                     AFTER DELETE ON results BEGIN
                         DELETE FROM result_keys WHERE result_id = OLD.id;
                     END
-                '''
-                )
+                ''')
                 cursor.execute(
                     "INSERT INTO result_keys (result_id, circuit_key) VALUES (?, ?)",
                     (result_id, encode_key(key)),
