@@ -1,36 +1,35 @@
 from __future__ import annotations
-from typing import Any, Callable
 
+from typing import Any, Callable
 
 import numpy as np
 import pytest
-
-from mpqp.core.circuitbinding import BindingMode, CircuitBinding
-from mpqp.execution.devices import (
-    AvailableDevice,
-    IBMDevice,
-    AWSDevice,
-)
+from sympy import Symbol
 
 from mpqp import (
-    BasisMeasure,
     CNOT,
+    BasisMeasure,
     ExpectationMeasure,
-    X,
-    Y,
-    Id,
     IBMDevice,
+    Id,
     Language,
     Observable,
     QCircuit,
     Ry,
     U,
+    X,
+    Y,
     pI,
     pZ,
     run,
 )
+from mpqp.core.binding import BindingMode, CircuitBinding
+from mpqp.execution.devices import (
+    AvailableDevice,
+    AWSDevice,
+    IBMDevice,
+)
 from mpqp.execution.result import BatchResult
-from sympy import Symbol
 
 theta, phi, psi = Symbol('θ'), Symbol('phi'), Symbol('psi')
 c1 = QCircuit([U(theta, phi, psi, 0)], label="c1")

@@ -18,15 +18,15 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
     from braket.circuits import Observable as BraketObservable
     from braket.program_sets import CircuitBinding as BraketBinding
 
+    from mpqp.core.binding import BindingParameters
     from mpqp.core.circuit import QCircuit
-    from mpqp.core.circuitbinding import BindingParameters
     from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
     from mpqp.core.instruction.measurement.measure import Measure
 
     if TYPE_CHECKING:
         from braket.program_sets import ProgramSet
 
-        from mpqp.core.circuitbinding import CircuitBinding
+        from mpqp.core.binding import CircuitBinding
         from mpqp.execution.devices import AWSDevice
 
     def braket_to_mpqp(qcircuit: "braket_Circuit") -> "QCircuit":
@@ -640,8 +640,8 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
         # This means that this function creates and handle crazy big datatypes to be able to group up bindings so that we have the best possible result.
         # It uses a LOT of ints to track different infos (observable's spans, result indexes or various ids of measurements and parameters).
         # I did my best to document the whole process but the code is still fairly confusing.
-        from numbers import Real
         from collections import OrderedDict
+        from numbers import Real
 
         from braket.circuits.observables import Sum
         from braket.program_sets import ProgramSet

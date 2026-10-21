@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING
+
 from mpqp.environment.var_cache import (
     _INSTALLED_MPQP_PROVIDERS,  # pyright: ignore[reportPrivateUsage]
 )
@@ -14,10 +15,11 @@ if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
     if TYPE_CHECKING:
         from qiskit import QuantumCircuit
         from qiskit.primitives.containers import EstimatorPubLike
+
+        from mpqp.core.binding import CircuitBinding
         from mpqp.core.circuit import QCircuit
-        from mpqp.execution.job import Job
-        from mpqp.core.circuitbinding import CircuitBinding
         from mpqp.execution.devices import IBMDevice
+        from mpqp.execution.job import Job
 
     def qiskit_to_mpqp(qcircuit: "QuantumCircuit"):
         """Translate a qiskit QuantumCircuit into a MPQP QCircuit.
@@ -226,10 +228,11 @@ if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
     def circuitbinding_to_pubs(
         binding: "CircuitBinding", device: "IBMDevice"
     ) -> "list[tuple[EstimatorPubLike, list[Job]]]":
-        from mpqp.execution import JobType, Job
+        from copy import deepcopy
+
         from mpqp.core.instruction import ExpectationMeasure
         from mpqp.core.languages import Language
-        from copy import deepcopy
+        from mpqp.execution import Job, JobType
 
         if binding.job_type != JobType.OBSERVABLE:
             raise ValueError(

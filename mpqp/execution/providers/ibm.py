@@ -6,7 +6,7 @@ from copy import deepcopy
 from typing import TYPE_CHECKING, Optional
 
 from mpqp import QCircuit
-from mpqp.core.circuitbinding import CircuitBinding
+from mpqp.core.binding import CircuitBinding
 from mpqp.core.instruction.gates import ControlledGate, Gate, Id
 from mpqp.core.instruction.gates.native_gates import NativeGate
 from mpqp.core.instruction.measurement import BasisMeasure
@@ -19,7 +19,7 @@ from mpqp.execution.connection.ibm_connection import (
 from mpqp.execution.devices import AZUREDevice, IBMDevice
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.providers.providers_params import QiskitParams
-from mpqp.execution.result import Result, Sample, StateVector, BatchResult
+from mpqp.execution.result import BatchResult, Result, Sample, StateVector
 from mpqp.noise import DimensionalNoiseModel
 from mpqp.tools.errors import (
     DeviceJobIncompatibleError,
@@ -34,12 +34,12 @@ if TYPE_CHECKING:
         PubResult,
         SamplerPubResult,
     )
+    from qiskit.primitives.containers import EstimatorPubLike
     from qiskit.quantum_info import SparsePauliOp
     from qiskit.result import Result as QiskitResult
     from qiskit_aer import AerSimulator
     from qiskit_aer.noise import NoiseModel as Qiskit_NoiseModel
     from qiskit_ibm_runtime import RuntimeJobV2
-    from qiskit.primitives.containers import EstimatorPubLike
 
     from mpqp.execution.simulated_devices import StaticIBMSimulatedDevice
 
@@ -95,9 +95,10 @@ def compute_expectation_value(
         pubs_context: List of Job to sort the pubs' result by afterwards.
         shots: optional number of shots per executables.
     """
-    from qiskit.quantum_info import SparsePauliOp
     from qiskit.primitives import PubResult
     from qiskit.primitives.containers import DataBin
+    from qiskit.quantum_info import SparsePauliOp
+
     from mpqp.execution.simulated_devices import StaticIBMSimulatedDevice
 
     pubs_to_run = []
@@ -930,9 +931,9 @@ def extract_result(
     Returns:
         The ``qiskit`` result converted to our format.
     """
-    from qiskit.result import Result as QiskitResult
-    from qiskit.primitives import PubResult, SamplerPubResult, EstimatorResult
     import numpy as np
+    from qiskit.primitives import EstimatorResult, PubResult, SamplerPubResult
+    from qiskit.result import Result as QiskitResult
 
     # If this is a PubResult from primitives V2
     if isinstance(result, (PubResult | SamplerPubResult)):

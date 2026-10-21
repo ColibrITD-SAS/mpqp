@@ -60,7 +60,8 @@ from mpqp.tools.generics import OneOrMany, find_index, flatten
 
 if TYPE_CHECKING:
     from sympy import Expr
-    from mpqp.core.circuitbinding import CircuitBinding
+
+    from mpqp.core.binding import CircuitBinding
 
 
 def adjust_measure(
@@ -233,7 +234,7 @@ def generate_job(
     Returns:
         The Job containing information about the execution of the circuit.
     """
-    from ..core.circuitbinding import CircuitBinding
+    from ..core.binding import CircuitBinding
 
     if values is not None:
         if isinstance(circuit, CircuitBinding):

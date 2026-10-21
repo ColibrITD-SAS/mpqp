@@ -1,14 +1,14 @@
 from typing import TYPE_CHECKING, Any, Optional
 
+from mpqp.core.binding import CircuitBinding
 from mpqp.core.circuit import QCircuit
-from mpqp.core.circuitbinding import CircuitBinding
-from mpqp.execution.devices import AWSDevice, AvailableDevice, IBMDevice
+from mpqp.execution.devices import AvailableDevice, AWSDevice, IBMDevice
 
 if TYPE_CHECKING:
     from qiskit_aer import AerSimulator
 
 
-def __translate_circuitbinding_circuits(
+def __translate_binding_circuits(
     cb: CircuitBinding,
     device: AvailableDevice,
     result: dict[int, Any] = {},
@@ -18,7 +18,7 @@ def __translate_circuitbinding_circuits(
     """Recursive function to iterate every circuits in cb and store their translation in result."""
     for circuit in cb.circuits:
         if isinstance(circuit, CircuitBinding):
-            __translate_circuitbinding_circuits(circuit, device, result)
+            __translate_binding_circuits(circuit, device, result)
         else:
             if result.get(id(circuit)) is not None:
                 from warnings import warn
@@ -66,24 +66,24 @@ def __translate_circuitbinding_circuits(
     return result
 
 
-def translate_circuitbinding_circuits(
+def translate_binding_circuits(
     cb: CircuitBinding, device: AvailableDevice
 ) -> dict[int, Any]:
     """Returns a dictionary containing the transpiled circuits of a
-    circuitbinding with their memory address as keys.
+    circuit binding with their memory address as keys.
     This functions' goal is to only translate circuits once and prevent altering the original object through transpiled_circuits.
 
     This is of use for runs not supported natively by the equivalent of circuit bindings.
     """
-    return __translate_circuitbinding_circuits(cb, device, {})
+    return __translate_binding_circuits(cb, device, {})
 
 
-def __translated_circuitbinding_measurements(
+def __translated_binding_measurements(
     cb: CircuitBinding, device: AvailableDevice, result: dict[int, Any]
 ) -> dict[int, Any]:
     for circuit in cb.circuits:
         if isinstance(circuit, CircuitBinding):
-            __translated_circuitbinding_measurements(circuit, device, result)
+            __translated_binding_measurements(circuit, device, result)
     if cb.measurements is None:
         return result
     for measurement in cb.measurements:
@@ -100,13 +100,13 @@ def __translated_circuitbinding_measurements(
     return result
 
 
-def translate_circuitbinding_measurements(
+def translate_binding_measurements(
     cb: CircuitBinding, device: AvailableDevice
 ) -> dict[int, Any]:
     """Returns a dictionary containing the transpiled measurements of a
-    circuitbinding with their memory address as keys.
+    circuit binding with their memory address as keys.
     This functions' goal is to only translate measurements once and prevent altering the original object.
 
     This is of use for runs not supported natively by the equivalent of circuit bindings.
     """
-    return __translated_circuitbinding_measurements(cb, device, {})
+    return __translated_binding_measurements(cb, device, {})
