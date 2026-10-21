@@ -102,9 +102,7 @@ def _qiskit_parameter_adder(
             )
             for function in param.atoms(Function)
         }
-        evaluator = lambdify(
-            symbols, param, modules=[functions, "math"], dummify=True
-        )
+        evaluator = lambdify(symbols, param, modules=[functions, "math"], dummify=True)
         return cast("ParameterExpression | float", evaluator(*parameters))
     return float(param)
 
@@ -118,7 +116,7 @@ def _sympy_to_braket_param(
     if isinstance(val, Expr):
         if val.free_symbols:
             return FreeParameterExpression(val)
-        return float(val.evalf()) # pyright: ignore[reportArgumentType]
+        return float(val.evalf())  # pyright: ignore[reportArgumentType]
     return float(val)
 
 
