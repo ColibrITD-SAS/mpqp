@@ -118,8 +118,13 @@ def _sympy_to_braket_param(
     if isinstance(val, Expr):
         if val.free_symbols:
             return FreeParameterExpression(val)
-        return float(val.evalf()) # pyright: ignore[reportArgumentType]
-    return float(val)
+        else:
+            try:
+                return float(val.evalf())  # pyright: ignore[reportArgumentType]
+            except Exception as e:
+                raise ValueError(f"Failed to evaluate sympy expression '{val}': {e}")
+    else:
+        return float(val)
 
 
 class NativeGate(Gate, SimpleClassReprABC):
