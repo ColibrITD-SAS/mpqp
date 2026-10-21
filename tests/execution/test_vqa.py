@@ -1,307 +1,397 @@
-from typing import Any
+from types import SimpleNamespace
+from typing import Any, Sequence
 
 import numpy as np
+import numpy.typing as npt
 import pytest
 from sympy import Expr, symbols
 
 from mpqp import (
-    ATOSDevice,
     AWSDevice,
+    BasisMeasure,
+    BindingMode,
+    CircuitBinding,
     ExpectationMeasure,
-    GOOGLEDevice,
     IBMDevice,
     QUANTINUUMDevice,
     Observable,
-    Optimizer,
     QCircuit,
-    minimize,
-    run,
+    pX,
+    pZ,
 )
 from mpqp.execution.devices import AvailableDevice
-from mpqp.execution.vqa.vqa import OptimizableFunc
-from mpqp.gates import *
+from mpqp.execution.job import ExecutionMode
+from mpqp.execution.providers.providers_params import AWSParams, QiskitParams
+from mpqp.execution.result import Result
+from mpqp.execution.vqa.optimizer import (
+    OptimizableFunc,
+    OptimizerInput,
+    OptimizerOptions,
+)
+from mpqp.execution.vqa.vqa import Optimizer, OptimizerData, VQAModule
+from mpqp.gates import Ry, Rz
 
-# the symbols function is a bit wacky, so some manual type definition is needed here
-theta: Expr = symbols("θ")
+pytestmark = pytest.mark.provider("qiskit")
+theta, phi, scale = symbols("theta phi scale")
+DEVICE = IBMDevice.AER_SIMULATOR
 
 
-def with_local_devices_qiskit(args: tuple[Any, ...]):
-    return (
-        (*args, d)
-        for d in list(IBMDevice)
-        if not d.is_remote() and d.is_gate_based() and not d.has_reduced_gate_set()
+def circuit(
+    angle: Expr = theta, measurement: BasisMeasure | ExpectationMeasure | None = None
+) -> QCircuit:
+    return QCircuit([Ry(angle, 0), measurement or ExpectationMeasure(Observable(pZ))])
+
+
+def test_compile_once_and_bind_expressions(monkeypatch: pytest.MonkeyPatch) -> None:
+    original = QCircuit.to_other_device
+    calls = []
+
+    def counted(self: QCircuit, *args: Any, **kwargs: Any) -> Any:
+        calls.append(1)
+        return original(self, *args, **kwargs)
+
+    monkeypatch.setattr(QCircuit, "to_other_device", counted)
+    source = circuit(2 * theta + phi)
+    vqa = VQAModule(source, DEVICE, parameters=[theta, phi])
+    for params in ([0.2, 0.1], [0.7, -0.2], [0.2, 0.1]):
+        assert vqa.cost(params) == pytest.approx(np.cos(2 * params[0] + params[1]))
+    assert len(calls) == 1
+    assert source.transpiled_circuit == {}
+    assert source.variables() == {theta, phi}
+
+
+def test_shared_parameters_and_observable_dictionary() -> None:
+    measure = ExpectationMeasure([Observable(pZ), Observable(pX)])
+    vqa = VQAModule([circuit(theta, measure), circuit(theta)], DEVICE)
+    assert vqa.variables == (theta,)
+    assert vqa.cost([0.3]) == pytest.approx(2 * np.cos(0.3) + np.sin(0.3))
+
+
+def test_custom_cost_with_classical_parameter() -> None:
+    def loss(params: npt.NDArray[np.float64], results: Sequence[Result]) -> float:
+        expectation = results[0].expectation_values
+        assert not isinstance(expectation, dict)
+        return float((params[1] * expectation - 0.5) ** 2 + params[1] ** 2)
+
+    vqa = VQAModule(circuit(), DEVICE, parameters=[theta, scale], cost_function=loss)
+    assert vqa.cost([0.2, 2]) == pytest.approx((2 * np.cos(0.2) - 0.5) ** 2 + 4)
+
+
+def test_statevector_and_sampling() -> None:
+    state = VQAModule(
+        QCircuit([Ry(theta, 0)]),
+        DEVICE,
+        cost_function=lambda p, results: results[0].probabilities[1],
+    )
+    assert state.cost([0.4]) == pytest.approx(np.sin(0.2) ** 2)
+    assert state.cost([0.8]) == pytest.approx(np.sin(0.4) ** 2)
+    source = circuit(measurement=BasisMeasure(shots=32))
+    sampled = VQAModule(
+        source, DEVICE, cost_function=lambda p, results: sum(results[0].counts)
+    )
+    assert sampled.cost([0], shots=16) == 16
+    assert sampled.cost([0]) == 32
+    assert source.measurements[0].shots == 32
+
+
+def test_failure_does_not_poison_template(monkeypatch: pytest.MonkeyPatch) -> None:
+    import importlib
+
+    module = importlib.import_module("mpqp.execution.vqa.vqa")
+    vqa = VQAModule(circuit(), DEVICE)
+    original = module.run
+
+    def fail(binding: CircuitBinding, device: AvailableDevice, **kwargs: Any) -> Result:
+        nested = binding.circuits[0]
+        assert isinstance(nested, QCircuit)
+        nested.transpiled_circuit[device] = object()
+        raise RuntimeError("provider failure")
+
+    monkeypatch.setattr(module, "run", fail)
+    with pytest.raises(RuntimeError, match="provider failure"):
+        vqa.evaluate([0.9])
+    monkeypatch.setattr(module, "run", original)
+    assert vqa.cost([0.2]) == pytest.approx(np.cos(0.2))
+
+
+def test_optimizer_converges_and_preserves_configuration() -> None:
+    options = {"gtol": 1e-7}
+    callback_values = []
+    config = OptimizerData(
+        Optimizer.BFGS,
+        [0.4],
+        maxiter=30,
+        optimizer_options=options,
+        callback=lambda x: callback_values.append(x.copy()),
+        jac=lambda x: np.array([-np.sin(x[0])]),
+    )
+    vqa = VQAModule(circuit(), DEVICE)
+    result = vqa.minimize(config)
+    assert result.loss == pytest.approx(-1, abs=1e-7)
+    assert result.optimizer_results is not None
+    assert result.optimizer_results.success
+    assert result.loss_total
+    assert callback_values
+    assert options == {"gtol": 1e-7}
+    assert config.init_params == [0.4]
+    assert result.angles[theta] == pytest.approx(result.optimizer_results.x[0])
+
+
+def test_trf_minimizes_custom_residuals_and_preserves_configuration() -> None:
+    def residuals(
+        params: npt.NDArray[np.float64], results: Sequence[Result]
+    ) -> npt.NDArray[np.float64]:
+        expectation = results[0].expectation_values
+        assert not isinstance(expectation, dict)
+        return np.array([expectation])
+
+    options = {"gtol": 1e-12, "xtol": 1e-12, "ftol": 1e-12}
+    config = OptimizerData(
+        Optimizer.TRF,
+        [0.4],
+        maxiter=30,
+        optimizer_options=options,
+        bounds=[(0, np.pi)],
+    )
+    vqa = VQAModule(circuit(), DEVICE, residual_function=residuals)
+    result = vqa.minimize(config)
+
+    assert result.angles[theta] == pytest.approx(np.pi / 2, abs=1e-7)
+    assert result.loss < 1e-12
+    assert result.optimizer_results is not None
+    assert result.loss == pytest.approx(2 * result.optimizer_results.cost)
+    assert result.loss_total
+    assert options == {"gtol": 1e-12, "xtol": 1e-12, "ftol": 1e-12}
+    assert config.init_params == [0.4]
+
+
+def test_trf_requires_a_residual_function() -> None:
+    vqa = VQAModule(circuit(), DEVICE)
+    with pytest.raises(ValueError, match="requires a residual_function"):
+        vqa.minimize(OptimizerData(Optimizer.TRF, [0.4], maxiter=1))
+
+
+@pytest.mark.parametrize("values", [[1, 2], [[1]], [float("nan")], [1j]])
+def test_invalid_parameter_vectors(values: Any) -> None:
+    with pytest.raises(ValueError):
+        VQAModule(circuit(), DEVICE).evaluate(values)
+
+
+def test_parameter_order_validation() -> None:
+    source = QCircuit([Ry(theta, 0), Rz(phi, 0)])
+    assert VQAModule(source, DEVICE).variables == (phi, theta)
+    for order in ([theta], [theta, theta, phi]):
+        with pytest.raises(ValueError):
+            VQAModule(source, DEVICE, parameters=order)
+
+
+def test_custom_optimizer_and_objective_override() -> None:
+    def optimizer(
+        fun: OptimizableFunc, initial: OptimizerInput, options: OptimizerOptions
+    ) -> tuple[float, OptimizerInput]:
+        options["changed"] = True
+        return fun([0.5]), [0.5]
+
+    config = OptimizerData(optimizer, [0.1], optimizer_options={})
+    vqa = VQAModule(circuit(), DEVICE)
+    result = vqa.minimize(config, eval_func=lambda x: x[0] ** 2)
+    assert result.loss == 0.25
+    assert result.angles == {theta: 0.5}
+    assert config.optimizer_options == {}
+
+
+@pytest.mark.parametrize("initial_shots", [0, 32])
+def test_sampling_statevector_switch_prepares_each_variant_once(
+    monkeypatch: pytest.MonkeyPatch, initial_shots: int
+) -> None:
+    original = QCircuit.to_other_device
+    calls = []
+
+    def counted(self: QCircuit, *args: Any, **kwargs: Any) -> Any:
+        calls.append(1)
+        return original(self, *args, **kwargs)
+
+    monkeypatch.setattr(QCircuit, "to_other_device", counted)
+    source = circuit(measurement=BasisMeasure(shots=initial_shots))
+    vqa = VQAModule(source, DEVICE)
+    for angle in (0.4, 0.8):
+        state = vqa.evaluate([angle], shots=0)[0]
+        assert state.probabilities[1] == pytest.approx(np.sin(angle / 2) ** 2)
+        sampled = vqa.evaluate([0.0], shots=16)[0]
+        assert sum(sampled.counts) == 16
+        assert sampled.counts[0] == 16
+    assert len(calls) == 1
+    assert source.measurements[0].shots == initial_shots
+
+
+def test_circuit_binding_multiple_circuits_order_and_custom_cost() -> None:
+    binding = CircuitBinding(
+        [QCircuit([Ry(theta, 0)]), QCircuit([Ry(theta, 0)])],
+        values=[{theta: 9.0}, {"theta": -9.0}],
+        measurements=[
+            ExpectationMeasure(Observable(pZ)),
+            ExpectationMeasure(Observable(pX)),
+        ],
+        mode=BindingMode.ZIP,
+    )
+
+    def loss(params: npt.NDArray[np.float64], results: Sequence[Result]) -> float:
+        return float(
+            results[0].expectation_values
+            + 2 * results[1].expectation_values
+            + 0.1 * np.dot(params, params)
+        )
+
+    vqa = VQAModule(binding, DEVICE, cost_function=loss)
+    results = vqa.evaluate([0.4])
+    assert [result.expectation_values for result in results] == pytest.approx(
+        [np.cos(0.4), np.sin(0.4)]
+    )
+    assert vqa.cost([0.4]) == pytest.approx(
+        np.cos(0.4) + 2 * np.sin(0.4) + 0.1 * 0.4**2
     )
 
 
-def with_local_devices_braket(args: tuple[Any, ...]):
-    return (
-        (*args, d)
-        for d in list(AWSDevice)
-        if not d.is_remote() and d.is_gate_based() and not d.has_reduced_gate_set()
+def test_evaluate_and_parameter_batch_use_zip_binding(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import importlib
+
+    module = importlib.import_module("mpqp.execution.vqa.vqa")
+    original = module.run
+    bindings: list[CircuitBinding] = []
+
+    def inspected(binding: CircuitBinding, *args: Any, **kwargs: Any) -> Any:
+        bindings.append(binding)
+        return original(binding, *args, **kwargs)
+
+    monkeypatch.setattr(module, "run", inspected)
+    vqa = VQAModule(
+        [circuit(), circuit(measurement=ExpectationMeasure(Observable(pX)))], DEVICE
+    )
+    batch = vqa.evaluate_batch([[0.0], [np.pi / 2]], mode=ExecutionMode.BATCH)
+    assert len(bindings) == 1
+    assert bindings[0].mode is BindingMode.ZIP
+    assert len(bindings[0].unroll()) == 4
+    assert [
+        result.expectation_values for point in batch for result in point
+    ] == pytest.approx([1, 0, 0, 1])
+
+
+def test_cost_batch_applies_custom_post_processing_in_order() -> None:
+    vqa = VQAModule(
+        circuit(),
+        DEVICE,
+        cost_function=lambda params, results: float(
+            results[0].expectation_values + params[0] ** 2
+        ),
+    )
+    values = [0.0, 0.4, np.pi / 2]
+    assert vqa.cost_batch([[value] for value in values]) == pytest.approx(
+        [np.cos(value) + value**2 for value in values]
     )
 
 
-def with_local_devices_myqlm(args: tuple[Any, ...]):
-    return (
-        (*args, d)
-        for d in list(ATOSDevice)
-        if not d.is_remote() and d.is_gate_based() and not d.has_reduced_gate_set()
+def test_minimize_stages_carries_parameters_without_mutating_configs() -> None:
+    initial_values = []
+
+    def first_optimizer(
+        fun: OptimizableFunc, initial: OptimizerInput, options: OptimizerOptions
+    ) -> tuple[float, OptimizerInput]:
+        initial_values.append(np.asarray(initial).copy())
+        candidate = np.array([0.5])
+        return fun(candidate), candidate
+
+    def second_optimizer(
+        fun: OptimizableFunc, initial: OptimizerInput, options: OptimizerOptions
+    ) -> tuple[float, OptimizerInput]:
+        initial_values.append(np.asarray(initial).copy())
+        candidate = np.array([0.25])
+        return fun(candidate), candidate
+
+    stages = [
+        OptimizerData(first_optimizer, init_params=[0.8]),
+        OptimizerData(second_optimizer),
+    ]
+    vqa = VQAModule(circuit(), DEVICE)
+    results = vqa.minimize_stages(stages, eval_func=lambda x: float(x[0] ** 2))
+
+    assert initial_values[0] == pytest.approx([0.8])
+    assert initial_values[1] == pytest.approx([0.5])
+    assert [result.loss for result in results] == pytest.approx([0.25, 0.0625])
+    assert stages[0].init_params == [0.8]
+    assert stages[1].init_params is None
+
+
+def test_minimize_stages_validates_stage_configuration() -> None:
+    vqa = VQAModule(circuit(), DEVICE)
+    with pytest.raises(ValueError, match="at least one stage"):
+        vqa.minimize_stages([])
+    with pytest.raises(ValueError, match="one value per optimizer stage"):
+        vqa.minimize_stages([OptimizerData(Optimizer.BFGS)], shots=[10, 20])
+
+
+def test_shot_priority_and_vqa_provider_options(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import importlib
+
+    binding = CircuitBinding(
+        QCircuit([Ry(theta, 0)]),
+        measurements=BasisMeasure(),
+        shots=24,
     )
+    module = importlib.import_module("mpqp.execution.vqa.vqa")
+    original = module.run
+    seen: list[dict[str, Any]] = []
 
+    def inspected(*args: Any, **kwargs: Any) -> Any:
+        seen.append(kwargs)
+        return original(*args, **kwargs)
 
-def with_local_devices_cirq(args: tuple[Any, ...]):
-    return (
-        (*args, d)
-        for d in list(GOOGLEDevice)
-        if not d.is_remote() and d.is_gate_based() and not d.has_reduced_gate_set()
+    monkeypatch.setattr(module, "run", inspected)
+    params = QiskitParams(instance="instance")
+    vqa = VQAModule(binding, DEVICE)
+    assert sum(vqa.evaluate([0])[0].counts) == 24
+    assert (
+        sum(
+            vqa.evaluate(
+                [0],
+                shots=7,
+                mode=ExecutionMode.BATCH,
+                provider_params=params,
+            )[0].counts
+        )
+        == 7
     )
+    assert seen[-1]["mode"] is ExecutionMode.BATCH
+    assert seen[-1]["provider_params"] is params
 
 
-def with_local_devices_quantinuum(args: tuple[Any, ...]):
-    return (
-        (*args, d)
-        for d in list(QUANTINUUMDevice)
-        if not d.is_remote() and d.is_gate_based() and not d.has_reduced_gate_set()
+def test_cmaes_returns_best_candidate_and_preserves_options() -> None:
+    pytest.importorskip("cma")
+    options = {"seed": 42, "verbose": -9, "sigma0": 0.3, "tolfun": 1e-10}
+    before = options.copy()
+    callbacks = []
+    vqa = VQAModule(
+        circuit(),
+        DEVICE,
+        parameters=[theta, scale],
     )
-
-
-circuit_min = (
-    QCircuit(
-        [
-            P(theta, 0),
-            ExpectationMeasure(Observable(np.array([[0, 1], [1, 0]])), [0]),
-        ]
-    ),
-    0,
-)
-
-
-@pytest.mark.provider("qiskit")
-@pytest.mark.parametrize(
-    "circ, minimum, device",
-    with_local_devices_qiskit(circuit_min),
-)
-def test_optimizer_circuit_qiskit(
-    circ: QCircuit, minimum: float, device: AvailableDevice
-):
-    exec_optimizer_circuit(circ, minimum, device)
-
-
-@pytest.mark.provider("braket")
-@pytest.mark.parametrize(
-    "circ, minimum, device",
-    with_local_devices_braket(circuit_min),
-)
-def test_optimizer_circuit_braket(
-    circ: QCircuit, minimum: float, device: AvailableDevice
-):
-    exec_optimizer_circuit(circ, minimum, device)
-
-
-@pytest.mark.provider("cirq")
-@pytest.mark.parametrize(
-    "circ, minimum, device",
-    with_local_devices_cirq(circuit_min),
-)
-def test_optimizer_circuit_cirq(
-    circ: QCircuit, minimum: float, device: AvailableDevice
-):
-    exec_optimizer_circuit(circ, minimum, device)
-
-
-@pytest.mark.provider("myqlm")
-@pytest.mark.parametrize(
-    "circ, minimum, device",
-    with_local_devices_myqlm(circuit_min),
-)
-def test_optimizer_circuit_myqlm(
-    circ: QCircuit, minimum: float, device: AvailableDevice
-):
-    exec_optimizer_circuit(circ, minimum, device)
-
-
-@pytest.mark.provider("quantinuum")
-@pytest.mark.parametrize(
-    "circ, minimum, device",
-    with_local_devices_quantinuum(circuit_min),
-)
-def test_optimizer_circuit_quantinuum(
-    circ: QCircuit, minimum: float, device: AvailableDevice
-):
-    exec_optimizer_circuit(circ, minimum, device)
-
-
-def exec_optimizer_circuit(circ: QCircuit, minimum: float, device: AvailableDevice):
-    def runn():
-        assert minimize(circ, Optimizer.BFGS, device)[0] - minimum < 0.05
-
-    try:
-        runn()
-    except (ValueError, NotImplementedError) as err:
-        if "not handled" not in str(err):
-            raise
-
-
-@pytest.mark.provider("qiskit")
-@pytest.mark.parametrize(
-    "eval_f, minimum, device",
-    with_local_devices_qiskit(
-        (
-            lambda params: (
-                1
-                - run(
-                    QCircuit(
-                        [
-                            P(theta, 0),
-                            ExpectationMeasure(
-                                Observable(np.array([[0, 1], [1, 0]])), [0]
-                            ),
-                        ]
-                    ),
-                    IBMDevice.AER_SIMULATOR,
-                    {theta: params[0]},
-                ).expectation_values  # pyright: ignore[reportOperatorIssue]
-                ** 2
-            ),
-            1,
-        )
-    ),
-)
-def test_optimizer_func_qiskit(
-    eval_f: OptimizableFunc, minimum: float, device: AvailableDevice
-):
-    exec_optimizer_func(eval_f, minimum, device)
-
-
-@pytest.mark.provider("myqlm")
-@pytest.mark.parametrize(
-    "eval_f, minimum, device",
-    with_local_devices_myqlm(
-        (
-            lambda params: (
-                1
-                - run(
-                    QCircuit(
-                        [
-                            P(theta, 0),
-                            ExpectationMeasure(
-                                Observable(np.array([[0, 1], [1, 0]])), [0]
-                            ),
-                        ]
-                    ),
-                    ATOSDevice.MYQLM_PYLINALG,
-                    {theta: params[0]},
-                ).expectation_values  # pyright: ignore[reportOperatorIssue]
-                ** 2
-            ),
-            1,
-        )
-    ),
-)
-def test_optimizer_func_myqlm(
-    eval_f: OptimizableFunc, minimum: float, device: AvailableDevice
-):
-    exec_optimizer_func(eval_f, minimum, device)
-
-
-@pytest.mark.provider("cirq")
-@pytest.mark.parametrize(
-    "eval_f, minimum, device",
-    with_local_devices_cirq(
-        (
-            lambda params: (
-                1
-                - run(
-                    QCircuit(
-                        [
-                            P(theta, 0),
-                            ExpectationMeasure(
-                                Observable(np.array([[0, 1], [1, 0]])), [0]
-                            ),
-                        ]
-                    ),
-                    GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
-                    {theta: params[0]},
-                ).expectation_values  # pyright: ignore[reportOperatorIssue]
-                ** 2
-            ),
-            1,
-        )
-    ),
-)
-def test_optimizer_func_cirq(
-    eval_f: OptimizableFunc, minimum: float, device: AvailableDevice
-):
-    exec_optimizer_func(eval_f, minimum, device)
-
-
-@pytest.mark.provider("braket")
-@pytest.mark.parametrize(
-    "eval_f, minimum, device",
-    with_local_devices_braket(
-        (
-            lambda params: (
-                1
-                - run(
-                    QCircuit(
-                        [
-                            P(theta, 0),
-                            ExpectationMeasure(
-                                Observable(np.array([[0, 1], [1, 0]])), [0]
-                            ),
-                        ]
-                    ),
-                    AWSDevice.BRAKET_LOCAL_SIMULATOR,
-                    {theta: params[0]},
-                ).expectation_values  # pyright: ignore[reportOperatorIssue]
-                ** 2
-            ),
-            1,
-        )
-    ),
-)
-def test_optimizer_func_braket(
-    eval_f: OptimizableFunc, minimum: float, device: AvailableDevice
-):
-    exec_optimizer_func(eval_f, minimum, device)
-
-
-@pytest.mark.provider("quantinuum")
-@pytest.mark.parametrize(
-    "eval_f, minimum, device",
-    with_local_devices_quantinuum(
-        (
-            lambda params: (
-                1
-                - run(
-                    QCircuit(
-                        [
-                            P(theta, 0),
-                            ExpectationMeasure(
-                                Observable(np.array([[0, 1], [1, 0]])), [0]
-                            ),
-                        ]
-                    ),
-                    QUANTINUUMDevice.TKET_QULACS_SIMULATOR,
-                    {theta: params[0]},
-                ).expectation_values  # pyright: ignore[reportOperatorIssue]
-                ** 2
-            ),
-            1,
-        )
-    ),
-)
-def test_optimizer_func_quantinuum(
-    eval_f: OptimizableFunc, minimum: float, device: AvailableDevice
-):
-    exec_optimizer_func(eval_f, minimum, device)
-
-
-def exec_optimizer_func(
-    eval_f: OptimizableFunc, minimum: float, device: AvailableDevice
-):
-    try:
-        assert minimize(eval_f, Optimizer.BFGS, nb_params=1)[0] - minimum < 0.05
-    except (ValueError, NotImplementedError) as err:
-        if "not handled" not in str(err):
-            raise
+    result = vqa.minimize(
+        OptimizerData(
+            Optimizer.CMAES,
+            [0.4, 0.6],
+            maxiter=100,
+            optimizer_options=options,
+            callback=lambda x: callbacks.append(x.copy()),
+        ),
+        eval_func=lambda x: float(np.dot(x, x)),
+    )
+    assert result.loss < 1e-7
+    assert result.loss == pytest.approx(min(result.loss_total))
+    assert sum(value**2 for value in result.angles.values()) == pytest.approx(
+        result.loss
+    )
+    assert callbacks
+    assert options == before

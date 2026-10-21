@@ -33,7 +33,7 @@ from .execution.devices import (
 )
 from .execution.remote_handler import get_all_remote_job_ids
 from .execution.simulated_devices import IBMSimulatedDevice
-from .execution.vqa import Optimizer, minimize
+from .execution.vqa import Optimizer, OptimizerData, VQAModule, VQAResult, minimize
 from .execution.vqa.qaoa import qaoa_solver
 from .execution.vqa.qubo import QuboAtom
 from .gates import (
