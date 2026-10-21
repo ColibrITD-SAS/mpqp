@@ -13,7 +13,7 @@ from mpqp.execution.connection.azure_connection import (
     get_jobs_by_id,
 )
 from mpqp.execution.devices import AZUREDevice
-from mpqp.execution.job import IBMDevice, Job, JobStatus, JobType
+from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.result import Result, Sample
 
 
@@ -54,10 +54,7 @@ def submit_job_azure(job: Job) -> tuple[str, "AzureQuantumJob"]:
     """
     from qiskit import QuantumCircuit
 
-    if job.circuit.transpiled_circuit is None:
-        qiskit_circuit = job.circuit.to_other_device(IBMDevice.AER_SIMULATOR)
-    else:
-        qiskit_circuit = job.circuit.transpiled_circuit
+    qiskit_circuit = job.circuit.transpiled_for_device(job.device)
     if TYPE_CHECKING:
         assert isinstance(qiskit_circuit, QuantumCircuit)
 

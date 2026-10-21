@@ -47,7 +47,8 @@ def job_pre_processing(job: Job) -> "Circuit":
     Returns:
           The myQLM Circuit translated from the circuit of the job in parameter.
     """
-
+    if TYPE_CHECKING:
+        assert isinstance(job.circuit, QCircuit)
     if (
         job.job_type == JobType.STATE_VECTOR
         and job.measure is not None
@@ -82,12 +83,10 @@ def job_pre_processing(job: Job) -> "Circuit":
                 "`OBSERVABLE` jobs with shots!=0 are disabled for MPO."
             )
 
-    if job.circuit.transpiled_circuit is None:
-        if TYPE_CHECKING:
-            assert isinstance(job.device, ATOSDevice)
-        myqlm_circuit = job.circuit.to_other_device(job.device)
-    else:
-        myqlm_circuit = job.circuit.transpiled_circuit
+    if TYPE_CHECKING:
+        assert isinstance(job.device, ATOSDevice)
+
+    myqlm_circuit = job.circuit.transpiled_for_device(job.device)
 
     return myqlm_circuit
 
@@ -126,6 +125,8 @@ def get_remote_qpu(device: ATOSDevice, job: Job):
         raise ValueError(
             f"Excepted a remote device, but got a local myQLM simulator {device}"
         )
+    if TYPE_CHECKING:
+        assert isinstance(job.circuit, QCircuit)
 
     if len(job.circuit.noises) > 0:
         if not device.is_noisy_simulator():
@@ -250,12 +251,14 @@ def generate_observable_job(myqlm_circuit: "Circuit", job: Job) -> list["JobQLM"
     # TODO: [multi-obs] update this to take into account the case when we have list of Observables
     if TYPE_CHECKING:
         assert job.measure is not None and isinstance(job.measure, ExpectationMeasure)
+
     result = []
     for obs in job.measure.observables:
-        if obs.pre_transpiled is None:
-            qlm_obs = obs.to_other_language(Language.MY_QLM)
-        else:
-            qlm_obs = obs.pre_transpiled
+        if job.device not in obs.pre_transpiled:
+            obs.pre_transpiled[job.device] = obs.to_other_language(Language.MY_QLM)
+
+        qlm_obs = obs.pre_transpiled[job.device]
+
         result.append(
             myqlm_circuit.to_job(
                 job_type="OBS",
