@@ -23,12 +23,15 @@ from __future__ import annotations
 
 import math
 import random
+from collections.abc import Iterator
 from numbers import Complex
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Union, overload
 
 import numpy as np
 import numpy.typing as npt
 
+from mpqp.core._keys import ObjectKey, object_key
+from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
 from mpqp.execution import Job, JobStatus, JobType
 from mpqp.execution.devices import AvailableDevice
@@ -322,6 +325,7 @@ class Result:
     ):
         self.job = job
         """See parameter description."""
+        self._circuit_key: Optional[ObjectKey] = None
         self._expectation_values = None
         self._state_vector = None
         self._probabilities = None
@@ -831,29 +835,107 @@ class BatchResult:
           Probabilities: [0.25, 0.25, 0.25, 0.25]
           Number of qubits: 2
 
+        >>> batch_result[QCircuit([BasisMeasure([0, 1], shots=500)])] is result2
+        True
+
+    Note:
+        Circuit lookup uses an immutable snapshot of the submitted circuit. It
+        compares exact structural values, ignoring display labels, size-inference
+        bookkeeping and execution caches. Observable labels are included because
+        they name entries in multi-observable results. Numerical equivalence and
+        different observable representations do not imply matching keys.
+
+        Circuits remain editable: changing their content does not change an
+        existing entry, but lookup with the changed content may fail. Repeated
+        circuits and execution on multiple devices retain every result. Circuit
+        indexing requires a unique match; use :meth:`get_all` otherwise.
+
+        Integer indexing and iteration follow execution order. The ``results``
+        property returns a new list; editing it does not change the batch. For
+        manually constructed results and older stored results without submitted
+        keys, lookup uses the job circuit at batch construction time.
+
     """
 
     def __init__(self, results: list[Result]):
-        self.results = results
-        """See parameter description."""
+        self._results: dict[ObjectKey, list[Result]] = {}
+        self._order: list[tuple[ObjectKey, int]] = []
+        for result in results:
+            key = result._circuit_key  # pyright: ignore[reportPrivateUsage]
+            if key is None:
+                key = object_key(result.job.circuit)
+                result._circuit_key = key  # pyright: ignore[reportPrivateUsage]
+            matches = self._results.setdefault(key, [])
+            self._order.append((key, len(matches)))
+            matches.append(result)
+
+    @property
+    def results(self) -> list[Result]:
+        """Results in execution order, returned as an independent list."""
+        return list(self)
+
+    def __iter__(self) -> Iterator[Result]:
+        for key, index in self._order:
+            yield self._results[key][index]
 
     def __str__(self):
-        header = f"BatchResult: {len(self.results)} results\n"
+        header = f"BatchResult: {len(self)} results\n"
         body = "\n".join(
-            "    " + line
-            for result in self.results
-            for line in str(result).splitlines()
+            "    " + line for result in self for line in str(result).splitlines()
         )
         return header + body
 
     def __repr__(self):
         return f"BatchResult({self.results})"
 
-    def __getitem__(self, index: int):
-        return self.results[index]
+    @overload
+    def __getitem__(self, index: int | QCircuit) -> Result: ...
+
+    @overload
+    def __getitem__(self, index: slice) -> list[Result]: ...
+
+    def __getitem__(self, index: int | slice | QCircuit) -> Result | list[Result]:
+        """Retrieve a result by position or by submitted circuit content.
+
+        Args:
+            index: Integer position, slice, or circuit to look up.
+
+        Returns:
+            The matching result, or a list for a slice.
+
+        Raises:
+            KeyError: If no result matches the circuit.
+            ValueError: If several results match the circuit.
+            IndexError: If the integer position is out of range.
+            TypeError: If the index or a circuit component is unsupported.
+        """
+        if isinstance(index, QCircuit):
+            matches = self.get_all(index)
+            if not matches:
+                raise KeyError("No result matches this circuit's submitted content")
+            if len(matches) != 1:
+                raise ValueError(
+                    f"{len(matches)} results match this circuit; use get_all(circuit)"
+                )
+            return matches[0]
+        if isinstance(index, slice):
+            return self.results[index]
+        key, position = self._order[index]
+        return self._results[key][position]
+
+    def get_all(self, circuit: QCircuit) -> list[Result]:
+        """Retrieve all results matching a circuit in execution order.
+
+        Args:
+            circuit: Circuit whose submitted content should be matched.
+
+        Returns:
+            An independent list of matching results, empty if none match.
+        """
+        return list(self._results.get(object_key(circuit), []))
 
     def __len__(self) -> int:
-        return len(self.results)
+        return len(self._order)
 
     def plot(self, show: bool = True):
         """Display the result(s) using ``matplotlib.pyplot``.
@@ -877,10 +959,10 @@ class BatchResult:
         """
         from matplotlib import pyplot as plt
 
-        n_cols = math.ceil((len(self.results) + 1) // 2)
-        n_rows = math.ceil(len(self.results) / n_cols)
+        n_cols = math.ceil((len(self) + 1) // 2)
+        n_rows = math.ceil(len(self) / n_cols)
 
-        for index, result in enumerate(self.results):
+        for index, result in enumerate(self):
             plt.subplot(n_rows, n_cols, index + 1)
 
             result.plot(show=False)

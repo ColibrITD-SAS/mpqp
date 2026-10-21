@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Iterable, Optional, Sequence, overload
 
 import numpy as np
 
+from mpqp.core._keys import object_key
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.breakpoint import Breakpoint
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
@@ -537,24 +538,26 @@ def run(
 
     """
 
-    def namer(circ: QCircuit, i: int):
-        circ.label = f"circuit {i}" if circ.label is None else circ.label
-        return circ
-
     if isinstance(circuit, Iterable) or isinstance(device, Iterable):
-        return BatchResult(
-            [
-                _run_single(
-                    namer(circ, i + 1),
+        # Snapshot every input before executing any job: providers may adapt a
+        # circuit or a shared measurement, and the same input can occur twice.
+        circuits = [(circ, object_key(circ)) for circ in flatten(circuit)]
+        devices = list(flatten(device))
+        results: list[Result] = []
+        for i, (circ, key) in enumerate(circuits):
+            for dev in devices:
+                if circ.label is None:
+                    circ.label = f"circuit {i + 1}"
+                result = _run_single(
+                    circ,
                     dev,
                     values,
                     display_breakpoints,
                     provider_params,
                 )
-                for i, circ in enumerate(flatten(circuit))
-                for dev in flatten(device)
-            ]
-        )
+                result._circuit_key = key  # pyright: ignore[reportPrivateUsage]
+                results.append(result)
+        return BatchResult(results)
     else:
         return _run_single(
             circuit, device, values, display_breakpoints, provider_params
