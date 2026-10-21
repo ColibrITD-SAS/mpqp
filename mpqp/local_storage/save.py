@@ -159,9 +159,9 @@ def _insert_result(result: Result, reuse_similar_job: bool = True):
             if result_id is None:
                 raise ValueError("Result saving failed")
 
-            key = result._circuit_key  # pyright: ignore[reportPrivateUsage]
+            key = result._submitted_key  # pyright: ignore[reportPrivateUsage]
             if key is not None:
-                from mpqp.core._keys import encode_key
+                from mpqp.core._keys import encode_result_key
 
                 # Optional additive metadata keeps version-1.0 databases usable.
                 # The payload is JSON data, never an executable representation.
@@ -179,7 +179,7 @@ def _insert_result(result: Result, reuse_similar_job: bool = True):
                 ''')
                 cursor.execute(
                     "INSERT INTO result_keys (result_id, circuit_key) VALUES (?, ?)",
-                    (result_id, encode_key(key)),
+                    (result_id, encode_result_key(key)),
                 )
 
             connection.commit()

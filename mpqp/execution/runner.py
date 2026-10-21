@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Iterable, Optional, Sequence, overload
 
 import numpy as np
 
-from mpqp.core._keys import object_key
+from mpqp.core._keys import ResultKey, object_key
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.breakpoint import Breakpoint
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
@@ -541,11 +541,18 @@ def run(
     if isinstance(circuit, Iterable) or isinstance(device, Iterable):
         # Snapshot every input before executing any job: providers may adapt a
         # circuit or a shared measurement, and the same input can occur twice.
-        circuits = [(circ, object_key(circ)) for circ in flatten(circuit)]
-        devices = list(flatten(device))
+        circuits = [
+            (
+                circ,
+                object_key(circ),
+                object_key(circ.measurements[0] if circ.measurements else None),
+            )
+            for circ in flatten(circuit)
+        ]
+        devices = [(dev, object_key(dev)) for dev in flatten(device)]
         results: list[Result] = []
-        for i, (circ, key) in enumerate(circuits):
-            for dev in devices:
+        for i, (circ, circuit_key, measurement_key) in enumerate(circuits):
+            for dev, device_key in devices:
                 if circ.label is None:
                     circ.label = f"circuit {i + 1}"
                 result = _run_single(
@@ -555,7 +562,8 @@ def run(
                     display_breakpoints,
                     provider_params,
                 )
-                result._circuit_key = key  # pyright: ignore[reportPrivateUsage]
+                key = ResultKey(circuit_key, device_key, measurement_key)
+                result._submitted_key = key  # pyright: ignore[reportPrivateUsage]
                 results.append(result)
         return BatchResult(results)
     else:

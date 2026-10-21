@@ -108,17 +108,17 @@ def results_local_storage_to_mpqp(
                 )
             )
 
-    _restore_circuit_keys(
+    _restore_submitted_keys(
         [results] if isinstance(results, dict) else results, results_mpqp
     )
     return results_mpqp
 
 
-def _restore_circuit_keys(records: list[DictDB], results: list[Result]) -> None:
-    """Restore optional submitted-content keys; older records use job circuits."""
+def _restore_submitted_keys(records: list[DictDB], results: list[Result]) -> None:
+    """Restore optional submitted criteria; older records use job metadata."""
     from sqlite3 import connect
 
-    from mpqp.core._keys import decode_key
+    from mpqp.core._keys import decode_result_key
     from mpqp.environment.env_manager import get_env_variable
 
     if not records or not any("id" in record for record in records):
@@ -138,8 +138,8 @@ def _restore_circuit_keys(records: list[DictDB], results: list[Result]) -> None:
                 (record.get("id"),),
             ).fetchone()
             if row is not None:
-                key = decode_key(row[0])
-                result._circuit_key = key  # pyright: ignore[reportPrivateUsage]
+                key = decode_result_key(row[0], result.device)
+                result._submitted_key = key  # pyright: ignore[reportPrivateUsage]
     finally:
         connection.close()
 

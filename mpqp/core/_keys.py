@@ -10,14 +10,34 @@ from __future__ import annotations
 import json
 import math
 from collections.abc import Hashable
+from dataclasses import dataclass
 from enum import Enum as PythonEnum
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 from aenum import Enum
 from sympy import Basic, srepr
 
 ObjectKey = tuple[Hashable, ...]
+
+if TYPE_CHECKING:
+    from mpqp.core.circuit import QCircuit
+    from mpqp.execution.devices import AvailableDevice
+
+
+@dataclass(frozen=True)
+class ResultKey:
+    """Independent submitted criteria identifying one group of executions."""
+
+    circuit: ObjectKey
+    device: ObjectKey
+    measurement: ObjectKey
+
+
+def result_key(circuit: QCircuit, device: AvailableDevice) -> ResultKey:
+    """Capture criteria from a job circuit or an input before execution."""
+    measurement = circuit.measurements[0] if circuit.measurements else None
+    return ResultKey(object_key(circuit), object_key(device), object_key(measurement))
 
 
 def object_key(value: Any) -> ObjectKey:
@@ -166,8 +186,41 @@ def encode_key(key: ObjectKey) -> str:
 
 def decode_key(data: str) -> ObjectKey:
     """Restore immutable key data without importing or evaluating stored names."""
-    version, value = json.loads(data)
+    version, restored = _decode_payload(data)
     if version != 1:
+        raise ValueError(f"Unsupported result lookup key version: {version}")
+    return restored
+
+
+def encode_result_key(key: ResultKey) -> str:
+    """Store submitted criteria as versioned JSON in the legacy metadata column."""
+    return json.dumps((2, (key.circuit, key.device, key.measurement)), allow_nan=False)
+
+
+def decode_result_key(data: str, device: AvailableDevice) -> ResultKey:
+    """Restore criteria, including circuit-only metadata from earlier drafts."""
+    version, value = _decode_payload(data)
+    if version == 2:
+        if len(value) != 3 or not all(isinstance(item, tuple) for item in value):
+            raise ValueError("Invalid submitted result criteria")
+        circuit, device_key, measurement = cast(
+            tuple[ObjectKey, ObjectKey, ObjectKey], value
+        )
+        return ResultKey(circuit, device_key, measurement)
+    if version == 1:
+        # Recover the original measurement embedded in the submitted circuit.
+        if len(value) != 4 or value[:3] != ("object", "mpqp.core.circuit", "QCircuit"):
+            raise ValueError("Invalid legacy circuit key")
+        fields = dict(cast(tuple[tuple[str, ObjectKey], ...], value[3]))
+        measurements = cast(tuple[ObjectKey, ...], fields["measurements"][1])
+        measurement = measurements[0] if measurements else object_key(None)
+        return ResultKey(value, object_key(device), measurement)
+    raise ValueError(f"Unsupported result lookup key version: {version}")
+
+
+def _decode_payload(data: str) -> tuple[int, ObjectKey]:
+    version, value = json.loads(data)
+    if version not in (1, 2):
         raise ValueError(f"Unsupported result lookup key version: {version}")
 
     def restore(item: Any) -> Hashable:
@@ -180,4 +233,4 @@ def decode_key(data: str) -> ObjectKey:
     restored = restore(value)
     if not isinstance(restored, tuple):
         raise ValueError("Invalid result lookup key data")
-    return restored
+    return version, restored

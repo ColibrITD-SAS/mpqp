@@ -30,13 +30,34 @@ from typing import TYPE_CHECKING, Any, Optional, Union, overload
 import numpy as np
 import numpy.typing as npt
 
-from mpqp.core._keys import ObjectKey, object_key
+from mpqp.core._keys import ResultKey, object_key, result_key
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
+from mpqp.core.instruction.measurement.measure import Measure
 from mpqp.execution import Job, JobStatus, JobType
 from mpqp.execution.devices import AvailableDevice
 from mpqp.tools.display import clean_1D_array, clean_number_repr
 from mpqp.tools.errors import ResultAttributeError
+
+
+class _Unset:
+    def __repr__(self) -> str:
+        return "<unspecified>"
+
+
+_UNSET = _Unset()
+
+
+def _validate_matching_criteria(
+    circuit: object, device: object, measurement: object
+) -> None:
+    """Validate runtime inputs independently of the public type annotations."""
+    if circuit is not None and not isinstance(circuit, QCircuit):
+        raise TypeError("circuit must be a QCircuit or None")
+    if device is not None and not isinstance(device, AvailableDevice):
+        raise TypeError("device must be an AvailableDevice or None")
+    if not isinstance(measurement, (_Unset, Measure, type(None))):
+        raise TypeError("measurement must be a Measure or None")
 
 
 class StateVector:
@@ -325,7 +346,7 @@ class Result:
     ):
         self.job = job
         """See parameter description."""
-        self._circuit_key: Optional[ObjectKey] = None
+        self._submitted_key: Optional[ResultKey] = None
         self._expectation_values = None
         self._state_vector = None
         self._probabilities = None
@@ -835,11 +856,11 @@ class BatchResult:
           Probabilities: [0.25, 0.25, 0.25, 0.25]
           Number of qubits: 2
 
-        >>> batch_result[QCircuit([BasisMeasure([0, 1], shots=500)])] is result2
+        >>> batch_result.get_matching(measurement=result2.job.measure) == [result2]
         True
 
     Note:
-        Circuit lookup uses an immutable snapshot of the submitted circuit. It
+        Circuit matching uses an immutable snapshot of the submitted circuit. It
         compares exact structural values, ignoring display labels, size-inference
         bookkeeping and execution caches. Observable labels are included because
         they name entries in multi-observable results. Numerical equivalence and
@@ -847,24 +868,25 @@ class BatchResult:
 
         Circuits remain editable: changing their content does not change an
         existing entry, but lookup with the changed content may fail. Repeated
-        circuits and execution on multiple devices retain every result. Circuit
-        indexing requires a unique match; use :meth:`get_all` otherwise.
+        circuits and execution on multiple devices retain every result. Use
+        :meth:`get_matching` to filter by submitted criteria. All supplied
+        criteria must match; repeated runs are returned in execution order.
 
         Integer indexing and iteration follow execution order. The ``results``
         property returns a new list; editing it does not change the batch. For
         manually constructed results and older stored results without submitted
-        keys, lookup uses the job circuit at batch construction time.
+        keys, matching uses job metadata at batch construction time.
 
     """
 
     def __init__(self, results: list[Result]):
-        self._results: dict[ObjectKey, list[Result]] = {}
-        self._order: list[tuple[ObjectKey, int]] = []
+        self._results: dict[ResultKey, list[Result]] = {}
+        self._order: list[tuple[ResultKey, int]] = []
         for result in results:
-            key = result._circuit_key  # pyright: ignore[reportPrivateUsage]
+            key = result._submitted_key  # pyright: ignore[reportPrivateUsage]
             if key is None:
-                key = object_key(result.job.circuit)
-                result._circuit_key = key  # pyright: ignore[reportPrivateUsage]
+                key = result_key(result.job.circuit, result.device)
+                result._submitted_key = key  # pyright: ignore[reportPrivateUsage]
             matches = self._results.setdefault(key, [])
             self._order.append((key, len(matches)))
             matches.append(result)
@@ -889,50 +911,68 @@ class BatchResult:
         return f"BatchResult({self.results})"
 
     @overload
-    def __getitem__(self, index: int | QCircuit) -> Result: ...
+    def __getitem__(self, index: int) -> Result: ...
 
     @overload
     def __getitem__(self, index: slice) -> list[Result]: ...
 
-    def __getitem__(self, index: int | slice | QCircuit) -> Result | list[Result]:
-        """Retrieve a result by position or by submitted circuit content.
+    def __getitem__(self, index: int | slice) -> Result | list[Result]:
+        """Retrieve results by position in execution order.
 
         Args:
-            index: Integer position, slice, or circuit to look up.
+            index: Integer position or slice.
 
         Returns:
             The matching result, or a list for a slice.
 
         Raises:
-            KeyError: If no result matches the circuit.
-            ValueError: If several results match the circuit.
             IndexError: If the integer position is out of range.
-            TypeError: If the index or a circuit component is unsupported.
+            TypeError: If the index is not an integer or slice.
         """
-        if isinstance(index, QCircuit):
-            matches = self.get_all(index)
-            if not matches:
-                raise KeyError("No result matches this circuit's submitted content")
-            if len(matches) != 1:
-                raise ValueError(
-                    f"{len(matches)} results match this circuit; use get_all(circuit)"
-                )
-            return matches[0]
         if isinstance(index, slice):
             return self.results[index]
         key, position = self._order[index]
         return self._results[key][position]
 
-    def get_all(self, circuit: QCircuit) -> list[Result]:
-        """Retrieve all results matching a circuit in execution order.
+    def get_matching(
+        self,
+        *,
+        circuit: Optional[QCircuit] = None,
+        device: Optional[AvailableDevice] = None,
+        measurement: Optional[Measure] | _Unset = _UNSET,
+    ) -> list[Result]:
+        """Retrieve runs matching all supplied submitted criteria.
 
         Args:
-            circuit: Circuit whose submitted content should be matched.
+            circuit: Complete submitted circuit, including its measurements.
+                ``None`` leaves the circuit unrestricted.
+            device: Submitted device. ``None`` leaves the device unrestricted.
+            measurement: Submitted measurement. Omission leaves measurements
+                unrestricted; ``None`` selects runs without an explicit measure.
 
         Returns:
-            An independent list of matching results, empty if none match.
+            An independent list in execution order, including repeated runs.
+            No criteria returns all results; no matches returns an empty list.
+
+        Raises:
+            TypeError: If a criterion has the wrong type or an unsupported component.
         """
-        return list(self._results.get(object_key(circuit), []))
+        _validate_matching_criteria(circuit, device, measurement)
+        circuit_key = object_key(circuit) if circuit is not None else None
+        device_key = object_key(device) if device is not None else None
+        measurement_key = (
+            None if isinstance(measurement, _Unset) else object_key(measurement)
+        )
+        matching = {
+            key
+            for key in self._results
+            if (circuit_key is None or key.circuit == circuit_key)
+            and (device_key is None or key.device == device_key)
+            and (measurement_key is None or key.measurement == measurement_key)
+        }
+        return [
+            self._results[key][index] for key, index in self._order if key in matching
+        ]
 
     def __len__(self) -> int:
         return len(self._order)

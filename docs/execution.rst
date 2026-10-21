@@ -47,26 +47,41 @@ Results
 
 .. automodule:: mpqp.execution.result
 
-Looking up batch results
-~~~~~~~~~~~~~~~~~~~~~~~~
+Filtering batch results
+~~~~~~~~~~~~~~~~~~~~~~~
 
-A :class:`~mpqp.execution.result.BatchResult` accepts the submitted circuit as an
-index. No freezing is required:
+A :class:`~mpqp.execution.result.BatchResult` can filter results by submitted
+circuit, device, and measurement. No freezing is required. Every call to
+:meth:`~mpqp.execution.result.BatchResult.get_matching` returns an independent list,
+including repeated runs in execution order:
 
 .. code-block:: python
 
     from copy import deepcopy
-    from mpqp import QCircuit, H, X, IBMDevice, run
+    from mpqp import QCircuit, H, X, BasisMeasure, IBMDevice, run
 
     circuit = QCircuit([H(0)])
-    other = QCircuit([X(0)])
+    other = QCircuit([X(0), BasisMeasure([0], shots=16)])
     batch = run([circuit, other], IBMDevice.AER_SIMULATOR)
 
-    result = batch[circuit]
-    assert batch[deepcopy(circuit)] is result
-    assert batch[0] is result
+    results = batch.get_matching(circuit=circuit)
+    assert batch.get_matching(circuit=deepcopy(circuit)) == results
+    assert results == [batch[0]]
 
-Lookup compares exact circuit structure: dimensions, ordered instructions,
+    # Supplied criteria combine with AND.
+    samples = batch.get_matching(
+        device=IBMDevice.AER_SIMULATOR,
+        measurement=other.measurements[0],
+    )
+    assert samples == [batch[1]]
+
+No criteria returns all results; criteria with no matches return an empty list.
+Omitting ``measurement`` leaves measurements unrestricted. Passing
+``measurement=None`` selects runs without an explicit measurement, which is
+different from a zero-shot :class:`~mpqp.core.instruction.measurement.basis_measure.BasisMeasure`.
+Passing ``circuit=None`` or ``device=None`` leaves that criterion unrestricted.
+
+Circuit matching compares the complete submitted structure: dimensions, ordered instructions,
 parameters, measurements, noise, and input global phase. It ignores circuit and
 instruction display labels, inferred-size bookkeeping, and execution caches.
 Observable labels remain significant because they name values in
@@ -82,27 +97,26 @@ entries:
 
     original = deepcopy(circuit)
     circuit.add(X(0))
-    assert batch[original] is result
-    # batch[circuit] now raises KeyError: this modified content was not submitted.
+    assert batch.get_matching(circuit=original) == results
+    assert batch.get_matching(circuit=circuit) == []
 
-Repeated circuits and runs on multiple devices retain every individual result.
-When several results match, circuit indexing raises ``ValueError``; use
-:meth:`~mpqp.execution.result.BatchResult.get_all` to retrieve them in execution
-order:
+Repeated circuits and runs on multiple devices retain every individual result:
 
 .. code-block:: python
 
     repeated = run([other, deepcopy(other)], IBMDevice.AER_SIMULATOR)
-    matches = repeated.get_all(other)
+    matches = repeated.get_matching(circuit=other)
     assert len(matches) == 2
 
 Integer indexing, slicing, iteration, and ``len(batch)`` refer to individual runs
 in execution order. ``batch.results`` returns an independent list; modifying that
-list does not edit the batch. A missing circuit raises ``KeyError`` for indexing
-and returns an empty list from ``get_all``. Unsupported custom component classes
-raise ``TypeError`` rather than being matched using incomplete information.
+list does not edit the batch. Indexing accepts integer positions and slices;
+use ``get_matching`` to filter by content. Unsupported criterion types and custom
+component classes raise ``TypeError`` rather than being matched using incomplete information.
 
-Saved batches preserve submitted keys as optional JSON metadata. Older records
-and manually constructed results without a submitted key use their job circuit
-when the batch is constructed. That circuit may already contain substitutions or
-provider adjustments.
+Saved batches preserve all three submitted criteria as optional versioned JSON
+metadata. Earlier circuit-only metadata retains the original circuit and
+measurement and uses the saved job device. Older records without metadata and
+manually constructed results use their job metadata when the batch is
+constructed. That metadata may already contain substitutions or provider
+adjustments.
