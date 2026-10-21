@@ -741,6 +741,7 @@ def run_aer(job: Job) -> Result | BatchResult:
         assert isinstance(qiskit_circuit, QuantumCircuit)
 
     if job.job_type == JobType.STATE_VECTOR:
+        qiskit_circuit = qiskit_circuit.copy()
         qiskit_circuit.save_statevector()  # pyright: ignore[reportAttributeAccessIssue]
         job.status = JobStatus.RUNNING
         result_sim = backend_sim.run(qiskit_circuit, shots=0).result()

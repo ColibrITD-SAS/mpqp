@@ -18,7 +18,7 @@ return the corresponding job id and :class:`~mpqp.execution.job.Job` object.
 
 from __future__ import annotations
 
-from copy import copy, deepcopy
+from copy import deepcopy
 from itertools import pairwise
 from numbers import Number
 from textwrap import indent
@@ -274,10 +274,9 @@ def generate_job(
     if values is not None:
         if isinstance(circuit, CircuitBinding):
             raise ValueError("values must be specified in CircuitBinding")
+        circuit = circuit.subs(values)  # pyright: ignore[reportArgumentType]
         if device in circuit.transpiled_circuit:
             circuit.bind_parameters(device, values)
-        else:
-            circuit = circuit.subs(values)  # pyright: ignore[reportArgumentType]
 
     if isinstance(circuit, CircuitBinding):
         job = Job(circuit.job_type, circuit, device, mode=exec_mode)
@@ -439,7 +438,7 @@ def _run_single(
 
     circ_transpile = None
     if device in circuit.transpiled_circuit:
-        circ_transpile = copy(circuit.transpiled_circuit[device])
+        circ_transpile = circuit.transpiled_circuit[device]
 
     job = generate_job(circuit, device, values, mode)
     job.status = JobStatus.INIT
