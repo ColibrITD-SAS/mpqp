@@ -402,10 +402,10 @@ def run_braket_observable(job: Job) -> Result:
 
     assert isinstance(job.circuit, QCircuit)
     circuit = job.circuit.without_measurements()
-    if circuit.transpiled_circuit is None:
+    if job.device not in circuit.transpiled_circuit:
         transpiled_circuit = circuit.to_other_device(job.device)
     else:
-        transpiled_circuit = circuit.transpiled_circuit
+        transpiled_circuit = circuit.transpiled_circuit[job.device]
         if TYPE_CHECKING:
             assert isinstance(transpiled_circuit, Circuit)
 
@@ -639,10 +639,10 @@ def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
 
     device = get_braket_device(job.device, is_noisy=is_noisy)
 
-    if job.circuit.transpiled_circuit is None:
+    if job.device not in job.circuit.transpiled_circuit:
         braket_circuit = job.circuit.to_other_device(job.device)
     else:
-        braket_circuit = job.circuit.transpiled_circuit
+        braket_circuit = job.circuit.transpiled_circuit[job.device]
     if TYPE_CHECKING:
         assert isinstance(braket_circuit, Circuit)
 
@@ -687,10 +687,10 @@ def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
         if TYPE_CHECKING:
             assert isinstance(job.measure, ExpectationMeasure)
 
-        if job.measure.observables[0].pre_transpiled is None:
+        if job.device not in job.measure.observables[0].pre_transpiled:
             herm_op = job.measure.observables[0].to_other_language(Language.BRAKET)
         else:
-            herm_op = job.measure.observables[0].pre_transpiled
+            herm_op = job.measure.observables[0].pre_transpiled[job.device]
         braket_circuit.expectation(  # pyright: ignore[reportAttributeAccessIssue]
             observable=herm_op, target=job.measure.targets
         )

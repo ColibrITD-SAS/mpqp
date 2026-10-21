@@ -226,8 +226,8 @@ def test_grouping_keeps_circuit_and_execution_order():
     )
     pubs = binding.to_other_device(IBMDevice.AER_SIMULATOR)
     assert len(pubs) == 2
-    assert pubs[0][0][0] is first.transpiled_circuit  # pyright: ignore
-    assert pubs[1][0][0] is second.transpiled_circuit  # pyright: ignore
+    assert pubs[0][0][0] is first.transpiled_circuit[IBMDevice.AER_SIMULATOR]
+    assert pubs[1][0][0] is second.transpiled_circuit[IBMDevice.AER_SIMULATOR]
     assert [len(contexts) for _, contexts in pubs] == [2, 1]
     result = run(binding, IBMDevice.AER_SIMULATOR)
     assert [r.expectation_values for r in result.results] == pytest.approx([-1, 0, 1])

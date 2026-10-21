@@ -109,7 +109,7 @@ class CircuitBinding:
                     deep_copy=False
                 )
 
-                circuit_without_measurements.transpiled_circuit = None
+                circuit_without_measurements.transpiled_circuit.clear()
 
                 normalized_circuits.append(
                     CircuitBinding(
@@ -287,13 +287,13 @@ class CircuitBinding:
                 transpilation.
         """
 
-        from mpqp.execution.providers.ibm import generate_qiskit_noise_model
         from mpqp import QCircuit
+        from mpqp.execution.providers.ibm import generate_qiskit_noise_model
 
         for i, c in enumerate(self.circuits):
             if isinstance(c, QCircuit):
                 if self.is_noisy:
-                    if c.transpiled_circuit is None:
+                    if device not in c.transpiled_circuit:
                         original_noises = c.noises
                         c.noises = self.noises if self.noises is not None else []
                         nm, modified_circuit = generate_qiskit_noise_model(c)
@@ -301,7 +301,7 @@ class CircuitBinding:
                         if self.transpiled_noise_model is None:
                             self.transpiled_noise_model = nm
 
-                        modified_circuit.transpiled_circuit = (
+                        modified_circuit.transpiled_circuit[device] = (
                             modified_circuit.to_other_device(
                                 device, skip_pre_measure, backend_sim
                             )
@@ -310,9 +310,10 @@ class CircuitBinding:
                             modified_circuit  # TODO: check if we need to update the circuit in the list or if we can just modify it in place
                         )
                 else:
-                    c.transpiled_circuit = c.to_other_device(
-                        device, skip_pre_measure, backend_sim
-                    )
+                    if device not in c.transpiled_circuit:
+                        c.transpiled_circuit[device] = c.to_other_device(
+                            device, skip_pre_measure, backend_sim
+                        )
             else:
                 c.transpiled_circuits(device, skip_pre_measure, backend_sim)
 
@@ -661,7 +662,7 @@ class CircuitBinding:
                 )
 
             unrolled = self.unroll()
-            if any(c.transpiled_circuit is None for c, _, _ in unrolled):
+            if any(device not in c.transpiled_circuit for c, _, _ in unrolled):
                 self.transpiled_circuits(device=device)
 
             grouped = {}
@@ -670,7 +671,7 @@ class CircuitBinding:
 
             pubs_with_context = []
             for executions in grouped.values():
-                q_c = executions[0][0].transpiled_circuit
+                q_c = executions[0][0].transpiled_circuit[device]
                 if TYPE_CHECKING:
                     from qiskit.circuit import QuantumCircuit
 
@@ -697,11 +698,8 @@ class CircuitBinding:
                         )
                     q_obs.append(
                         [
-                            (
-                                obs.pre_transpiled
-                                if obs.pre_transpiled is not None
-                                else obs.to_other_language(Language.QISKIT)
-                            )
+                            obs.pre_transpiled.get(device)
+                            or obs.to_other_language(Language.QISKIT)
                             for obs in measure.observables
                         ]
                     )

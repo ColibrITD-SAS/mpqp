@@ -151,10 +151,10 @@ def compute_expectation_value(
 
         qiskit_observables: list[SparsePauliOp] = []
         for obs in job.measure.observables:
-            if obs.pre_transpiled is None:
+            if job.device not in obs.pre_transpiled:
                 translated = obs.to_other_language(Language.QISKIT)
             else:
-                translated = obs.pre_transpiled
+                translated = obs.pre_transpiled[job.device]
             if TYPE_CHECKING:
                 assert isinstance(translated, SparsePauliOp)
 
@@ -543,7 +543,7 @@ def run_aer(job: Job) -> Result | BatchResult:
             context_jobs = []
 
             for c, v, m in unrolled_items:
-                q_c = c.transpiled_circuit
+                q_c = c.transpiled_circuit[job.device]
                 if TYPE_CHECKING:
                     assert isinstance(q_c, QuantumCircuit)
 
@@ -629,7 +629,7 @@ def run_aer(job: Job) -> Result | BatchResult:
                 # to it directly)
             backend_sim = job.device.to_noisy_simulator()
         elif len(job.circuit.noises) != 0:
-            if job.circuit.transpiled_circuit is not None:
+            if job.device in job.circuit.transpiled_circuit:
                 if job.circuit.transpiled_noise_model is None:
                     raise InstructionParsingError(
                         "transpiled_noise_model is not initialized"
@@ -647,12 +647,12 @@ def run_aer(job: Job) -> Result | BatchResult:
         else:
             backend_sim = AerSimulator(method=job.device.value)
 
-        if job.circuit.transpiled_circuit is None:
+        if job.device not in job.circuit.transpiled_circuit:
             qiskit_circuit = job_circuit.to_other_device(
                 job.device, backend_sim=backend_sim
             )
         else:
-            qiskit_circuit = job.circuit.transpiled_circuit
+            qiskit_circuit = job.circuit.transpiled_circuit[job.device].copy()
             if TYPE_CHECKING:
                 assert isinstance(qiskit_circuit, QuantumCircuit)
         if job.job_type == JobType.STATE_VECTOR:
@@ -723,10 +723,10 @@ def submit_remote_ibm(
     backend = get_backend(job.device, instance)
     job.device = IBMDevice(backend.name)
 
-    if job.circuit.transpiled_circuit is None:
+    if job.device not in job.circuit.transpiled_circuit:
         qiskit_circ = job.circuit.to_other_device(job.device)
     else:
-        qiskit_circ = job.circuit.transpiled_circuit
+        qiskit_circ = job.circuit.transpiled_circuit[job.device]
 
     if TYPE_CHECKING:
         assert isinstance(qiskit_circ, QuantumCircuit)
@@ -738,8 +738,8 @@ def submit_remote_ibm(
         qiskit_observables = [
             (
                 obs.to_other_language(Language.QISKIT)
-                if obs.pre_transpiled is None
-                else obs.pre_transpiled
+                if job.device not in obs.pre_transpiled
+                else obs.pre_transpiled[job.device]
             )
             for obs in meas.observables
         ]
@@ -810,10 +810,10 @@ def submit_remote_ibm_pubs(jobs: list[Job]):
         if TYPE_CHECKING:
             assert isinstance(job.device, IBMDevice)
 
-        if job.circuit.transpiled_circuit is None:
+        if job.device not in job.circuit.transpiled_circuit:
             qiskit_circ = job.circuit.to_other_device(job.device)
         else:
-            qiskit_circ = job.circuit.transpiled_circuit
+            qiskit_circ = job.circuit.transpiled_circuit[job.device]
 
         if TYPE_CHECKING:
             assert isinstance(qiskit_circ, QuantumCircuit)
@@ -825,8 +825,8 @@ def submit_remote_ibm_pubs(jobs: list[Job]):
             qiskit_observables = [
                 (
                     obs.to_other_language(Language.QISKIT)
-                    if obs.pre_transpiled is None
-                    else obs.pre_transpiled
+                    if job.device not in obs.pre_transpiled
+                    else obs.pre_transpiled[job.device]
                 )
                 for obs in meas.observables
             ]

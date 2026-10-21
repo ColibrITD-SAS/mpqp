@@ -31,6 +31,7 @@ from mpqp.tools.maths import is_diagonal, is_hermitian, is_power_of_two
 
 if TYPE_CHECKING:
     from braket.circuits.observables import Hermitian, Sum
+    from braket.circuits import Circuit as braket_Circuit
     from cirq.circuits.circuit import Circuit as CirqCircuit
     from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
     from cirq.ops.pauli_string import PauliString as CirqPauliString
@@ -39,6 +40,7 @@ if TYPE_CHECKING:
     from qiskit._accelerate.circuit import Parameter
     from qiskit.quantum_info import SparsePauliOp
     from sympy import Expr
+    from mpqp.execution.devices import AvailableDevice
 
 
 class Observable:
@@ -81,8 +83,15 @@ class Observable:
         self._is_diagonal = None
         self._diag_elements: Optional[npt.NDArray[np.float64]] = None
         self.label = label
-        "See parameter description."
-        self.pre_transpiled = None
+        """See parameter description."""
+        self.pre_transpiled: dict[
+            AvailableDevice,
+            Union[
+                SparsePauliOp, QLMObservable, CirqPauliSum, CirqPauliString, Hermitian
+            ],
+        ] = {}  # TODO: do we put None, or empty dict ?
+        # TODO: docstring
+        """TODO: documentation"""
 
         if isinstance(observable, PauliString):
             self.nb_qubits = observable.nb_qubits
@@ -479,6 +488,11 @@ class ExpectationMeasure(Measure):
             tuple[list[list[PauliStringMonomial]], GroupingMethods, CommutingTypes]
         ] = None
         """Stores the last computed Pauli grouping to avoid recomputing it."""
+        self.translated_pre_measures: dict[
+            AvailableDevice,
+            tuple[list[dict[str, npt.NDArray[np.float64]]], list[braket_Circuit]],
+        ] = {}
+        """Prepared measurement rotations and eigenvalues per device."""
 
         if isinstance(observable, Observable):
             observable = [observable]
@@ -688,3 +702,43 @@ class ExpectationMeasure(Measure):
             and not attr_name.startswith("__")
             and not callable(getattr(self, attr_name))
         }
+
+    # TODO: double check this method
+    def pre_transpile_observables(self, device: AvailableDevice):
+        from mpqp.execution.devices import AWSDevice, IBMDevice
+
+        if isinstance(device, AWSDevice):
+            from mpqp.core.circuit import QCircuit
+            from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
+            from mpqp.tools.pauli_grouping import (
+                find_qubitwise_rotations,
+                pauli_monomial_eigenvalues,
+            )
+
+            grouping = self.get_pauli_grouping()
+            transpiled_pre_measures = [
+                QCircuit(
+                    find_qubitwise_rotations(group, self.targets)
+                    + ([BasisMeasure(targets=self.targets)] if self.shots != 0 else [])
+                ).to_other_language(Language.BRAKET)
+                for group in grouping
+            ]
+            eigenvalues = [
+                {monom.name: pauli_monomial_eigenvalues(monom) for monom in group}
+                for group in grouping
+            ]
+            self.translated_pre_measures[device] = (
+                eigenvalues,
+                transpiled_pre_measures,
+            )
+
+        elif isinstance(device, IBMDevice):
+            for observable in self.observables:
+                if device not in observable.pre_transpiled:
+                    observable.pre_transpiled[device] = observable.to_other_language(
+                        language=Language.QISKIT
+                    )
+        else:
+            raise NotImplementedError(
+                f"Pre-transpilation for device {type(device).__name__} is not implemented."
+            )
