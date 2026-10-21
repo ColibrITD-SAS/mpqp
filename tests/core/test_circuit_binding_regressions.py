@@ -74,6 +74,26 @@ def test_product_rejects_measurement_too_wide_for_one_circuit():
 
 
 @pytest.mark.provider("qiskit")
+def test_mixed_register_ibm_pubs_validate_without_submission():
+    from mpqp.execution.providers.ibm import _normalize_estimator_pubs
+    from qiskit.primitives.containers.estimator_pub import EstimatorPub
+
+    binding = CircuitBinding(
+        [QCircuit([X(0)], nb_qubits=3), QCircuit([X(0)], nb_qubits=4)],
+        measurements=[
+            ExpectationMeasure(Observable(pI @ pI @ pZ)),
+            ExpectationMeasure(Observable(pI @ pI @ pI @ pZ)),
+        ],
+        mode=BindingMode.ZIP,
+    )
+    translated = binding.to_other_device(IBMDevice.AER_SIMULATOR)
+    pubs = _normalize_estimator_pubs([pub for pub, _ in translated])
+    assert [pub[0].num_qubits for pub in pubs] == [3, 4]
+    for pub in pubs:
+        EstimatorPub.coerce(pub)  # Validate shapes locally; never submit a job.
+
+
+@pytest.mark.provider("qiskit")
 @pytest.mark.parametrize("mode", list(BindingMode))
 @pytest.mark.parametrize("symbol_keys", [False, True])
 def test_parameter_order_and_observable_association(
@@ -136,7 +156,9 @@ def test_provider_parameters_forwarded(many_circuits: bool, many_devices: bool):
     assert execute.call_count == (2 if many_circuits else 1) * (
         2 if many_devices else 1
     )
-    assert all(call.args[4] is params for call in execute.call_args_list)
+    assert all(
+        call.kwargs["provider_params"] is params for call in execute.call_args_list
+    )
 
 
 def test_binding_runs_on_every_device():
@@ -226,8 +248,8 @@ def test_grouping_keeps_circuit_and_execution_order():
     )
     pubs = binding.to_other_device(IBMDevice.AER_SIMULATOR)
     assert len(pubs) == 2
-    assert pubs[0][0][0] is first.transpiled_circuit  # pyright: ignore
-    assert pubs[1][0][0] is second.transpiled_circuit  # pyright: ignore
+    assert pubs[0][0][0] is first.transpiled_circuit[IBMDevice.AER_SIMULATOR]
+    assert pubs[1][0][0] is second.transpiled_circuit[IBMDevice.AER_SIMULATOR]
     assert [len(contexts) for _, contexts in pubs] == [2, 1]
     result = run(binding, IBMDevice.AER_SIMULATOR)
     assert [r.expectation_values for r in result.results] == pytest.approx([-1, 0, 1])

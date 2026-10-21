@@ -1,24 +1,27 @@
 from enum import Enum, auto
-from typing import TYPE_CHECKING, Any, overload
-from typing import Optional, TypeVar, Union
 from numbers import Complex
+from typing import TYPE_CHECKING, Any, Optional, TypeVar, overload
+
+from sympy import Expr
+
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.measurement.measure import Measure
-from mpqp.tools.generics import OneOrMany
-from sympy import Expr
+from mpqp.execution.devices import AvailableDevice, AWSDevice, IBMDevice
 from mpqp.noise.noise_model import NoiseModel
-from mpqp.execution.devices import AWSDevice, AvailableDevice, IBMDevice
+from mpqp.tools.generics import OneOrMany
 
 if TYPE_CHECKING:
-    from mpqp.execution.job import Job
-    from qiskit_aer import AerSimulator
-    from qiskit.primitives.containers import EstimatorPubLike
     from braket.program_sets import ProgramSet
+    from qiskit.primitives.containers import EstimatorPubLike
+    from qiskit_aer import AerSimulator
+    from mpqp.execution.runner import ValuesDict
+
+    from mpqp.execution.job import Job
 
 
-BindingParameters = dict[Union["Expr", str], Union[Complex, float]]
-BindingExecution = tuple[QCircuit, Optional[BindingParameters], Optional[Measure]]
-BindingOptions = tuple[Optional[BindingParameters], Optional[Measure]]
+BindingParameters = dict[Expr | str, Complex | float]
+BindingExecution = tuple[QCircuit, Optional["ValuesDict"], Optional[Measure]]
+BinDingOptions = tuple[Optional["ValuesDict"], Optional[Measure]]
 _AxisElement = TypeVar("_AxisElement")
 
 
@@ -73,13 +76,14 @@ class CircuitBinding:
         noises: Optional[list[NoiseModel]] = None,
         shots: Optional[int] = None,
     ) -> None:
-        from mpqp.execution.job import JobType
         from typing import TYPE_CHECKING, Sequence
+
         from mpqp.core.instruction.measurement import (
-            Measure,
-            ExpectationMeasure,
             BasisMeasure,
+            ExpectationMeasure,
+            Measure,
         )
+        from mpqp.execution.job import JobType
 
         if mode == BindingMode.ZIP and measurements is not None and values is not None:
             m = measurements if isinstance(measurements, Sequence) else [measurements]
@@ -109,7 +113,7 @@ class CircuitBinding:
                     deep_copy=False
                 )
 
-                circuit_without_measurements.transpiled_circuit = None
+                circuit_without_measurements.transpiled_circuit.clear()
 
                 normalized_circuits.append(
                     CircuitBinding(
@@ -235,7 +239,7 @@ class CircuitBinding:
         ):
             shots = -1
             for circuit in circuits:
-                if isinstance(circuit, 'CircuitBinding'):
+                if isinstance(circuit, "CircuitBinding"):
                     for c in circuit.circuits:
                         if TYPE_CHECKING:
                             assert c.measurements is not None
@@ -287,13 +291,13 @@ class CircuitBinding:
                 transpilation.
         """
 
-        from mpqp.execution.providers.ibm import generate_qiskit_noise_model
         from mpqp import QCircuit
+        from mpqp.execution.providers.ibm import generate_qiskit_noise_model
 
         for i, c in enumerate(self.circuits):
             if isinstance(c, QCircuit):
                 if self.is_noisy:
-                    if c.transpiled_circuit is None:
+                    if device not in c.transpiled_circuit:
                         original_noises = c.noises
                         c.noises = self.noises if self.noises is not None else []
                         nm, modified_circuit = generate_qiskit_noise_model(c)
@@ -301,7 +305,7 @@ class CircuitBinding:
                         if self.transpiled_noise_model is None:
                             self.transpiled_noise_model = nm
 
-                        modified_circuit.transpiled_circuit = (
+                        modified_circuit.transpiled_circuit[device] = (
                             modified_circuit.to_other_device(
                                 device, skip_pre_measure, backend_sim
                             )
@@ -310,9 +314,10 @@ class CircuitBinding:
                             modified_circuit  # TODO: check if we need to update the circuit in the list or if we can just modify it in place
                         )
                 else:
-                    c.transpiled_circuit = c.to_other_device(
-                        device, skip_pre_measure, backend_sim
-                    )
+                    if device not in c.transpiled_circuit:
+                        c.transpiled_circuit[device] = c.to_other_device(
+                            device, skip_pre_measure, backend_sim
+                        )
             else:
                 c.transpiled_circuits(device, skip_pre_measure, backend_sim)
 
@@ -347,12 +352,8 @@ class CircuitBinding:
             if isinstance(self.value, list)
             else ([self.value] if self.value is not None else [None])
         )
-        parent_values: list[Optional[BindingParameters]] = [
-            (
-                cast(BindingParameters, parameter_set)
-                if parameter_set is not None
-                else None
-            )
+        parent_values: list[Optional["ValuesDict"]] = [
+            (cast("ValuesDict", parameter_set) if parameter_set is not None else None)
             for parameter_set in raw_parent_values
         ]
         parent_measurements: list[Measure | None] = (
@@ -362,9 +363,9 @@ class CircuitBinding:
         )  # pyright: ignore[reportAssignmentType]
 
         def merge_values(
-            child_parameters: Optional[BindingParameters],
-            parent_parameters: Optional[BindingParameters],
-        ) -> Optional[BindingParameters]:
+            child_parameters: Optional["ValuesDict"],
+            parent_parameters: Optional["ValuesDict"],
+        ) -> Optional["ValuesDict"]:
             """Merge child and parent values, giving precedence to the parent."""
             if child_parameters is None and parent_parameters is None:
                 return None
@@ -376,8 +377,8 @@ class CircuitBinding:
             return combined_parameters
 
         def bind_same_parameters(
-            child_parameters: Optional[BindingParameters],
-            parent_parameters: Optional[BindingParameters],
+            child_parameters: Optional["ValuesDict"],
+            parent_parameters: Optional["ValuesDict"],
         ) -> bool:
             """Return whether child and parent bind at least one common name."""
             if child_parameters is None or parent_parameters is None:
@@ -387,11 +388,11 @@ class CircuitBinding:
             return bool(child_names & parent_names)
 
         def combine_zipped_options(
-            child_parameters: Optional[BindingParameters],
+            child_parameters: Optional["ValuesDict"],
             child_measurement: Optional[Measure],
-            parent_parameters: Optional[BindingParameters],
+            parent_parameters: Optional["ValuesDict"],
             parent_measurement: Optional[Measure],
-        ) -> list[BindingOptions]:
+        ) -> list[BinDingOptions]:
             """Combine one child option with one parent option in ZIP mode."""
             parameter_collision = bind_same_parameters(
                 child_parameters, parent_parameters
@@ -442,7 +443,7 @@ class CircuitBinding:
             ]
 
         def parameter_set_key(
-            parameter_set: Optional[BindingParameters],
+            parameter_set: Optional["ValuesDict"],
         ) -> Optional[tuple[tuple[str, str]]]:
             """Build a stable, hashable key for a parameter mapping."""
             if parameter_set is None:
@@ -459,11 +460,11 @@ class CircuitBinding:
             return id(circuit), parameter_set_key(parameters), id(measurement)
 
         def product_values(
-            child_parameters: Optional[BindingParameters],
-        ) -> list[Optional[BindingParameters]]:
+            child_parameters: Optional["ValuesDict"],
+        ) -> list[Optional["ValuesDict"]]:
             """Resolve and deduplicate parameter sets for PRODUCT mode."""
             unique_values: dict[
-                Optional[tuple[tuple[str, str]]], Optional[BindingParameters]
+                Optional[tuple[tuple[str, str]]], Optional["ValuesDict"]
             ] = {}
             keep_child_parameters = False
 
@@ -644,15 +645,16 @@ class CircuitBinding:
             are grouped by circuit. PUB fields are circuit, observables and
             parameter values; absent trailing fields are omitted.
         """
-        from mpqp.execution.job import Job
-        from mpqp.execution.devices import (
-            IBMDevice,
-            AWSDevice,
-        )
-        from mpqp.execution.providers.ibm import JobType
         from copy import deepcopy
+
         from mpqp.core.instruction.measurement import ExpectationMeasure
         from mpqp.core.languages import Language
+        from mpqp.execution.devices import (
+            AWSDevice,
+            IBMDevice,
+        )
+        from mpqp.execution.job import Job
+        from mpqp.execution.providers.ibm import JobType
 
         if isinstance(device, IBMDevice):
             if self.job_type != JobType.OBSERVABLE:
@@ -661,7 +663,7 @@ class CircuitBinding:
                 )
 
             unrolled = self.unroll()
-            if any(c.transpiled_circuit is None for c, _, _ in unrolled):
+            if any(device not in c.transpiled_circuit for c, _, _ in unrolled):
                 self.transpiled_circuits(device=device)
 
             grouped = {}
@@ -670,7 +672,7 @@ class CircuitBinding:
 
             pubs_with_context = []
             for executions in grouped.values():
-                q_c = executions[0][0].transpiled_circuit
+                q_c = executions[0][0].transpiled_circuit[device]
                 if TYPE_CHECKING:
                     from qiskit.circuit import QuantumCircuit
 
@@ -697,11 +699,8 @@ class CircuitBinding:
                         )
                     q_obs.append(
                         [
-                            (
-                                obs.pre_transpiled
-                                if obs.pre_transpiled is not None
-                                else obs.to_other_language(Language.QISKIT)
-                            )
+                            obs.pre_transpiled.get(device)
+                            or obs.to_other_language(Language.QISKIT)
                             for obs in measure.observables
                         ]
                     )

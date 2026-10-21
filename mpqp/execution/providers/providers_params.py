@@ -1,18 +1,21 @@
 """This file regroups all provider specific parametrization needed
 to configure more precisely the run on local or remote devices."""
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from pytket.partition import PauliPartitionStrat
 
 
+@dataclass
 class ProviderParams:
     """Base class meant to regroup a set of provider specific parameters needed at runtime."""
 
     pass
 
 
+@dataclass
 class QiskitParams(ProviderParams):
     """
     Class meant to regroup all IBM specific parameters for remote execution.
@@ -22,8 +25,7 @@ class QiskitParams(ProviderParams):
 
     """
 
-    def __init__(self, instance: Optional[str] = None):
-        self.instance = instance
+    instance: Optional[str] = None
 
 
 class QuantinuumParams(ProviderParams):
@@ -45,3 +47,14 @@ class QuantinuumParams(ProviderParams):
     ):
         self.optimisation_level = optimisation_level
         self.commutation_strategy = commutation_strategy
+
+
+@dataclass
+class AWSParams(ProviderParams):
+    """AWS Braket-specific execution parameters.
+
+    Args:
+        reservation_arn: ARN of the Braket direct reservation to use.
+    """
+
+    reservation_arn: Optional[str] = None

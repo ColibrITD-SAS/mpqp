@@ -768,9 +768,11 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
             circuit_id = id(circuit)
             translated_circuit = translated_circuits.get(circuit_id)
             if translated_circuit is None:
-                if not isinstance(circuit.transpiled_circuit, braket_Circuit):
-                    circuit.transpiled_circuit = circuit.to_other_device(device=device)
-                translated_circuit = circuit.transpiled_circuit
+                if device not in circuit.transpiled_circuit:
+                    circuit.transpiled_circuit[device] = circuit.to_other_device(
+                        device=device
+                    )
+                translated_circuit = circuit.transpiled_circuit[device]
                 if TYPE_CHECKING:
                     assert isinstance(translated_circuit, braket_Circuit)
                 translated_circuits[circuit_id] = translated_circuit
