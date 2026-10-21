@@ -148,3 +148,12 @@ support. The regression tests exercise local Qiskit Aer; remote devices are not
 validated by those tests. Changing device or circuit structure requires a new
 module. Executions copy prepared circuits for isolation; provider execution may
 still perform its own internal preparation.
+
+IBM Runtime bindings support both expectation values (Estimator V2) and
+``BasisMeasure`` sampling (Sampler V2, with a strictly positive shot count).
+Sampling returns one result per resolved binding execution, preserving its
+order and measurement targets. It uses the same preparation in job and session
+execution; a sampling binding is submitted as one Sampler call containing its
+PUBs. This does not enable sampling for the separate list-of-jobs batch API.
+State-vector execution remains unavailable on remote IBM devices. Regression
+tests simulate Runtime submissions locally; they do not validate hardware access.
