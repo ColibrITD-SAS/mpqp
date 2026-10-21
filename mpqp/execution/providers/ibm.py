@@ -943,28 +943,31 @@ def run_qctrl_function(job: Job, qiskit_params: QiskitParams):
         pubs_with_context = circuit.to_other_device(job.device)
         pubs = [item[0] for item in pubs_with_context]
         jobs = [item[1] for item in pubs_with_context]
+        return compute_expectation_value(
+            job, None, pubs=pubs, pubs_contexts=jobs, shots=circuit.shots
+        )
     else:
         if isinstance(job.circuit, CircuitBinding):
             raise ValueError("WIP: cannot run a pubs with BasisMeasure inside of them.")
         pubs = [(job.circuit.to_other_device(job.device),)]
         jobs = [job]
-    job.status = JobStatus.RUNNING
-    run = func.run(
-        primitive=primitive,
-        options={
-            "default_shots": job.measure.shots,
-            "job_tags": ["q-ctrl/test", "test-test_id"],
-        },
-        pubs=pubs,
-        backend_name=job.device.value,
-    )
-    if run.status() == "Error":
-        job.status = JobStatus.ERROR
-    else:
-        job.status = JobStatus.DONE
-    result = run.result()
-    job.id = run.job_id
-    print(type(result))
+        job.status = JobStatus.RUNNING
+        run = func.run(
+            primitive=primitive,
+            options={
+                "default_shots": job.measure.shots,
+                "job_tags": ["q-ctrl/test", "test-test_id"],
+            },
+            pubs=pubs,
+            backend_name=job.device.value,
+        )
+        if run.status() == "Error":
+            job.status = JobStatus.ERROR
+        else:
+            job.status = JobStatus.DONE
+        result = run.result()
+        job.id = run.job_id
+
     if TYPE_CHECKING:
         from qiskit.primitives import EstimatorResult
 
