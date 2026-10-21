@@ -16,8 +16,9 @@ from __future__ import annotations
 import inspect
 import sys
 from abc import abstractmethod
+from functools import partial
 from numbers import Integral
-from typing import TYPE_CHECKING, Callable, Mapping, Optional, cast
+from typing import TYPE_CHECKING, Optional, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -40,42 +41,20 @@ from mpqp.tools.maths import (
 if TYPE_CHECKING:
     from braket.circuits import FreeParameterExpression
     from qiskit._accelerate.circuit import Parameter, ParameterExpression
-    from sympy import Basic, Expr
+    from sympy import Expr
 
 # pylance doesn't handle well Expr, so a lot of "type:ignore" will happen in
 # this file :/
 
 
-def _evaluate_symbolic_expression(
-    expression: "Expr",
-    parameter_factory: Callable[
-        ["Basic"], "ParameterExpression | FreeParameterExpression "
-    ],
-    functions: Optional[
-        Mapping[
-            str,
-            Callable[["ParameterExpression"], "ParameterExpression"]
-            | Callable[["FreeParameterExpression"], "FreeParameterExpression"],
-        ]
-    ] = None,
-) -> "ParameterExpression | FreeParameterExpression | float":
-    """Evaluate a SymPy expression with provider-native named parameters."""
-    if not expression.free_symbols:
-        return float(expression.evalf())  # pyright: ignore[reportArgumentType]
-
-    from sympy import default_sort_key, lambdify
-
-    symbols = tuple(sorted(expression.free_symbols, key=default_sort_key))
-    parameters = tuple(parameter_factory(symbol) for symbol in symbols)
-    evaluator = lambdify(
-        symbols,
-        expression,
-        modules=[dict(functions or {}), "math"],
-        dummify=True,
-    )
-    return cast(
-        "ParameterExpression | FreeParameterExpression | float", evaluator(*parameters)
-    )
+def _apply_qiskit_function(
+    name: str, value: "ParameterExpression"
+) -> "ParameterExpression":
+    """Apply a supported symbolic function to a Qiskit expression."""
+    operation = getattr(value, name, None)
+    if not callable(operation):
+        raise ValueError(f"Qiskit parameters do not support the function {name!r}.")
+    return cast("ParameterExpression", operation())
 
 
 def _qiskit_parameter_adder(
@@ -97,61 +76,49 @@ def _qiskit_parameter_adder(
         The memoized parameter
     """
     from qiskit.circuit import Parameter as ParameterConstructor
-    from sympy import Expr, Function
+    from sympy import Expr, Function, default_sort_key, lambdify
 
     if isinstance(param, Expr):
+        if not param.free_symbols:
+            return float(param.evalf())  # pyright: ignore[reportArgumentType]
 
-        def parameter(symbol: "Basic") -> "ParameterExpression":
+        symbols = tuple(sorted(param.free_symbols, key=default_sort_key))
+        parameters: list["ParameterExpression"] = []
+        for symbol in symbols:
             name = str(symbol)
             matches = [item for item in qiskit_parameters if item.name == name]
             if len(matches) > 1:
                 raise ReferenceError(f"Several Qiskit parameters are named {name!r}.")
             if matches:
-                return matches[0]
-            created = cast("Parameter", ParameterConstructor(name))
-            qiskit_parameters.add(created)
-            return created
-
-        def provider_function(
-            name: str,
-        ) -> Callable[["ParameterExpression"], "ParameterExpression"]:
-            def apply(value: "ParameterExpression") -> "ParameterExpression":
-                operation = getattr(value, name, None)
-                if not callable(operation):
-                    raise ValueError(
-                        f"Qiskit parameters do not support the function {name!r}."
-                    )
-                return cast("ParameterExpression", operation())
-
-            return apply
+                parameters.append(matches[0])
+            else:
+                created = cast("Parameter", ParameterConstructor(name))
+                qiskit_parameters.add(created)
+                parameters.append(created)
 
         functions = {
-            function.func.__name__: provider_function(function.func.__name__)
+            function.func.__name__: partial(
+                _apply_qiskit_function, function.func.__name__
+            )
             for function in param.atoms(Function)
         }
-        return cast(
-            "ParameterExpression | float",
-            _evaluate_symbolic_expression(param, parameter, functions),
+        evaluator = lambdify(
+            symbols, param, modules=[functions, "math"], dummify=True
         )
+        return cast("ParameterExpression | float", evaluator(*parameters))
     return float(param)
 
 
 def _sympy_to_braket_param(
     val: Expr | float,
 ) -> "FreeParameterExpression | float":
-    from braket.circuits import FreeParameter as BraketFreeParameter
+    from braket.circuits import FreeParameterExpression
     from sympy import Expr
 
     if isinstance(val, Expr):
-        return cast(
-            "FreeParameterExpression | float",
-            _evaluate_symbolic_expression(
-                val,
-                lambda symbol: cast(
-                    "FreeParameterExpression", BraketFreeParameter(str(symbol))
-                ),
-            ),
-        )
+        if val.free_symbols:
+            return FreeParameterExpression(val)
+        return float(val.evalf()) # pyright: ignore[reportArgumentType]
     return float(val)
 
 
