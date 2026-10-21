@@ -17,7 +17,7 @@ import inspect
 import sys
 from abc import abstractmethod
 from numbers import Integral
-from typing import TYPE_CHECKING, Callable, Mapping, Optional, TypeVar, cast
+from typing import TYPE_CHECKING, Callable, Mapping, Optional, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -46,19 +46,22 @@ if TYPE_CHECKING:
 # this file :/
 
 
-SymbolicExpression = TypeVar("SymbolicExpression")
-
-
 def _evaluate_symbolic_expression(
     expression: "Expr",
-    parameter_factory: Callable[["Basic"], SymbolicExpression],
+    parameter_factory: Callable[
+        ["Basic"], "ParameterExpression | FreeParameterExpression "
+    ],
     functions: Optional[
-        Mapping[str, Callable[[SymbolicExpression], SymbolicExpression]]
+        Mapping[
+            str,
+            Callable[["ParameterExpression"], "ParameterExpression"]
+            | Callable[["FreeParameterExpression"], "FreeParameterExpression"],
+        ]
     ] = None,
-) -> SymbolicExpression | float:
+) -> "ParameterExpression | FreeParameterExpression | float":
     """Evaluate a SymPy expression with provider-native named parameters."""
     if not expression.free_symbols:
-        return float(expression.evalf())
+        return float(expression.evalf())  # pyright: ignore[reportArgumentType]
 
     from sympy import default_sort_key, lambdify
 
@@ -70,7 +73,9 @@ def _evaluate_symbolic_expression(
         modules=[dict(functions or {}), "math"],
         dummify=True,
     )
-    return cast(SymbolicExpression | float, evaluator(*parameters))
+    return cast(
+        "ParameterExpression | FreeParameterExpression | float", evaluator(*parameters)
+    )
 
 
 def _qiskit_parameter_adder(
@@ -124,7 +129,10 @@ def _qiskit_parameter_adder(
             function.func.__name__: provider_function(function.func.__name__)
             for function in param.atoms(Function)
         }
-        return _evaluate_symbolic_expression(param, parameter, functions)
+        return cast(
+            "ParameterExpression | float",
+            _evaluate_symbolic_expression(param, parameter, functions),
+        )
     return float(param)
 
 
@@ -135,10 +143,13 @@ def _sympy_to_braket_param(
     from sympy import Expr
 
     if isinstance(val, Expr):
-        return _evaluate_symbolic_expression(
-            val,
-            lambda symbol: cast(
-                "FreeParameterExpression", BraketFreeParameter(str(symbol))
+        return cast(
+            "FreeParameterExpression | float",
+            _evaluate_symbolic_expression(
+                val,
+                lambda symbol: cast(
+                    "FreeParameterExpression", BraketFreeParameter(str(symbol))
+                ),
             ),
         )
     return float(val)

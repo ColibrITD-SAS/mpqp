@@ -2,6 +2,8 @@ import numpy as np
 import pytest
 from sympy import Expr, I, pi, symbols
 
+from mpqp.core.circuit import QCircuit
+from mpqp.core.languages import Language
 from mpqp.gates import *
 from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import cos, exp, matrix_eq, sin
@@ -252,3 +254,32 @@ def test_Rk(angle_bin_pow: int, result_matrix: Matrix):
 )
 def test_CRk(angle_bin_pow: int, result_matrix: Matrix):
     assert matrix_eq(CRk(angle_bin_pow, 0, 1).to_matrix(), result_matrix)
+
+
+
+@pytest.mark.provider("qiskit")
+def test_qiskit_expression_preserves_symbols():
+    from qiskit.quantum_info import Statevector
+
+    translated = QCircuit([Ry(2 * theta + phi, 0)]).to_other_language(Language.QISKIT)
+
+    assert {parameter.name for parameter in translated.parameters} == {"θ", "φ"}
+    values = {"θ": 0.2, "φ": 0.1}
+    bound = translated.assign_parameters(
+        {parameter: values[parameter.name] for parameter in translated.parameters}
+    )
+
+    assert Statevector(bound).probabilities()[1] == pytest.approx(np.sin(0.25) ** 2)
+
+
+@pytest.mark.provider("braket")
+def test_braket_expression_preserves_symbols():
+    from braket.devices import LocalSimulator
+
+    translated = QCircuit([Ry(2 * theta + phi, 0)]).to_other_language(Language.BRAKET)
+
+    assert {str(parameter) for parameter in translated.parameters} == {"θ", "φ"}
+    bound = translated.make_bound_circuit({"θ": 0.2, "φ": 0.1})
+
+    result = LocalSimulator().run(bound.probability(), shots=0).result()
+    assert result.values[0][1] == pytest.approx(np.sin(0.25) ** 2)
