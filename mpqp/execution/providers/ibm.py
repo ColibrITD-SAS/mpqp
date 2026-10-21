@@ -84,9 +84,11 @@ def _normalize_estimator_pubs(
             raise ValueError("An IBM Estimator PUB must contain observables.")
         observable_batches = [
             [
-                observable.apply_layout(circuit.layout)
-                if circuit.layout is not None
-                else observable
+                (
+                    observable.apply_layout(circuit.layout)
+                    if circuit.layout is not None
+                    else observable
+                )
                 for observable in row
             ]
             for row in observable_batches
