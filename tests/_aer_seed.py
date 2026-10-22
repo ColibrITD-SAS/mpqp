@@ -57,7 +57,7 @@ def configure_aer_seed(config: pytest.Config) -> None:
     seed = config.getoption("--seed")
     if seed is None:
         return
-    plugin = AerSeedPlugin(seed)
+    plugin = AerSeedPlugin(seed)  # pyright: ignore[reportArgumentType]
     config.add_cleanup(plugin.uninstall)
     plugin.install()
     config.pluginmanager.register(plugin, "mpqp-aer-seed")

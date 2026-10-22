@@ -31,7 +31,7 @@ def test_aer_seed_streams(
     simulator = aer.AerSimulator()
 
     setup_seeds = [simulator.run(None), simulator.run(None)]
-    plugin.pytest_runtest_protocol(request.node)
+    plugin.pytest_runtest_protocol(request.node)  # pyright: ignore[reportArgumentType]
     test_seeds = [simulator.run(None), simulator.run(None)]
     assert test_seeds[0] != test_seeds[1]
     assert test_seeds != setup_seeds
@@ -39,10 +39,10 @@ def test_aer_seed_streams(
     # Another test and its call count cannot change this test's stream.
     plugin.reset("test:another-test")
     simulator.run(None)
-    plugin.pytest_runtest_protocol(request.node)
+    plugin.pytest_runtest_protocol(request.node)  # pyright: ignore[reportArgumentType]
     assert [simulator.run(None), simulator.run(None)] == test_seeds
 
-    plugin.pytest_runtest_protocol(request.node)
+    plugin.pytest_runtest_protocol(request.node)  # pyright: ignore[reportArgumentType]
     assert simulator.run(None, seed_simulator=0) == 0
     assert simulator.run(None, seed_simulator=None) is None
     configured_simulator = aer.AerSimulator(seed_simulator=123)
@@ -69,9 +69,9 @@ def test_aer_seed_reproduces_sampling(request: pytest.FixtureRequest):
     circuit.measure_all()
     simulator = aer.AerSimulator()
 
-    plugin.pytest_runtest_protocol(request.node)
+    plugin.pytest_runtest_protocol(request.node)  # pyright: ignore[reportArgumentType]
     first = [simulator.run(circuit, shots=1024).result().get_counts() for _ in range(2)]
-    plugin.pytest_runtest_protocol(request.node)
+    plugin.pytest_runtest_protocol(request.node)  # pyright: ignore[reportArgumentType]
     replay = [
         simulator.run(circuit, shots=1024).result().get_counts() for _ in range(2)
     ]
