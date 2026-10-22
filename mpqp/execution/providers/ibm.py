@@ -97,6 +97,21 @@ def compute_expectation_value(
         pubs_contexts: For each PUB, execution contexts containing jobs and
             their original unroll indices.
         shots: optional number of shots per executables.
+
+    Returns:
+        The Result or BatchResult containing the expectation values related to the job.
+
+    Raises:
+        ValueError: If a circuit and pubs (for which correct arguments
+            are also required) are provided at the same time. If the
+            job's device is not a
+            :class:`~mpqp.execution.simulated_devices.IBMSimulatedDevice`
+            and ``simulator`` is ``None``.
+
+
+    Note:
+        This function is not meant to be used directly, please use
+        :func:`~mpqp.execution.runner.run` instead.
     """
     from qiskit.primitives import PubResult
     from qiskit.primitives.containers import DataBin
