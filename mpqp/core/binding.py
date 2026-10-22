@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+from copy import copy
 from enum import Enum, auto
 from numbers import Complex
 from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union, overload
@@ -18,7 +21,7 @@ if TYPE_CHECKING:
     from mpqp.execution.devices import AvailableDevice, AWSDevice, IBMDevice
 
 
-BindingParameters = dict[Union["Expr", str], Union[Complex, float]]
+BindingParameters = dict[Union[Expr, str], Union[Complex, float]]
 BindingExecution = tuple[QCircuit, Optional[BindingParameters], Optional[Measure]]
 BindingOptions = tuple[Optional[BindingParameters], Optional[Measure]]
 _AxisElement = TypeVar("_AxisElement")
@@ -52,7 +55,9 @@ class CircuitBinding:
         mode: Rule used to combine circuits, values and measurements.
         noises: Noise models shared by every circuit in the binding.
         shots: Number of shots shared by every execution. When omitted, it is
-            inferred from the measurements when possible.
+            inferred from the measurements when possible. Zero shots requests
+            a state vector for basis measurements and exact expectation values
+            for expectation measurements.
 
     Raises:
         ValueError: If the execution axes are incompatible, circuits have
@@ -68,7 +73,7 @@ class CircuitBinding:
 
     def __init__(
         self,
-        circuits: OneOrMany["QCircuit | CircuitBinding"],
+        circuits: OneOrMany[QCircuit | CircuitBinding],
         values: Optional[OneOrMany[dict[str, float] | dict[Expr, float]]] = None,
         measurements: Optional[OneOrMany[Measure]] = None,
         mode: BindingMode = BindingMode.PRODUCT,
@@ -191,11 +196,8 @@ class CircuitBinding:
                 if isinstance(measurements, Measure)
                 else list(measurements)
             )
-            self.job_type = (
-                JobType.OBSERVABLE
-                if isinstance(measurements[0], ExpectationMeasure)
-                else JobType.SAMPLE
-            )
+            measurements = [copy(measure) for measure in measurements]
+            is_expectation = isinstance(measurements[0], ExpectationMeasure)
 
             shots_ = None
             for index, measure in enumerate(measurements):
@@ -229,17 +231,22 @@ class CircuitBinding:
                     measurements[index] = adjust_measure(
                         measure, QCircuit(self.nb_qubits)
                     )
-                    if self.job_type != JobType.OBSERVABLE:
+                    if not is_expectation:
                         raise ValueError(
                             "All measurements in CircuitBinding must be of the same type."
                         )
                 elif isinstance(measure, BasisMeasure):
-                    if self.job_type != JobType.SAMPLE:
+                    if is_expectation:
                         raise ValueError(
                             "All measurements in CircuitBinding must be of the same type."
                         )
             if shots_ is not None:
                 self.shots = shots_
+            self.job_type = (
+                JobType.OBSERVABLE
+                if is_expectation
+                else JobType.STATE_VECTOR if self.shots == 0 else JobType.SAMPLE
+            )
 
         if (
             self.job_type != JobType.STATE_VECTOR
@@ -272,7 +279,7 @@ class CircuitBinding:
                                 "All measurements in CircuitBinding must have the same number of shots"
                             )
 
-        self.circuits: list["QCircuit | CircuitBinding"] = circuits
+        self.circuits: list[QCircuit | CircuitBinding] = circuits
         self.value = parameters
         self.measurements = (
             self.measurements if self.measurements is not None else measurements
@@ -281,9 +288,9 @@ class CircuitBinding:
 
     def transpiled_circuits(
         self,
-        device: "AvailableDevice",
+        device: AvailableDevice,
         skip_pre_measure: bool = False,
-        backend_sim: Optional["AerSimulator"] = None,
+        backend_sim: Optional[AerSimulator] = None,
     ) -> None:
         """Transpile every circuit in the binding for a target device.
 
@@ -601,19 +608,25 @@ class CircuitBinding:
 
     @overload
     def to_other_device(
-        self, device: "AWSDevice", backend_sim: Optional["AerSimulator"] = None
-    ) -> tuple["ProgramSet", list[Any]]: ...
+        self, device: AWSDevice, backend_sim: Optional[AerSimulator] = None
+    ) -> tuple[ProgramSet, list[Any]]: ...
     @overload
     def to_other_device(
-        self, device: "IBMDevice", backend_sim: Optional["AerSimulator"] = None
-    ) -> list[tuple["EstimatorPubLike", list[ExecutionContext]]]: ...
+        self, device: IBMDevice, backend_sim: Optional[AerSimulator] = None
+    ) -> list[tuple[EstimatorPubLike, list[ExecutionContext]]]: ...
     @overload
     def to_other_device(
-        self, device: "AvailableDevice", backend_sim: Optional["AerSimulator"] = None
-    ) -> "list[tuple[EstimatorPubLike, list[ExecutionContext]]] | tuple[ProgramSet, list[Any]]": ...
+        self, device: AvailableDevice, backend_sim: Optional[AerSimulator] = None
+    ) -> (
+        list[tuple[EstimatorPubLike, list[ExecutionContext]]]
+        | tuple[ProgramSet, list[Any]]
+    ): ...
     def to_other_device(
-        self, device: "AvailableDevice", backend_sim: Optional["AerSimulator"] = None
-    ) -> "list[tuple[EstimatorPubLike, list[ExecutionContext]]] | tuple[ProgramSet, list[Any]]":
+        self, device: AvailableDevice, backend_sim: Optional[AerSimulator] = None
+    ) -> (
+        list[tuple[EstimatorPubLike, list[ExecutionContext]]]
+        | tuple[ProgramSet, list[Any]]
+    ):
         """Translate a binding for the selected provider.
 
         Args:

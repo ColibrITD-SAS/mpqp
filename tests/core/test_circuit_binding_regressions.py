@@ -182,8 +182,10 @@ def test_grouping_preserves_execution_associations(nested: bool):
         binding = CircuitBinding(binding)
     pubs = binding.to_other_device(IBMDevice.AER_SIMULATOR)
     assert len(pubs) == 2
-    assert pubs[0][0][0] is first.transpiled_circuit  # pyright: ignore
-    assert pubs[1][0][0] is second.transpiled_circuit  # pyright: ignore
+    for (_, contexts), expected_circuit in zip(pubs, [first, second]):
+        for context in contexts:
+            assert isinstance(context.job.circuit, QCircuit)
+            assert context.job.circuit.gates == expected_circuit.gates
     assert [[context.index for context in contexts] for _, contexts in pubs] == [
         [0, 2],
         [1],
@@ -200,22 +202,51 @@ def test_grouping_preserves_execution_associations(nested: bool):
 
 
 @pytest.mark.parametrize(
-    "shots, expected", [(0, JobType.STATE_VECTOR), (16, JobType.SAMPLE)]
+    "shots, override, expected",
+    [
+        (0, None, JobType.STATE_VECTOR),
+        (16, None, JobType.SAMPLE),
+        (1024, 0, JobType.STATE_VECTOR),
+        (1024, 16, JobType.SAMPLE),
+    ],
 )
-def test_binding_basis_measure_job_type(shots: int, expected: JobType):
-    binding = CircuitBinding(QCircuit([X(0)]), measurements=BasisMeasure(shots=shots))
+def test_binding_basis_measure_job_type(
+    shots: int, override: int | None, expected: JobType
+):
+    binding = CircuitBinding(
+        QCircuit([X(0)]), measurements=BasisMeasure(shots=shots), shots=override
+    )
     assert binding.job_type == expected
 
 
+@pytest.mark.parametrize("shots", [0, 16])
+def test_binding_expectation_measure_job_type(shots: int):
+    binding = CircuitBinding(
+        QCircuit(1), measurements=ExpectationMeasure(Observable(pZ), shots=shots)
+    )
+    assert binding.job_type == JobType.OBSERVABLE
+
+
+@pytest.mark.parametrize("expectation_first", [False, True])
+def test_binding_rejects_mixed_measurement_types(expectation_first: bool):
+    measurements = [BasisMeasure(shots=0), ExpectationMeasure(Observable(pZ))]
+    if expectation_first:
+        measurements.reverse()
+    with pytest.raises(ValueError, match="same type"):
+        CircuitBinding(QCircuit(1), measurements=measurements)
+
+
 @pytest.mark.provider("qiskit")
-@pytest.mark.parametrize(
-    "binding",
-    [
-        CircuitBinding(QCircuit([X(0), BasisMeasure(shots=0)])),
-        CircuitBinding(QCircuit([X(0)]), measurements=BasisMeasure(shots=0)),
-    ],
-)
-def test_binding_zero_shots_returns_state_vector(binding: CircuitBinding):
+@pytest.mark.parametrize("embedded", [False, True])
+@pytest.mark.parametrize("override", [False, True])
+def test_binding_zero_shots_returns_state_vector(embedded: bool, override: bool):
+    measure = BasisMeasure() if override else BasisMeasure(shots=0)
+    shots = 0 if override else None
+    binding = (
+        CircuitBinding(QCircuit([X(0), measure]), shots=shots)
+        if embedded
+        else CircuitBinding(QCircuit([X(0)]), measurements=measure, shots=shots)
+    )
     result = run(binding, IBMDevice.AER_SIMULATOR)
     assert len(result.results) == 1
     execution = result.results[0]
@@ -258,18 +289,32 @@ def test_binding_accepts_mixed_widths_with_dynamic_measurement(
     assert all(isinstance(measure, BasisMeasure) for _, _, measure in executions)
 
 
-@pytest.mark.parametrize(
-    "measure", [ExpectationMeasure(Observable(pZ)), BasisMeasure()]
-)
-def test_binding_shot_override_preserves_input_measurement(measure: Measure):
+@pytest.mark.parametrize("expectation", [False, True])
+@pytest.mark.parametrize("many", [False, True])
+def test_binding_shot_override_preserves_input_measurement(
+    expectation: bool, many: bool
+):
+    measure = ExpectationMeasure(Observable(pZ)) if expectation else BasisMeasure()
+    original = deepcopy(measure)
     original_shots = measure.shots
-    binding = CircuitBinding(QCircuit(1), measurements=measure, shots=16)
+    measurements = [measure, deepcopy(measure)] if many else [measure]
+    binding = CircuitBinding(
+        QCircuit(1), measurements=measurements if many else measure, shots=16
+    )
     reused = CircuitBinding(QCircuit(1), measurements=measure)
 
     assert measure.shots == original_shots
+    assert measure == original
     assert binding.shots == 16
     assert binding.measurements is not None
+    assert binding.measurements[0] is not measure
     assert binding.measurements[0].shots == 16
+    assert len(binding.measurements) == len(measurements)
+    for supplied, bound in zip(measurements, binding.measurements):
+        assert supplied == original
+        assert supplied.shots == original_shots
+        assert bound is not supplied
+        assert bound.shots == 16
     assert reused.shots == original_shots
     assert reused.measurements is not None
     assert reused.measurements[0].shots == original_shots

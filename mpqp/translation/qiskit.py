@@ -251,10 +251,11 @@ if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
 
         pubs_with_context = []
         for executions in grouped.values():
-            q_c = translated_circuits.get(id(executions[0][0]))
+            _, circuit, _, _ = executions[0]
+            q_c = translated_circuits.get(id(circuit))
             if q_c is None:
                 raise ValueError(
-                    f"Circuit with id {id(executions[0][0])} wasn't found in the binding, please contact the maintainers of this library."
+                    f"Circuit with id {id(circuit)} wasn't found in the binding, please contact the maintainers of this library."
                 )
             if TYPE_CHECKING:
                 from qiskit.circuit import QuantumCircuit
