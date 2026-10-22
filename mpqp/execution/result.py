@@ -804,7 +804,13 @@ class Result:
 
 
 class BatchResult:
-    """Class used to handle several Result instances.
+    """Group execution results and filter them by submitted criteria.
+
+    Use :meth:`get_matching` to select runs by circuit, device, or measurement.
+    Integer indexing, slicing, iteration, and ``len(batch)`` refer to individual
+    runs in execution order, including repeated circuits and multiple devices.
+    The :attr:`results` property returns an independent list; editing that list
+    does not change the batch.
 
     Args:
         results: List of results.
@@ -860,22 +866,17 @@ class BatchResult:
         True
 
     Note:
-        Circuit matching uses an immutable snapshot of the submitted circuit. It
-        compares exact structural values, ignoring display labels, size-inference
-        bookkeeping and execution caches. Observable labels are included because
-        they name entries in multi-observable results. Numerical equivalence and
-        different observable representations do not imply matching keys.
+        :func:`~mpqp.execution.runner.run` captures independent immutable keys
+        before symbolic substitution and provider adaptation. No freezing is
+        required: later edits to input circuits and measurements leave stored
+        entries intact. See :meth:`get_matching` for the matching rules.
 
-        Circuits remain editable: changing their content does not change an
-        existing entry, but lookup with the changed content may fail. Repeated
-        circuits and execution on multiple devices retain every result. Use
-        :meth:`get_matching` to filter by submitted criteria. All supplied
-        criteria must match; repeated runs are returned in execution order.
-
-        Integer indexing and iteration follow execution order. The ``results``
-        property returns a new list; editing it does not change the batch. For
-        manually constructed results and older stored results without submitted
-        keys, matching uses job metadata at batch construction time.
+        Saving a batch preserves all three submitted criteria as optional
+        versioned JSON metadata. Earlier circuit-only metadata retains the
+        original circuit and measurement and uses the saved job device. Results
+        without submitted metadata, including manually constructed results, use
+        their job metadata when the batch is constructed. That metadata may
+        already contain substitutions or provider adjustments.
 
     """
 
@@ -943,12 +944,27 @@ class BatchResult:
     ) -> list[Result]:
         """Retrieve runs matching all supplied submitted criteria.
 
+        Criteria combine with AND. Matching uses immutable snapshots captured
+        before execution, so users do not need to freeze their objects. Repeated
+        circuits and runs on multiple devices retain every individual result.
+
+        Circuit matching includes dimensions, ordered instructions, parameters,
+        measurements, noise, and input global phase. It ignores circuit and
+        instruction display labels, inferred-size bookkeeping, and execution
+        caches. Observable labels remain significant because they name values
+        in multi-observable results. Matching uses exact structural values:
+        numerically close matrices and different observable representations are
+        not interchangeable. Existing public equality and numerical equivalence
+        methods are unchanged.
+
         Args:
             circuit: Complete submitted circuit, including its measurements.
                 ``None`` leaves the circuit unrestricted.
             device: Submitted device. ``None`` leaves the device unrestricted.
             measurement: Submitted measurement. Omission leaves measurements
                 unrestricted; ``None`` selects runs without an explicit measure.
+                An explicit zero-shot :class:`~mpqp.core.instruction.measurement.basis_measure.BasisMeasure`
+                is distinct from having no measurement.
 
         Returns:
             An independent list in execution order, including repeated runs.
@@ -956,6 +972,63 @@ class BatchResult:
 
         Raises:
             TypeError: If a criterion has the wrong type or an unsupported component.
+
+        Examples:
+            Filter a batch containing repeated runs. All executions below use
+            the local Qiskit simulator:
+
+            >>> from copy import deepcopy
+            >>> device = IBMDevice.AER_SIMULATOR
+            >>> circuit = QCircuit([H(0)])
+            >>> other = QCircuit([X(0), BasisMeasure([0], shots=16)])
+            >>> batch = run([circuit, other, deepcopy(other)], device)  # doctest: +QISKIT
+            >>> matches = batch.get_matching(circuit=other)  # doctest: +QISKIT
+            >>> len(matches)  # doctest: +QISKIT
+            2
+            >>> batch.get_matching(circuit=deepcopy(other)) == matches  # doctest: +QISKIT
+            True
+
+            Combine criteria, or search by measurement across circuits:
+
+            >>> measurement = other.measurements[0]
+            >>> batch.get_matching(  # doctest: +QISKIT
+            ...     device=device, measurement=measurement
+            ... ) == matches
+            True
+            >>> batch.get_matching(  # doctest: +QISKIT
+            ...     circuit=other, device=device, measurement=measurement
+            ... ) == matches
+            True
+            >>> batch.get_matching(measurement=measurement) == matches  # doctest: +QISKIT
+            True
+
+            Omitted criteria are unrestricted. Missing matches return an empty
+            list; ``measurement=None`` selects runs with no explicit measurement:
+
+            >>> len(batch.get_matching())  # doctest: +QISKIT
+            3
+            >>> batch.get_matching(measurement=None) == [batch[0]]  # doctest: +QISKIT
+            True
+            >>> batch.get_matching(circuit=QCircuit([X(0)]))  # doctest: +QISKIT
+            []
+            >>> batch[:2] == batch.get_matching()[:2]  # doctest: +QISKIT
+            True
+
+            Editing an input leaves stored matches intact:
+
+            >>> original = deepcopy(circuit)
+            >>> circuit.add(X(0))
+            >>> batch.get_matching(circuit=original) == [batch[0]]  # doctest: +QISKIT
+            True
+            >>> batch.get_matching(circuit=circuit)  # doctest: +QISKIT
+            []
+
+        Note:
+            Matching uses the complete circuit including its measurements;
+            passing a circuit without measurements does not act as a wildcard
+            for those measurements. For results without submitted metadata,
+            matching uses the job metadata at batch construction time, which
+            may already contain substitutions or provider adjustments.
         """
         _validate_matching_criteria(circuit, device, measurement)
         circuit_key = object_key(circuit) if circuit is not None else None
