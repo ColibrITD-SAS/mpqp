@@ -1,3 +1,28 @@
+"""Translation helpers for circuit binding execution and their fallbacks.
+
+:class:`~mpqp.core.binding.CircuitBinding` groups related runs so MPQP can
+optimize their execution and package them into a single submission to the
+appropriate providers. Beyond reducing submission overhead, compatible runs can
+share hardware executions. For example, expectation values of different Pauli
+strings for the same circuit can be estimated from shared measurement samples
+when their measurement bases are compatible. Such reuse can reduce QPU execution
+time and cost; the available optimizations depend on the provider and the
+requested computation.
+
+When a provider does not support this execution mode for the requested runs,
+MPQP falls back to ordinary batches of individual executions. The helpers in
+this module support that fallback: they recursively visit nested bindings and
+collect provider translations separately for their circuits and measurements.
+
+:func:`translate_binding_circuits` and :func:`translate_binding_measurements`
+return dictionaries keyed by the original objects' :func:`id`. Each distinct
+object is translated once per call, so repeated executions can reuse its
+translation. These keys identify objects within the current process; they do not
+encode execution order or distinguish repeated occurrences of the same object.
+Execution paths use :meth:`~mpqp.core.binding.CircuitBinding.unroll` to
+associate the translations with individual parameter sets and measurements.
+"""
+
 from typing import TYPE_CHECKING, Any, Optional
 
 from mpqp.core.binding import CircuitBinding

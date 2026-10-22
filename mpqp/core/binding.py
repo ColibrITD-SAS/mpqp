@@ -1,19 +1,21 @@
 from enum import Enum, auto
-from typing import TYPE_CHECKING, Any, overload
-from typing import Optional, TypeVar, Union
 from numbers import Complex
+from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union, overload
+
+from sympy import Expr
+
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.measurement.measure import Measure
-from mpqp.tools.generics import OneOrMany
-from sympy import Expr
 from mpqp.noise.noise_model import NoiseModel
+from mpqp.tools.generics import OneOrMany
 
 if TYPE_CHECKING:
-    from mpqp.execution._execution_context import ExecutionContext
-    from qiskit_aer import AerSimulator
-    from qiskit.primitives.containers import EstimatorPubLike
     from braket.program_sets import ProgramSet
-    from mpqp.execution.devices import AWSDevice, AvailableDevice, IBMDevice
+    from qiskit.primitives.containers import EstimatorPubLike
+    from qiskit_aer import AerSimulator
+
+    from mpqp.execution._execution_context import ExecutionContext
+    from mpqp.execution.devices import AvailableDevice, AWSDevice, IBMDevice
 
 
 BindingParameters = dict[Union["Expr", str], Union[Complex, float]]
@@ -23,15 +25,13 @@ _AxisElement = TypeVar("_AxisElement")
 
 
 class BindingMode(Enum):
-    """Control how a :class:`CircuitBinding` combines its execution axes.
-
-    ``PRODUCT`` builds the Cartesian product of circuits, parameter sets and
-    measurements. ``ZIP`` associates elements positionally and broadcasts an
-    axis containing a single element to the length of the longest axis.
-    """
+    """Control how a :class:`CircuitBinding` combines its execution axes."""
 
     PRODUCT = auto()
+    """Builds the Cartesian product of circuits, parameter sets and measurements."""
     ZIP = auto()
+    """Associates elements positionally and broadcasts an axis containing a
+    single element to the length of the longest axis."""
 
 
 class CircuitBinding:
@@ -75,14 +75,15 @@ class CircuitBinding:
         noises: Optional[list[NoiseModel]] = None,
         shots: Optional[int] = None,
     ) -> None:
-        from mpqp.execution.runner import adjust_measure
-        from mpqp.execution.job import JobType
         from typing import TYPE_CHECKING, Sequence
+
         from mpqp.core.instruction.measurement import (
-            Measure,
-            ExpectationMeasure,
             BasisMeasure,
+            ExpectationMeasure,
+            Measure,
         )
+        from mpqp.execution.job import JobType
+        from mpqp.execution.runner import adjust_measure
 
         if circuits == []:
             raise ValueError(
@@ -299,8 +300,8 @@ class CircuitBinding:
                 transpilation.
         """
 
-        from mpqp.execution.providers.ibm import generate_qiskit_noise_model
         from mpqp import QCircuit
+        from mpqp.execution.providers.ibm import generate_qiskit_noise_model
 
         for i, c in enumerate(self.circuits):
             if isinstance(c, QCircuit):
@@ -635,10 +636,9 @@ class CircuitBinding:
             parameter values; absent trailing fields are omitted.
         """
         from mpqp.execution.devices import (
-            IBMDevice,
             AWSDevice,
+            IBMDevice,
         )
-        from mpqp.execution.devices import IBMDevice, AWSDevice
 
         if isinstance(device, IBMDevice):
             from mpqp.translation.qiskit import circuitbinding_to_pubs
