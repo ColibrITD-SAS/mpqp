@@ -91,9 +91,24 @@ def compute_expectation_value(
         simulator: AerSimulator to be used to set the EstimatorV2 options.
         ibm_circuit: QuantumCircuit (with its qubits already reversed) for which we want
                     to estimate the expectation value.
-        pubs: Equivalent pubs of the inputted CircuitBinding to be ran.
-        pubs_context: List of Job to sort the pubs' result by afterwards.
+        pubs: Equivalent pubs of the inputted CircuitBinding to be running.
+        pubs_contexts: List of Job to sort the pubs' result afterwards.
         shots: optional number of shots per executables.
+
+    Returns:
+        The Result or BatchResult containing the expectation values related to the job.
+
+    Raises:
+        ValueError: If a circuit and pubs (for which correct arguments
+            are also required) are provided at the same time. If the
+            job's device is not a
+            :class:`~mpqp.execution.simulated_devices.IBMSimulatedDevice`
+            and ``simulator`` is ``None``.
+
+
+    Note:
+        This function is not meant to be used directly, please use
+        :func:`~mpqp.execution.runner.run` instead.
     """
     from qiskit.primitives import PubResult
     from qiskit.primitives.containers import DataBin
