@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Iterable, Optional, Sequence, overload
 
 import numpy as np
 
-from mpqp.core._keys import ResultKey, object_key
+from mpqp.core._keys import ResultKey, Snapshot
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.breakpoint import Breakpoint
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
@@ -542,15 +542,17 @@ def run(
     if isinstance(circuit, Iterable) or isinstance(device, Iterable):
         # Snapshot every input before executing any job: providers may adapt a
         # circuit or a shared measurement, and the same input can occur twice.
+        snapshot = Snapshot()
         circuits = [
             (
                 circ,
-                object_key(circ),
-                object_key(circ.measurements[0] if circ.measurements else None),
+                snapshot(circ),
+                snapshot(circ.measurements[0] if circ.measurements else None),
             )
             for circ in flatten(circuit)
         ]
-        devices = [(dev, object_key(dev)) for dev in flatten(device)]
+        devices = [(dev, snapshot(dev)) for dev in flatten(device)]
+        del snapshot
         results: list[Result] = []
         for i, (circ, circuit_key, measurement_key) in enumerate(circuits):
             for dev, device_key in devices:

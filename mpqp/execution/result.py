@@ -30,7 +30,7 @@ from typing import TYPE_CHECKING, Any, Optional, Union, overload
 import numpy as np
 import numpy.typing as npt
 
-from mpqp.core._keys import ResultKey, object_key, result_key
+from mpqp.core._keys import ResultKey, Snapshot, result_key
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
 from mpqp.core.instruction.measurement.measure import Measure
@@ -880,10 +880,11 @@ class BatchResult:
     def __init__(self, results: list[Result]):
         self._results: dict[ResultKey, list[Result]] = {}
         self._order: list[tuple[ResultKey, int]] = []
+        snapshot = Snapshot()
         for result in results:
             key = result._submitted_key  # pyright: ignore[reportPrivateUsage]
             if key is None:
-                key = result_key(result.job.circuit, result.device)
+                key = result_key(result.job.circuit, result.device, snapshot)
                 result._submitted_key = key  # pyright: ignore[reportPrivateUsage]
             matches = self._results.setdefault(key, [])
             self._order.append((key, len(matches)))
@@ -1049,10 +1050,11 @@ class BatchResult:
             may already contain substitutions or provider adjustments.
         """
         _validate_matching_criteria(circuit, device, measurement)
-        circuit_key = object_key(circuit) if circuit is not None else None
-        device_key = object_key(device) if device is not None else None
+        snapshot = Snapshot()
+        circuit_key = snapshot(circuit) if circuit is not None else None
+        device_key = snapshot(device) if device is not None else None
         measurement_key = (
-            None if isinstance(measurement, _Unset) else object_key(measurement)
+            None if isinstance(measurement, _Unset) else snapshot(measurement)
         )
         matching = {
             key

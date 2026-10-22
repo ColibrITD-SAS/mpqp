@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import pickle
 from copy import deepcopy
 from numbers import Complex
 from pathlib import Path
@@ -32,6 +33,7 @@ from mpqp import (
     run,
 )
 from mpqp.core._keys import (
+    Snapshot,
     decode_key,
     decode_result_key,
     encode_key,
@@ -315,7 +317,7 @@ def test_submitted_key_serialization_and_legacy_fallback():
     assert decode_result_key(
         encode_key(object_key(circuit)), device, recorded
     ) == result_key(recorded, device)
-    legacy = json.dumps((2, (key.circuit, key.device, key.measurement)))
+    legacy = legacy_payload(key, 2)
     assert decode_result_key(legacy, device, recorded) == result_key(recorded, device)
     without_measurement = QCircuit([H(0)])
     assert decode_result_key(
@@ -566,7 +568,7 @@ def test_storage_uses_submitted_or_legacy_recorded_criteria(
         data = (
             encode_key(old_key.circuit)
             if legacy_version == 1
-            else json.dumps((2, (old_key.circuit, old_key.device, old_key.measurement)))
+            else legacy_payload(old_key, 2)
         )
         with connect(isolated_storage) as connection:
             connection.execute(
@@ -624,3 +626,149 @@ def test_refined_batch_can_be_saved_and_loaded(isolated_storage: Path):
     assert restored.get_matching(circuit=original)[0] is restored[0]
     assert restored.get_matching(measurement=original.measurements[0])[0] is restored[0]
     assert not restored.get_matching(circuit=circuit)
+
+
+def legacy_payload(key: Any, version: int) -> str:
+    """Reproduce pre-packed-array snapshots, including their scalar tuples."""
+
+    def unpack(value: Any) -> Any:
+        if not isinstance(value, tuple):
+            return value
+        if value and value[0] == "array-v2":
+            _, shape, data, exceptions = value
+            overrides = dict(exceptions)
+            items = tuple(
+                overrides.get(i, object_key(item))
+                for i, item in enumerate(np.frombuffer(data, dtype="<c16"))
+            )
+            return ("array", shape, items)
+        return tuple(unpack(item) for item in value)
+
+    return json.dumps((version, unpack((key.circuit, key.device, key.measurement))))
+
+
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        np.int32,
+        np.int64,
+        np.uint64,
+        np.float32,
+        np.float64,
+        np.complex64,
+        np.complex128,
+        object,
+    ],
+)
+def test_packed_array_numeric_equality(dtype: Any):
+    value = np.array([[0, 1], [-0.0, 2]], dtype=dtype)
+    expected = object_key(np.array([[0, 1], [0, 2]], dtype=np.complex128))
+    assert object_key(value) == expected
+    assert hash(object_key(value)) == hash(expected)
+    assert decode_key(encode_key(object_key(value))) == expected
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        np.array(1.0),
+        np.array([], dtype=float),
+        np.arange(24).reshape(4, 6)[:, ::2],
+        np.array([1j, -0.0, -1j], dtype=">c16"),
+        np.array([2**63 - 1], dtype=np.int64),
+        np.array([2**64 - 1], dtype=np.uint64),
+        np.array([2**60], dtype=np.int64),
+        np.array([2**53 + 1, 2**53], dtype=np.uint64),
+        np.array([Symbol("theta"), 1], dtype=object),
+        np.array([True, False]),
+        np.array([10**400], dtype=object),
+    ],
+)
+def test_packed_arrays_preserve_layout_independence_and_exact_values(value: Any):
+    key = object_key(value)
+    assert key == object_key(value.astype(object))
+    assert key == object_key(np.asfortranarray(value).reshape(value.shape))
+    assert decode_key(encode_key(key)) == key
+    saved = value.copy()
+    if value.size:
+        value.flat[0] = 0
+        assert key == object_key(saved)
+
+
+def test_packed_arrays_do_not_round_large_integers():
+    integer = np.array([2**53 + 1], dtype=np.int64)
+    rounded = integer.astype(float)
+    assert object_key(integer) != object_key(rounded)
+    assert object_key(np.array([2**60])) == object_key(np.array([float(2**60)]))
+    assert object_key(np.array([True])) != object_key(np.array([1]))
+    assert object_key(np.array([0.0])) == object_key(np.array([-0.0 + 0j]))
+
+
+@pytest.mark.parametrize("bad", [np.nan, np.inf, -np.inf, complex(1, np.inf)])
+def test_packed_arrays_reject_nonfinite_values(bad: Any):
+    with pytest.raises(ValueError, match="Non-finite"):
+        object_key(np.array([bad]))
+
+
+def test_snapshot_reuses_shared_arrays_without_caching_mutable_sources():
+    value = np.eye(4)
+    snapshot = Snapshot()
+    first = snapshot(value)
+    assert snapshot(value) is first
+    assert snapshot([value, value])[1] == (first, first)
+    value[0, 0] = 2
+    assert object_key(value) != first
+
+
+def test_version_three_matrix_keys_preserve_original_submitted_inputs():
+    circuit = QCircuit(
+        [H(0), ExpectationMeasure(Observable(np.diag([1.0, -1.0])), [0], shots=0)],
+        label="submitted",
+    )
+    key = result_key(circuit, IBMDevice.AER_SIMULATOR)
+    payload = legacy_payload(key, 3)
+    recorded = deepcopy(circuit)
+    recorded.label = "adapted"
+    restored = decode_result_key(payload, IBMDevice.AER_SIMULATOR, recorded)
+    assert restored == key
+    assert hash(restored) == hash(key)
+    assert restored != result_key(recorded, IBMDevice.AER_SIMULATOR)
+
+
+def test_cached_hash_is_recomputed_after_serialization():
+    key = result_key(QCircuit([H(0)]), IBMDevice.AER_SIMULATOR)
+    expected_hash = hash(key)
+    object.__setattr__(key, "_hash", expected_hash + 1)
+    restored = pickle.loads(pickle.dumps(key))
+    assert restored == key
+    assert hash(restored) == expected_hash
+    assert (
+        hash(
+            decode_result_key(
+                encode_result_key(key), IBMDevice.AER_SIMULATOR, QCircuit(1)
+            )
+        )
+        == expected_hash
+    )
+
+
+def test_packed_keys_resolve_hash_collisions_by_exact_content():
+    first = QCircuit(
+        [ExpectationMeasure(Observable(np.diag([1.0, -1.0])), [0], shots=0)]
+    )
+    second = QCircuit(
+        [
+            ExpectationMeasure(
+                Observable(np.diag([1.0, np.nextafter(-1.0, 0.0)])), [0], shots=0
+            )
+        ]
+    )
+    results = [make_result(first), make_result(second)]
+    for result in results:
+        key = result_key(result.job.circuit, result.device)
+        object.__setattr__(key, "_hash", 0)
+        result._submitted_key = key  # pyright: ignore[reportPrivateUsage]
+    batch = BatchResult(results)
+    assert len(batch) == 2
+    assert batch.get_matching(circuit=first).results == [results[0]]
+    assert batch.get_matching(circuit=second).results == [results[1]]
