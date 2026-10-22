@@ -605,7 +605,7 @@ class CircuitBinding:
     @overload
     def to_other_device(
         self, device: "IBMDevice", backend_sim: Optional["AerSimulator"] = None
-    ) -> list[tuple["EstimatorPubLike", list[ExecutionContext]]]: ...
+    ) -> list[tuple["EstimatorPubLike", "list[ExecutionContext]"]]: ...
     @overload
     def to_other_device(
         self, device: "AvailableDevice", backend_sim: Optional["AerSimulator"] = None

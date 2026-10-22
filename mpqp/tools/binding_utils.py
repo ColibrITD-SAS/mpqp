@@ -15,7 +15,7 @@ def __translate_binding_circuits(
     skip_pre_measure: bool = False,
     backend_sim: Optional["AerSimulator"] = None,
 ):
-    """Recursive function to iterate every circuits in cb and store their translation in result."""
+    """Recursive function to iterate every circuits in ``cb`` and store their translation in result."""
     for circuit in cb.circuits:
         if isinstance(circuit, CircuitBinding):
             __translate_binding_circuits(circuit, device, result)

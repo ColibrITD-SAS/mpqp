@@ -397,7 +397,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                 provider_circuit = translated_circuit
                 if isinstance(measure, BasisMeasure):
                     provider_circuit = provider_circuit + QCircuit(
-                        [measure]
+                        [measure], nb_qubits=circuit.nb_qubits
                     ).to_other_language(Language.BRAKET)
                 group_data = (circuit, provider_circuit, OrderedDict())
                 circuit_groups[group_key] = group_data
