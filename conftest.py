@@ -3,6 +3,8 @@ from typing import TYPE_CHECKING, Any
 import pytest
 from numpy.random import default_rng, randint
 
+from tests._aer_seed import configure_aer_seed
+
 
 def pytest_addoption(parser: pytest.Parser):
     parser.addoption("--long", action="store_false", help="If set, long tests will run")
@@ -21,7 +23,7 @@ def pytest_addoption(parser: pytest.Parser):
         action="store",
         default=None,
         type=int,
-        help="Set a global random seed for tests (default is None for random behavior).",
+        help="Seed NumPy test generators and per-test Aer runs (default: random).",
     )
     parser.addoption(
         "--providers",
@@ -38,6 +40,8 @@ def pytest_configure(config: Any):
     This hook is called for every plugin and initial conftest
     file after command line options have been parsed.
     """
+    configure_aer_seed(config)
+
     if (
         not config.getoption("--long")
         or not config.getoption("--long-costly")
