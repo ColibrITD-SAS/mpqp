@@ -9,6 +9,7 @@ from mpqp import (
     ATOSDevice,
     AWSDevice,
     BasisMeasure,
+    CircuitBinding,
     ExpectationMeasure,
     GOOGLEDevice,
     H,
@@ -25,6 +26,27 @@ from mpqp import (
     run,
 )
 from mpqp.execution.devices import AvailableDevice
+
+
+@pytest.mark.parametrize("expectation", [False, True])
+def test_single_binding_result_preserves_measurement(expectation: bool):
+    measure = (
+        ExpectationMeasure(Observable(np.diag([1.0, -1.0])))
+        if expectation
+        else BasisMeasure([0], shots=16)
+    )
+    binding = CircuitBinding(QCircuit(1), measurements=measure)
+    job = Job(binding.job_type, binding, IBMDevice.AER_SIMULATOR)
+    data = 1.0 if expectation else [Sample(1, index=0, count=16)]
+
+    result = Result(job, data, shots=0 if expectation else 16)
+
+    assert binding.measurements is not None
+    assert result.job.measure is binding.measurements[0]
+    if expectation:
+        assert result.expectation_values == 1.0
+    else:
+        assert result.counts == [16, 0]
 
 
 @pytest.mark.parametrize(

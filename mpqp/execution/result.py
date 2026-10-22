@@ -341,7 +341,10 @@ class Result:
             if len(job.circuit.circuits) == 1:
                 if TYPE_CHECKING:
                     assert job.circuit.measurements
-                job.measurement = job.circuit.measurements[0]
+                # Keep the binding's measurement when unwrapping its circuit.
+                job._measurement = (  # pyright: ignore[reportPrivateUsage]
+                    job.circuit.measurements[0]
+                )
                 job.circuit = job.circuit.circuits[0]
             else:
                 raise ValueError(
