@@ -1,3 +1,32 @@
+"""Package related quantum computations for optimized provider execution.
+
+A :class:`CircuitBinding` combines circuits, parameter values and measurements
+into a description of related runs. Providers can package these runs into one
+submission and, where supported, share compatible hardware executions. For
+example, Pauli observables with compatible measurement bases can be estimated
+from shared samples of the same circuit, reducing QPU time and cost. Execution
+paths without native support fall back to individual runs.
+
+:class:`BindingMode` specifies how the three execution axes combine:
+
+* :attr:`BindingMode.PRODUCT` explores combinations of circuits, parameter sets
+  and measurements, for example a parameter sweep evaluated against several
+  observables.
+* :attr:`BindingMode.ZIP` associates corresponding entries, for example pairing
+  each parameter set with a particular measurement.
+
+Bindings can be nested to supply parameters and measurements at different
+levels. :meth:`CircuitBinding.unroll` exposes the resolved execution sequence
+without running it. Pass the binding to :func:`~mpqp.execution.runner.run` to
+execute it and obtain a :class:`~mpqp.execution.result.BatchResult`. Its results
+follow unroll order even when a provider groups executions internally. The
+number of logical results need not equal the number of provider submissions or
+hardware executions.
+
+Both public classes are available through ``from mpqp import CircuitBinding,
+BindingMode``.
+"""
+
 from __future__ import annotations
 
 from copy import copy
@@ -22,13 +51,22 @@ if TYPE_CHECKING:
 
 
 BindingParameters = dict[Union[Expr, str], Union[Complex, float]]
+"""Parameter values keyed by symbolic expressions or parameter names."""
 BindingExecution = tuple[QCircuit, Optional[BindingParameters], Optional[Measure]]
+"""One logical execution: circuit, optional parameters and optional measurement."""
 BindingOptions = tuple[Optional[BindingParameters], Optional[Measure]]
+"""Optional parameters and measurement combined while resolving a binding."""
 _AxisElement = TypeVar("_AxisElement")
 
 
 class BindingMode(Enum):
-    """Control how a :class:`CircuitBinding` combines its execution axes."""
+    """Control how a :class:`CircuitBinding` combines its execution axes.
+
+    The axes are circuits, parameter mappings and measurements. An omitted
+    parameter or measurement axis contributes a single unspecified entry.
+    Nested bindings resolve their own axes before being combined with the
+    enclosing binding's options.
+    """
 
     PRODUCT = auto()
     """Builds the Cartesian product of circuits, parameter sets and measurements."""
@@ -38,20 +76,28 @@ class BindingMode(Enum):
 
 
 class CircuitBinding:
-    """Describe a batch of related circuit executions lazily.
+    """Group related circuit executions for provider optimizations.
 
     A binding groups one or more circuits with optional parameter sets and
     measurements. It can also contain nested bindings. The execution axes are
     resolved only when the binding is translated for a provider or passed to
     :func:`~mpqp.execution.runner.run`.
 
+    Use :attr:`BindingMode.PRODUCT` for a parameter or measurement sweep and
+    :attr:`BindingMode.ZIP` to pair corresponding inputs. Measurements already
+    present in a circuit are extracted into an inner binding automatically.
+
     Args:
         circuits: Circuit, nested binding, or sequence of either to execute.
         values: Parameter mapping or sequence of mappings to bind to the
-            symbolic circuit parameters.
+            symbolic circuit parameters. Keys may be symbolic expressions or
+            parameter names. Omission leaves parameters to an enclosing binding
+            or requires the circuit to have no unbound parameters at execution.
         measurements: Measurement or sequence of measurements to apply. A
             circuit that already contains measurements must not also receive
-            this argument.
+            this argument. Each supplied measurement is shallow-copied before
+            shot overrides are applied. Nested mutable objects, including
+            observables and bases, may remain shared.
         mode: Rule used to combine circuits, values and measurements.
         noises: Noise models shared by every circuit in the binding.
         shots: Number of shots shared by every execution. When omitted, it is
@@ -64,9 +110,64 @@ class CircuitBinding:
             incompatible job types, or measurements, noise and shots are
             specified inconsistently.
 
+    Examples:
+        Evaluate two parameter sets against two observables. PRODUCT creates
+        four logical executions; ZIP pairs the entries to create two:
+
+        >>> from sympy import Symbol
+        >>> from mpqp import (BindingMode, CircuitBinding, ExpectationMeasure,
+        ...                   Observable, QCircuit, Ry, pX, pZ)
+        >>> theta = Symbol("theta")
+        >>> circuit = QCircuit([Ry(theta, 0)])
+        >>> values = [{theta: 0.0}, {theta: 1.0}]
+        >>> measures = [ExpectationMeasure(Observable(pZ)),
+        ...             ExpectationMeasure(Observable(pX))]
+        >>> product = CircuitBinding(circuit, values=values, measurements=measures)
+        >>> len(product.unroll())
+        4
+        >>> paired = CircuitBinding(circuit, values=values,
+        ...                         measurements=measures, mode=BindingMode.ZIP)
+        >>> len(paired.unroll())
+        2
+
+        Nest a parameter sweep inside a binding that supplies the measurement:
+
+        >>> sweep = CircuitBinding(circuit, values=values)
+        >>> measured = CircuitBinding(sweep, measurements=measures[0])
+        >>> len(measured.unroll())
+        2
+
+        Execute a sweep on a local simulator. The analytic expectation of Z
+        after Ry(theta) is cos(theta):
+
+        >>> import math
+        >>> from mpqp import IBMDevice, run
+        >>> sweep = CircuitBinding(circuit,
+        ...     values=[{theta: 0.0}, {theta: math.pi}],
+        ...     measurements=ExpectationMeasure(Observable(pZ)))
+        >>> result = run(sweep, IBMDevice.AER_SIMULATOR)  # doctest: +QISKIT
+        >>> [round(float(r.expectation_values), 6)
+        ...  for r in result.results]  # doctest: +QISKIT
+        [1.0, -1.0]
+
     Note:
         In :attr:`BindingMode.ZIP` mode, every non-singleton axis must have the
         same length. Singleton axes are broadcast when the binding is unrolled.
+        When both ``values`` and ``measurements`` are supplied directly to the
+        constructor in ZIP mode, their lengths must match, including singleton
+        inputs. A measurement may instead be supplied by an enclosing binding,
+        as in the nesting example.
+
+        Measurements in a binding must have the same type and effective shot
+        count. Binding-level ``shots`` can replace a measurement's default count
+        (1024 for basis measurements, zero for expectation measurements);
+        conflicting non-default counts are rejected. Without an explicit
+        measurement, a numeric circuit requests a state vector.
+
+        Circuits are retained by reference. A shallow measurement copy protects
+        its shot count but does not provide an independent copy of nested arrays,
+        target lists or basis objects. Finish preparing inputs before execution.
+
         Results returned by :func:`~mpqp.execution.runner.run` follow
         :meth:`unroll` order, independently of provider execution grouping.
     """
@@ -349,6 +450,21 @@ class CircuitBinding:
         Raises:
             ValueError: If a non-singleton axis cannot be broadcast in
                 :attr:`BindingMode.ZIP` mode.
+
+        Note:
+            For a flat PRODUCT binding, circuit order is outermost, followed by
+            parameter order and then measurement order. ZIP follows the paired
+            axis order. Returned circuits and measurements are references to
+            binding objects, not independent copies.
+
+            Nested bindings combine disjoint parameter mappings. If parent and
+            child mappings contain overlapping parameter names, they contribute
+            alternative parameter sets rather than overwriting one another.
+            Measurements supplied at both levels also contribute alternatives.
+            PRODUCT removes duplicate parameter mappings and repeated identical
+            measurement objects within each circuit branch. These rules can
+            make nested execution counts differ from a simple product of all
+            input lengths.
         """
         import itertools
         from typing import cast
@@ -631,6 +747,7 @@ class CircuitBinding:
 
         Args:
             device: Provider device targeted by the translation.
+            backend_sim: Optional Aer backend. Currently unused by this method.
 
         Returns:
             For AWS devices, a Braket ``ProgramSet`` and the MPQP context used
@@ -647,6 +764,9 @@ class CircuitBinding:
             For IBM, PRODUCT/ZIP combinations are resolved before executions
             are grouped by circuit. PUB fields are circuit, observables and
             parameter values; absent trailing fields are omitted.
+            This method prepares provider input and execution context; it does
+            not submit jobs. Prefer :func:`~mpqp.execution.runner.run` when
+            execution results are needed.
         """
         from mpqp.execution.devices import (
             AWSDevice,
