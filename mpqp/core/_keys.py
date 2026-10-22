@@ -73,18 +73,33 @@ class Snapshot:
             return ("scalar", value)
         if value_type in (int, float, complex):
             return _number_key(value)
-        # Scalar keys are cheaper to construct than to memoize.
-        memoize = isinstance(value, (np.ndarray, list, tuple)) or type(
-            value
-        ).__module__.startswith("mpqp.")
+        memoize, encoder = _key_encoder(value_type)
         if not memoize:
-            return _object_key(value, self)
+            return encoder(value, self)
         previous = self._memo.get(id(value))
         if previous is not None:
             return previous[1]
-        key = _object_key(value, self)
+        key = encoder(value, self)
         self._memo[id(value)] = (value, key)
         return key
+
+
+@lru_cache(maxsize=None)
+def _key_encoder(value_type: type) -> tuple[bool, Callable[[Any, Snapshot], ObjectKey]]:
+    """Resolve traversal once per concrete type, without caching mutable values."""
+    if issubclass(value_type, np.ndarray):
+        return True, _array_key
+    if issubclass(value_type, (list, tuple)):
+        return True, _sequence_key
+    if value_type.__module__.startswith("mpqp.") and not issubclass(
+        value_type, (Enum, PythonEnum)
+    ):
+        return True, _domain_key
+    return False, _object_key
+
+
+def _sequence_key(value: Any, snapshot: Snapshot) -> ObjectKey:
+    return ("sequence", tuple(snapshot(item) for item in value))
 
 
 def object_key(value: Any) -> ObjectKey:
@@ -196,40 +211,48 @@ def _pack_array(shape: Hashable, items: Iterable[ObjectKey]) -> ObjectKey:
     return ("array-v2", shape, packed.tobytes(), tuple(exceptions))
 
 
-def _domain_key(value: Any, snapshot: Callable[[Any], ObjectKey]) -> ObjectKey:
-    """Snapshot domain fields without introspecting provider properties."""
-    (
-        QCircuit,
-        Barrier,
-        Breakpoint,
-        ControlledGate,
-        Gate,
-        CustomGate,
-        UnitaryMatrix,
-        NativeGate,
-        ParametrizedGate,
-        BasisMeasure,
-        Basis,
+def _domain_key(value: Any, snapshot: Snapshot) -> ObjectKey:
+    """Read only explicitly supported structural fields."""
+    names = _domain_fields(type(value))(value)
+    if hasattr(value, "label") and "label" not in names:
+        names = (*names, "label")
+    return (
+        "object",
+        type(value).__module__,
+        type(value).__qualname__,
+        tuple((name, snapshot(getattr(value, name))) for name in names),
+    )
+
+
+@lru_cache(maxsize=None)
+def _domain_fields(value_type: type) -> Callable[[Any], tuple[str, ...]]:
+    """Select domain fields once per concrete type, after core imports complete."""
+    from mpqp.core.circuit import QCircuit
+    from mpqp.core.instruction.barrier import Barrier
+    from mpqp.core.instruction.breakpoint import Breakpoint
+    from mpqp.core.instruction.gates import ControlledGate, Gate
+    from mpqp.core.instruction.gates.custom_gate import CustomGate
+    from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
+    from mpqp.core.instruction.gates.native_gates import NativeGate
+    from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
+    from mpqp.core.instruction.measurement import BasisMeasure
+    from mpqp.core.instruction.measurement.basis import Basis
+    from mpqp.core.instruction.measurement.expectation_value import (
         ExpectationMeasure,
         Observable,
+    )
+    from mpqp.core.instruction.measurement.pauli_string import (
         PauliString,
         PauliStringAtom,
         PauliStringMonomial,
-        NoiseModel,
-    ) = _domain_types()
+    )
+    from mpqp.noise.noise_model import NoiseModel
 
-    def fields(*names: str) -> ObjectKey:
-        if hasattr(value, "label") and "label" not in names:
-            names = (*names, "label")
-        return (
-            "object",
-            type(value).__module__,
-            type(value).__qualname__,
-            tuple((name, snapshot(getattr(value, name))) for name in names),
-        )
+    def fixed(*names: str) -> Callable[[Any], tuple[str, ...]]:
+        return lambda value: names
 
-    if isinstance(value, QCircuit):
-        return fields(
+    if issubclass(value_type, QCircuit):
+        return fixed(
             "nb_qubits",
             "nb_cbits",
             "instructions",
@@ -237,25 +260,25 @@ def _domain_key(value: Any, snapshot: Callable[[Any], ObjectKey]) -> ObjectKey:
             "noises",
             "input_g_phase",
         )
-    if isinstance(value, ControlledGate):
+    if issubclass(value_type, ControlledGate):
         names = ["targets", "controls", "non_controlled_gate"]
-        if isinstance(value, ParametrizedGate):
+        if issubclass(value_type, ParametrizedGate):
             names.append("parameters")
-        return fields(*names)
-    if isinstance(value, CustomGate):
-        return fields("targets", "definition")
-    if isinstance(value, ParametrizedGate):
-        if isinstance(value, NativeGate):
-            return fields("targets", "parameters")
-        return fields("targets", "parameters", "definition")
-    if isinstance(value, Gate):
-        return fields("targets")
-    if isinstance(value, UnitaryMatrix):
-        return fields("matrix")
-    if isinstance(value, BasisMeasure):
-        return fields("targets", "c_targets", "shots", "basis")
-    if isinstance(value, ExpectationMeasure):
-        return fields(
+        return fixed(*names)
+    if issubclass(value_type, CustomGate):
+        return fixed("targets", "definition")
+    if issubclass(value_type, ParametrizedGate):
+        if issubclass(value_type, NativeGate):
+            return fixed("targets", "parameters")
+        return fixed("targets", "parameters", "definition")
+    if issubclass(value_type, Gate):
+        return fixed("targets")
+    if issubclass(value_type, UnitaryMatrix):
+        return fixed("matrix")
+    if issubclass(value_type, BasisMeasure):
+        return fixed("targets", "c_targets", "shots", "basis")
+    if issubclass(value_type, ExpectationMeasure):
+        return fixed(
             "targets",
             "shots",
             "observables",
@@ -264,31 +287,28 @@ def _domain_key(value: Any, snapshot: Callable[[Any], ObjectKey]) -> ObjectKey:
             "grouping_method",
             "optimize_measurement",
         )
-    if isinstance(value, Observable):
-        # Select the source representation without populating lazy caches or
-        # constructing an exponentially large matrix from a Pauli string.
-        # Observable labels name entries in multi-observable result dictionaries.
-        source = value._key_source
-        return fields("nb_qubits", "label", source)
-    if isinstance(value, Basis):
-        return fields("nb_qubits", "basis_vectors", "symbols", "basis_vectors_labels")
-    if isinstance(value, PauliStringAtom):
-        return fields("label", "matrix")
-    if isinstance(value, PauliStringMonomial):
-        return fields("coef", "atoms")
-    if isinstance(value, PauliString):
-        return fields("nb_qubits", "monomials")
-    if isinstance(value, NoiseModel):
-        names = ["targets", "gates"]
-        names.extend(
-            name for name in ("dimension", "prob", "gamma") if hasattr(value, name)
+    if issubclass(value_type, Observable):
+        # Capture the source representation, without touching lazy caches.
+        return lambda value: ("nb_qubits", "label", value._key_source)
+    if issubclass(value_type, Basis):
+        return fixed("nb_qubits", "basis_vectors", "symbols", "basis_vectors_labels")
+    if issubclass(value_type, PauliStringAtom):
+        return fixed("label", "matrix")
+    if issubclass(value_type, PauliStringMonomial):
+        return fixed("coef", "atoms")
+    if issubclass(value_type, PauliString):
+        return fixed("nb_qubits", "monomials")
+    if issubclass(value_type, NoiseModel):
+        return lambda value: (
+            "targets",
+            "gates",
+            *(name for name in ("dimension", "prob", "gamma") if hasattr(value, name)),
         )
-        return fields(*names)
-    if isinstance(value, Barrier):
-        return fields("targets", "size")
-    if isinstance(value, Breakpoint):
-        return fields("targets", "enabled", "draw_circuit")
-    raise TypeError(f"Result lookup keys do not support {type(value).__qualname__}")
+    if issubclass(value_type, Barrier):
+        return fixed("targets", "size")
+    if issubclass(value_type, Breakpoint):
+        return fixed("targets", "enabled", "draw_circuit")
+    raise TypeError(f"Result lookup keys do not support {value_type.__qualname__}")
 
 
 def encode_key(key: ObjectKey) -> str:
@@ -361,48 +381,3 @@ def _json_bytes(value: Any) -> dict[str, str]:
     if isinstance(value, bytes):
         return {"bytes": base64.b64encode(value).decode("ascii")}
     raise TypeError(f"Unsupported lookup key value: {type(value).__qualname__}")
-
-
-@lru_cache(maxsize=1)
-def _domain_types() -> tuple[type, ...]:
-    """Resolve domain types once, after core imports have completed."""
-    from mpqp.core.circuit import QCircuit
-    from mpqp.core.instruction.barrier import Barrier
-    from mpqp.core.instruction.breakpoint import Breakpoint
-    from mpqp.core.instruction.gates import ControlledGate, Gate
-    from mpqp.core.instruction.gates.custom_gate import CustomGate
-    from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
-    from mpqp.core.instruction.gates.native_gates import NativeGate
-    from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
-    from mpqp.core.instruction.measurement import BasisMeasure
-    from mpqp.core.instruction.measurement.basis import Basis
-    from mpqp.core.instruction.measurement.expectation_value import (
-        ExpectationMeasure,
-        Observable,
-    )
-    from mpqp.core.instruction.measurement.pauli_string import (
-        PauliString,
-        PauliStringAtom,
-        PauliStringMonomial,
-    )
-    from mpqp.noise.noise_model import NoiseModel
-
-    return (
-        QCircuit,
-        Barrier,
-        Breakpoint,
-        ControlledGate,
-        Gate,
-        CustomGate,
-        UnitaryMatrix,
-        NativeGate,
-        ParametrizedGate,
-        BasisMeasure,
-        Basis,
-        ExpectationMeasure,
-        Observable,
-        PauliString,
-        PauliStringAtom,
-        PauliStringMonomial,
-        NoiseModel,
-    )
