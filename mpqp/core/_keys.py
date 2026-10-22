@@ -1,7 +1,7 @@
 """Immutable, provider-independent snapshots used for result lookup.
 
-Keys describe exact structure, rather than numerical equivalence. Display labels,
-inferred-size bookkeeping and execution caches are deliberately excluded. This is
+Keys describe exact structure and labels, rather than numerical equivalence.
+Inferred-size bookkeeping and execution caches are deliberately excluded. This is
 an internal protocol: mutable MPQP objects themselves remain unchanged.
 """
 
@@ -109,6 +109,8 @@ def _domain_key(value: Any) -> ObjectKey:
     from mpqp.noise.noise_model import NoiseModel
 
     def fields(*names: str) -> ObjectKey:
+        if hasattr(value, "label") and "label" not in names:
+            names = (*names, "label")
         return (
             "object",
             type(value).__module__,
@@ -194,33 +196,31 @@ def decode_key(data: str) -> ObjectKey:
 
 def encode_result_key(key: ResultKey) -> str:
     """Store submitted criteria as versioned JSON in the legacy metadata column."""
-    return json.dumps((2, (key.circuit, key.device, key.measurement)), allow_nan=False)
+    return json.dumps((3, (key.circuit, key.device, key.measurement)), allow_nan=False)
 
 
-def decode_result_key(data: str, device: AvailableDevice) -> ResultKey:
-    """Restore criteria, including circuit-only metadata from earlier drafts."""
+def decode_result_key(
+    data: str, device: AvailableDevice, circuit: QCircuit
+) -> ResultKey:
+    """Restore criteria; older label-free keys fall back to the recorded job."""
     version, value = _decode_payload(data)
-    if version == 2:
+    if version == 3:
         if len(value) != 3 or not all(isinstance(item, tuple) for item in value):
             raise ValueError("Invalid submitted result criteria")
-        circuit, device_key, measurement = cast(
+        circuit_key, device_key, measurement = cast(
             tuple[ObjectKey, ObjectKey, ObjectKey], value
         )
-        return ResultKey(circuit, device_key, measurement)
-    if version == 1:
-        # Recover the original measurement embedded in the submitted circuit.
-        if len(value) != 4 or value[:3] != ("object", "mpqp.core.circuit", "QCircuit"):
-            raise ValueError("Invalid legacy circuit key")
-        fields = dict(cast(tuple[tuple[str, ObjectKey], ...], value[3]))
-        measurements = cast(tuple[ObjectKey, ...], fields["measurements"][1])
-        measurement = measurements[0] if measurements else object_key(None)
-        return ResultKey(value, object_key(device), measurement)
+        return ResultKey(circuit_key, device_key, measurement)
+    if version in (1, 2):
+        # These formats omitted labels, which cannot be recovered reliably from
+        # the original snapshots. Never treat a missing label as a wildcard.
+        return result_key(circuit, device)
     raise ValueError(f"Unsupported result lookup key version: {version}")
 
 
 def _decode_payload(data: str) -> tuple[int, ObjectKey]:
     version, value = json.loads(data)
-    if version not in (1, 2):
+    if version not in (1, 2, 3):
         raise ValueError(f"Unsupported result lookup key version: {version}")
 
     def restore(item: Any) -> Hashable:

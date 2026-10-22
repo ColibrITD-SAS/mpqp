@@ -946,10 +946,11 @@ class BatchResult:
         circuits and runs on multiple devices retain every individual result.
 
         Circuit matching includes dimensions, ordered instructions, parameters,
-        measurements, noise, and input global phase. It ignores circuit and
-        instruction display labels, inferred-size bookkeeping, and execution
-        caches. Observable labels remain significant because they name values
-        in multi-observable results. Matching uses exact structural values:
+        measurements, noise, input global phase, and the labels of all objects.
+        Changing a circuit, gate, measurement, or observable label changes its
+        matching criteria. Automatically generated execution names do not rename
+        the submitted circuit. Inferred-size bookkeeping and execution caches
+        are ignored. Matching uses exact structural values:
         numerically close matrices and different observable representations are
         not interchangeable. Existing public equality and numerical equivalence
         methods are unchanged.
@@ -998,6 +999,13 @@ class BatchResult:
             True
             >>> batch.get_matching(measurement=measurement) == matches  # doctest: +QISKIT
             True
+
+            Labels must match as well as the computation:
+
+            >>> renamed = deepcopy(other)
+            >>> renamed.label = "another experiment"
+            >>> batch.get_matching(circuit=renamed)  # doctest: +QISKIT
+            []
 
             Omitted criteria are unrestricted. Missing matches return an empty
             list; ``measurement=None`` selects runs with no explicit measurement:

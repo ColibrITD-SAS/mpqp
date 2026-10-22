@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from copy import deepcopy
 from numbers import Complex
 from pathlib import Path
@@ -16,7 +17,9 @@ from sympy import Expr, Symbol
 from mpqp import (
     CNOT,
     AWSDevice,
+    Barrier,
     BasisMeasure,
+    Breakpoint,
     Depolarizing,
     ExpectationMeasure,
     H,
@@ -61,9 +64,10 @@ def test_lookup_and_sequence_compatibility():
 
     assert batch.get_matching(circuit=circuit) == [result]
     assert batch.get_matching(circuit=deepcopy(circuit)) == [result]
-    assert batch.get_matching(
-        circuit=QCircuit([H(0), CNOT(0, 1)], label="another label")
-    ) == [result]
+    assert (
+        batch.get_matching(circuit=QCircuit([H(0), CNOT(0, 1)], label="another label"))
+        == []
+    )
     assert batch[0] is result
     assert batch[-1] is other
     assert batch[:] == [result, other]
@@ -112,6 +116,71 @@ def test_snapshot_survives_nested_mutation():
     assert batch.get_matching(circuit=circuit) == []
     assert batch.get_matching(measurement=original.measurements[0]) == [result]
     assert batch.get_matching(measurement=circuit.measurements[0]) == []
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        QCircuit([H(0)]),
+        H(0),
+        CNOT(0, 1),
+        Rx(0.5, 0),
+        CustomGate(np.eye(2), [0]),
+        BasisMeasure([0]),
+        ExpectationMeasure(Observable(pZ), [0]),
+        Observable(pZ),
+        Barrier(1),
+        Breakpoint(),
+    ],
+)
+def test_object_labels_are_part_of_keys(value: Any):
+    value = deepcopy(value)
+    value.label = "first"
+    equivalent = deepcopy(value)
+    assert object_key(equivalent) == object_key(value)
+    equivalent.label = "second"
+    assert object_key(equivalent) != object_key(value)
+    value.label = None
+    equivalent.label = ""
+    assert object_key(equivalent) != object_key(value)
+
+
+def test_circuit_gate_and_measurement_labels_distinguish_runs():
+    original = QCircuit([H(0), BasisMeasure([0], label="readout")], label="input")
+    circuit_label, gate_label, measurement_label = [
+        deepcopy(original) for _ in range(3)
+    ]
+    circuit_label.label = "other input"
+    gate_label.instructions[0].label = "other gate"
+    measurement_label.measurements[0].label = "other readout"
+    circuits = [original, circuit_label, gate_label, measurement_label]
+    results = [make_result(circuit) for circuit in circuits]
+    batch = BatchResult(results)
+    for circuit, result in zip(circuits, results):
+        assert batch.get_matching(circuit=deepcopy(circuit)) == [result]
+    assert batch.get_matching(measurement=original.measurements[0]) == results[:3]
+    assert batch.get_matching(measurement=measurement_label.measurements[0]) == [
+        results[3]
+    ]
+    before = deepcopy(original)
+    original.label = "renamed"
+    assert batch.get_matching(circuit=before) == [results[0]]
+    assert batch.get_matching(circuit=original) == []
+
+
+@pytest.mark.parametrize("label", [None, "", "input"])
+def test_runner_preserves_submitted_labels(label: Optional[str]):
+    circuit = QCircuit([H(0)], label=label)
+    before = deepcopy(circuit)
+    with patch(
+        "mpqp.execution.runner._run_single",
+        side_effect=lambda circ, *args: make_result(circ),
+    ):
+        batch = run([circuit], IBMDevice.AER_SIMULATOR)
+    assert isinstance(batch, BatchResult)
+    assert circuit.label == label
+    assert batch.get_matching(circuit=before) == [batch[0]]
+    assert batch[0].job.circuit.label == ("circuit 1" if label is None else label)
 
 
 @pytest.mark.parametrize(
@@ -175,18 +244,24 @@ def test_submitted_metadata_survives_job_mutation():
     assert batch.get_matching(measurement=original.measurements[0]) == [result]
 
 
-def test_submitted_key_serialization_and_legacy_upgrade():
+def test_submitted_key_serialization_and_legacy_fallback():
     circuit = QCircuit([H(0), BasisMeasure([0], shots=16)])
     device = IBMDevice.AER_SIMULATOR
     key = result_key(circuit, device)
-    assert decode_result_key(encode_result_key(key), device) == key
-    assert decode_result_key(encode_key(object_key(circuit)), device) == key
+    assert decode_result_key(encode_result_key(key), device, circuit) == key
+    recorded = deepcopy(circuit)
+    recorded.label = "recorded execution"
+    assert decode_result_key(
+        encode_key(object_key(circuit)), device, recorded
+    ) == result_key(recorded, device)
+    legacy = json.dumps((2, (key.circuit, key.device, key.measurement)))
+    assert decode_result_key(legacy, device, recorded) == result_key(recorded, device)
     without_measurement = QCircuit([H(0)])
     assert decode_result_key(
-        encode_key(object_key(without_measurement)), device
+        encode_key(object_key(without_measurement)), device, without_measurement
     ) == result_key(without_measurement, device)
     with pytest.raises(ValueError, match="version"):
-        decode_result_key('[3, []]', device)
+        decode_result_key('[99, []]', device, circuit)
 
 
 def test_no_measurement_is_distinct_from_zero_shots():
@@ -260,6 +335,8 @@ def test_semantic_fields_and_execution_caches(monkeypatch: pytest.MonkeyPatch):
     circuit = QCircuit([H(0), BasisMeasure([0], shots=100)])
     key = object_key(circuit)
     circuit.label = "renamed"
+    assert object_key(circuit) != key
+    circuit.label = None
     monkeypatch.setattr(circuit, "transpiled_circuit", object())
     monkeypatch.setattr(circuit, "transpiled_noise_model", object())
     monkeypatch.setattr(circuit, "_generated_g_phase", 0.4)
@@ -316,6 +393,8 @@ def test_real_local_batch_and_multiple_devices():
     original = deepcopy(circuit)
     batch = run([circuit], IBMDevice.AER_SIMULATOR)
     assert isinstance(batch, BatchResult)
+    assert circuit.label is None
+    assert batch[0].job.circuit.label == "circuit 1"
     np.testing.assert_allclose(
         batch.get_matching(circuit=circuit)[0].amplitudes,
         [2**-0.5, 0, 0, 2**-0.5],
@@ -406,9 +485,9 @@ def test_legacy_storage_falls_back_to_job_circuit(isolated_storage: Path):
     assert len(restored) == 1
 
 
-@pytest.mark.parametrize("legacy_key", [False, True])
-def test_storage_preserves_independent_submitted_measurement(
-    isolated_storage: Path, legacy_key: bool
+@pytest.mark.parametrize("legacy_version", [None, 1, 2])
+def test_storage_uses_submitted_or_legacy_recorded_criteria(
+    isolated_storage: Path, legacy_version: Optional[int]
 ):
     from mpqp.local_storage.save import insert_results
 
@@ -417,16 +496,22 @@ def test_storage_preserves_independent_submitted_measurement(
     )
     adapted = QCircuit([X(1), ExpectationMeasure(Observable(pZ @ pZ), [0, 1], shots=0)])
     executed = Result(Job(JobType.OBSERVABLE, adapted, IBMDevice.AER_SIMULATOR), -1.0)
-    if legacy_key:
-        # Reproduce a record written by the earlier circuit-only draft.
+    if legacy_version is not None:
+        # Legacy formats did not reliably preserve original labels.
         ids = insert_results(executed)
+        old_key = result_key(original, executed.device)
+        data = (
+            encode_key(old_key.circuit)
+            if legacy_version == 1
+            else json.dumps((2, (old_key.circuit, old_key.device, old_key.measurement)))
+        )
         with connect(isolated_storage) as connection:
             connection.execute(
                 "CREATE TABLE result_keys (result_id INTEGER PRIMARY KEY, circuit_key TEXT)"
             )
             connection.execute(
                 "INSERT INTO result_keys VALUES (?, ?)",
-                (ids[0], encode_key(object_key(original))),
+                (ids[0], data),
             )
     else:
         with patch("mpqp.execution.runner._run_single", return_value=executed):
@@ -434,9 +519,28 @@ def test_storage_preserves_independent_submitted_measurement(
         assert isinstance(batch, BatchResult)
         ids = batch.save()
     restored = BatchResult.load_by_local_ids(ids)
+    expected = adapted if legacy_version is not None else original
     assert restored.get_matching(
-        circuit=original,
+        circuit=expected,
         device=IBMDevice.AER_SIMULATOR,
-        measurement=original.measurements[0],
+        measurement=expected.measurements[0],
     ) == [restored[0]]
-    assert restored.get_matching(measurement=adapted.measurements[0]) == []
+    other = original if legacy_version is not None else adapted
+    assert restored.get_matching(measurement=other.measurements[0]) == []
+
+
+def test_storage_preserves_submitted_labels(isolated_storage: Path):
+    circuit = QCircuit([H(0), BasisMeasure([0], label="readout")], label="input")
+    circuit.instructions[0].label = "preparation"
+    batch = BatchResult([make_result(circuit)])
+    restored = BatchResult.load_by_local_ids(batch.save())
+    assert restored.get_matching(circuit=deepcopy(circuit)) == [restored[0]]
+    assert restored.get_matching(measurement=deepcopy(circuit.measurements[0])) == [
+        restored[0]
+    ]
+    different = deepcopy(circuit)
+    different.instructions[0].label = "other preparation"
+    assert restored.get_matching(circuit=different) == []
+    different = deepcopy(circuit.measurements[0])
+    different.label = "other readout"
+    assert restored.get_matching(measurement=different) == []

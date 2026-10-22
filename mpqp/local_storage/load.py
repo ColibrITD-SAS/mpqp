@@ -138,7 +138,7 @@ def _restore_submitted_keys(records: list[DictDB], results: list[Result]) -> Non
                 (record.get("id"),),
             ).fetchone()
             if row is not None:
-                key = decode_result_key(row[0], result.device)
+                key = decode_result_key(row[0], result.device, result.job.circuit)
                 result._submitted_key = key  # pyright: ignore[reportPrivateUsage]
     finally:
         connection.close()

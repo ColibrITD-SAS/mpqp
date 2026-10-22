@@ -18,6 +18,7 @@ return the corresponding job id and :class:`~mpqp.execution.job.Job` object.
 
 from __future__ import annotations
 
+from copy import copy
 from itertools import pairwise
 from numbers import Complex
 from textwrap import indent
@@ -553,10 +554,14 @@ def run(
         results: list[Result] = []
         for i, (circ, circuit_key, measurement_key) in enumerate(circuits):
             for dev, device_key in devices:
+                execution_circuit = circ
                 if circ.label is None:
-                    circ.label = f"circuit {i + 1}"
+                    # Keep display names on the job copy so the submitted
+                    # circuit still matches its original, unlabeled snapshot.
+                    execution_circuit = copy(circ)
+                    execution_circuit.label = f"circuit {i + 1}"
                 result = _run_single(
-                    circ,
+                    execution_circuit,
                     dev,
                     values,
                     display_breakpoints,
