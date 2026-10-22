@@ -866,17 +866,14 @@ class BatchResult:
         True
 
     Note:
-        :func:`~mpqp.execution.runner.run` captures independent immutable keys
-        before symbolic substitution and provider adaptation. No freezing is
-        required: later edits to input circuits and measurements leave stored
-        entries intact. See :meth:`get_matching` for the matching rules.
+        Matching uses inputs as they were submitted. Editing a circuit or
+        measurement afterward leaves stored results intact, but filtering with
+        the edited object may no longer find them. See :meth:`get_matching` for
+        examples and matching rules.
 
-        Saving a batch preserves all three submitted criteria as optional
-        versioned JSON metadata. Earlier circuit-only metadata retains the
-        original circuit and measurement and uses the saved job device. Results
-        without submitted metadata, including manually constructed results, use
-        their job metadata when the batch is constructed. That metadata may
-        already contain substitutions or provider adjustments.
+        When original inputs are unavailable, as with some older saved results
+        or manually constructed results, matching uses the circuit and
+        measurement recorded in each result.
 
     """
 
