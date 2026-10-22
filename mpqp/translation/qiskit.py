@@ -240,8 +240,10 @@ if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
             )
 
         unrolled = binding.unroll()
-        if any(c.transpiled_circuit is None for c, _, _ in unrolled):
-            binding.transpiled_circuits(device=device)
+
+        from mpqp.tools.binding_utils import translate_binding_circuits
+
+        translated_circuits = translate_binding_circuits(binding, device)
 
         grouped = {}
         for c, values, measure in unrolled:
@@ -249,7 +251,11 @@ if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
 
         pubs_with_context = []
         for executions in grouped.values():
-            q_c = executions[0][0].transpiled_circuit
+            q_c = translated_circuits.get(id(executions[0][0]))
+            if q_c is None:
+                raise ValueError(
+                    f"Circuit with id {id(executions[0][0])} wasn't found in the binding, please contact the maintainers of this library."
+                )
             if TYPE_CHECKING:
                 from qiskit.circuit import QuantumCircuit
 

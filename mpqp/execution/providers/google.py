@@ -430,7 +430,8 @@ def run_google_remote(job: Job) -> Result:
                 assert isinstance(job.measure, BasisMeasure)
 
             return extract_result_SAMPLE(
-                service.run(circuit=job_CirqCircuit, repetitions=job.measure.shots), job
+                service.run(circuit=job_CirqCircuit, repetitions=job.measure.shots),
+                job,
             )
         elif job.job_type == JobType.OBSERVABLE:
             return run_cirq_observable_remote(job, job_CirqCircuit, service)

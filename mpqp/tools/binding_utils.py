@@ -67,7 +67,10 @@ def __translate_binding_circuits(
 
 
 def translate_binding_circuits(
-    cb: CircuitBinding, device: AvailableDevice
+    cb: CircuitBinding,
+    device: AvailableDevice,
+    skip_pre_measure: bool = False,
+    backend_sim: Optional["AerSimulator"] = None,
 ) -> dict[int, Any]:
     """Returns a dictionary containing the transpiled circuits of a
     circuit binding with their memory address as keys.
@@ -75,7 +78,7 @@ def translate_binding_circuits(
 
     This is of use for runs not supported natively by the equivalent of circuit bindings.
     """
-    return __translate_binding_circuits(cb, device, {})
+    return __translate_binding_circuits(cb, device, {}, skip_pre_measure, backend_sim)
 
 
 def __translated_binding_measurements(
