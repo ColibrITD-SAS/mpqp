@@ -617,9 +617,9 @@ def estimate_cost_single_job(
 
     Example:
         >>> circuit = QCircuit([H(0), CNOT(0, 1), CNOT(1, 2), BasisMeasure(shots=245)])
-        >>> job = generate_job(circuit, AWSDevice.IONQ_ARIA_1)
-        >>> estimate_cost_single_job(job, hybrid_iterations=150)
-        1147.5
+        >>> job = generate_job(circuit, AWSDevice.IONQ_FORTE_1)
+        >>> round(estimate_cost_single_job(job, hybrid_iterations=150), 2)
+        2985.0
 
     """
 
@@ -628,14 +628,22 @@ def estimate_cost_single_job(
             f"This function was expecting a job with an AWSDevice but got a {type(job.device).__name__}."
         )
 
+    if job.device.is_retired():
+        raise DeviceJobIncompatibleError(
+            f"{job.device.name} has been retired by Amazon Braket."
+        )
+    if not job.device.is_gate_based():
+        raise DeviceJobIncompatibleError(
+            f"{job.device.name} does not support MPQP QCircuit jobs."
+        )
+
     if job.device.is_remote():
         if job.device.is_simulator():
-            if "sv1" in job.device.value or "dm1" in job.device.value:
-                minute_cost = 0.075
-            elif "tn1" in job.device.value:
-                minute_cost = 0.275
-            else:
-                raise ValueError
+            price_per_minute = {
+                AWSDevice.BRAKET_SV1_SIMULATOR: 0.075,
+                AWSDevice.BRAKET_DM1_SIMULATOR: 0.075,
+            }
+            minute_cost = price_per_minute[job.device]
             return minute_cost * max(estimated_time_seconds / 60, 3 / 60)
         else:
             if job.measure is None:
@@ -643,28 +651,25 @@ def estimate_cost_single_job(
                     "An AWS remote job on a quantum computer requires to have a measure."
                 )
 
-            if "ionq" in job.device.value:
-                task_cost = 0.3
-                shot_cost = 0.03
-
-            elif "iqm" in job.device.value:
-                task_cost = 0.3
-                shot_cost = 0.00145
-
-            elif "rigetti" in job.device.value:
-                task_cost = 0.3
-                shot_cost = 0.0009
-
-            elif "quera" in job.device.value:
-                task_cost = 0.3
-                shot_cost = 0.01
-
-            else:
+            price_per_shot = {
+                # https://aws.amazon.com/braket/pricing/
+                AWSDevice.AQT_IBEX_Q1: 0.0235,
+                AWSDevice.IONQ_FORTE_1: 0.08,
+                AWSDevice.IONQ_FORTE_ENTERPRISE_1: 0.08,
+                AWSDevice.IQM_GARNET: 0.00145,
+                AWSDevice.IQM_EMERALD: 0.0016,
+                AWSDevice.RIGETTI_ANKAA_3: 0.0009,
+                AWSDevice.RIGETTI_CEPHEUS_1_108Q: 0.000425,
+            }
+            if job.device not in price_per_shot:
                 raise NotImplementedError(
                     f"Cost estimation not implemented yet for {job.device.name} device."
                 )
 
-            return (task_cost + job.measure.shots * shot_cost) * hybrid_iterations
+            task_cost = 0.3
+            return (
+                task_cost + job.measure.shots * price_per_shot[job.device]
+            ) * hybrid_iterations
 
     else:
         return 0
