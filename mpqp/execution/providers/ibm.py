@@ -540,20 +540,19 @@ def run_aer(job: Job) -> Result | BatchResult:
                     "NoiseModel are ignored when running the circuit on a SimulatedDevice"
                 )
             backend_sim = job.device.to_noisy_simulator()
-
-            binding.transpiled_circuits(job.device, backend_sim=backend_sim)
         else:
-            binding.transpiled_circuits(job.device, backend_sim=backend_sim)
-            if binding.transpiled_noise_model is not None:
-                backend_sim = AerSimulator(
-                    method=job.device.value, noise_model=binding.transpiled_noise_model
-                )
-            else:
-                backend_sim = AerSimulator(method=job.device.value)
+            backend_sim = AerSimulator(method=job.device.value)
 
         if job.job_type == JobType.OBSERVABLE:
 
             pubs_with_context = binding.to_other_device(job.device)
+            if (
+                not isinstance(job.device, StaticIBMSimulatedDevice)
+                and binding.is_noisy
+            ):
+                backend_sim = AerSimulator(
+                    method=job.device.value, noise_model=binding.transpiled_noise_model
+                )
 
             pubs = [item[0] for item in pubs_with_context]
             contexts = [item[1] for item in pubs_with_context]
@@ -566,12 +565,20 @@ def run_aer(job: Job) -> Result | BatchResult:
                 shots=binding.shots,
             )
         elif job.job_type in (JobType.SAMPLE, JobType.STATE_VECTOR):
+            from mpqp.tools.binding_utils import translate_binding_circuits
+
             unrolled_items = binding.unroll()
             bound_circuits = []
             context_jobs = []
-
+            translated_circuits = translate_binding_circuits(
+                binding, job.device, backend_sim=backend_sim
+            )
             for c, v, m in unrolled_items:
-                q_c = c.transpiled_circuit
+                q_c = translated_circuits.get(id(c))
+                if q_c is None:
+                    raise ValueError(
+                        f"Couldn't find circuit with id:{id(c)} in the circuit binding, please report this bug to the maintainers of the library."
+                    )
                 if TYPE_CHECKING:
                     assert isinstance(q_c, QuantumCircuit)
 

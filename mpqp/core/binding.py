@@ -601,18 +601,18 @@ class CircuitBinding:
 
     @overload
     def to_other_device(
-        self, device: "AWSDevice"
+        self, device: "AWSDevice", backend_sim: Optional["AerSimulator"] = None
     ) -> tuple["ProgramSet", list[Any]]: ...
     @overload
     def to_other_device(
-        self, device: "IBMDevice"
-    ) -> list[tuple["EstimatorPubLike", list["ExecutionContext"]]]: ...
+        self, device: "IBMDevice", backend_sim: Optional["AerSimulator"] = None
+    ) -> list[tuple["EstimatorPubLike", list[ExecutionContext]]]: ...
     @overload
     def to_other_device(
-        self, device: "AvailableDevice"
+        self, device: "AvailableDevice", backend_sim: Optional["AerSimulator"] = None
     ) -> "list[tuple[EstimatorPubLike, list[ExecutionContext]]] | tuple[ProgramSet, list[Any]]": ...
     def to_other_device(
-        self, device: "AvailableDevice"
+        self, device: "AvailableDevice", backend_sim: Optional["AerSimulator"] = None
     ) -> "list[tuple[EstimatorPubLike, list[ExecutionContext]]] | tuple[ProgramSet, list[Any]]":
         """Translate a binding for the selected provider.
 

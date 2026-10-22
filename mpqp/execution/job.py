@@ -141,7 +141,7 @@ class Job:
         """Optional message associated with the current job status, especially
         for execution errors."""
 
-        """Store the measurement of a circuit."""
+        """Store the measurement of a circuit, used mostly for ``CircuitBinding`` execution."""
         self.measurement = measurement
 
         """Store parameters in case the original circuit was parametrized."""
@@ -153,10 +153,10 @@ class Job:
         from ..core.binding import CircuitBinding
 
         if isinstance(self.circuit, CircuitBinding):
-            return None
+            return self.measurement
 
         return (
-            None
+            self.measurement
             if len(self.circuit.measurements) == 0
             else self.circuit.measurements[0]
         )

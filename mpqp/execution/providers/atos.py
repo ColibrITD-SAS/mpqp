@@ -146,7 +146,7 @@ def get_remote_qpu(device: ATOSDevice, job: Job):
             qpu = NoisyQProc(
                 hw_model,
                 sim_method="stochastic",
-                n_samples=job.measure.shots if job.measure is not None else 0,
+                n_samples=(job.measure.shots if job.measure is not None else 0),
             )
             if job.job_type == JobType.OBSERVABLE:
                 from qlmaas.plugins import (  # pyright: ignore[reportMissingImports]
@@ -184,7 +184,7 @@ def get_remote_qpu(device: ATOSDevice, job: Job):
 
             qpu = NoisyQProc(
                 sim_method="stochastic",
-                n_samples=job.measure.shots if job.measure is not None else 0,
+                n_samples=(job.measure.shots if job.measure is not None else 0),
             )
             if job.job_type == JobType.OBSERVABLE:
                 from qlmaas.plugins import (  # pyright: ignore[reportMissingImports]

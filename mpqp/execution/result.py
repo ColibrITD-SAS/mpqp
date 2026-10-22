@@ -382,22 +382,14 @@ class Result:
                 raise TypeError(
                     "Wrong type of data in the result (not a list). Expecting list of Sample"
                 )
-            if self.job.measure is None and self.job.measurement is None:
+            if self.job.measure is None:
                 raise ValueError(
                     f"{self.job=} has no measure, making the counting impossible"
                 )
-            nb_qubits = (
-                self.job.measurement.nb_qubits
-                if self.job.measurement
-                else self.job.measure.nb_qubits  # pyright: ignore[reportOptionalMemberAccess]
-            )
+            nb_qubits = self.job.measure.nb_qubits
             if nb_qubits == 0:
                 nb_qubits = self.job.circuit.nb_qubits
-            shots = (
-                self.job.measure.shots
-                if self.job.measure
-                else self.job.measurement.shots  # pyright: ignore[reportOptionalMemberAccess]
-            )
+            shots = self.job.measure.shots
             self._samples = data
             is_counts = all([sample.count is not None for sample in data])
             is_probas = all([sample.probability is not None for sample in data])
@@ -541,11 +533,7 @@ class Result:
         if self.job.status == JobStatus.ERROR:
             return f"{header}\n  Status: ERROR\n  Message: {self.job.status_message}"
         if self.job.job_type == JobType.SAMPLE:
-            measure = (
-                self.job.measure
-                if self.job.measure is not None
-                else self.job.measurement
-            )
+            measure = self.job.measure
 
             if not isinstance(measure, BasisMeasure):
                 raise ValueError("Mismatch between measurements type and job type.")
@@ -579,11 +567,11 @@ class Result:
 
         if self.job.job_type == JobType.OBSERVABLE:
             if isinstance(self.expectation_values, float):
-                if self.job.measurement:
+                if self.job.measure:
                     from mpqp import ExpectationMeasure
 
-                    assert isinstance(self.job.measurement, ExpectationMeasure)
-                    observables = f"\nWith observables: {[o.pauli_string for o in self.job.measurement.observables]}"
+                    assert isinstance(self.job.measure, ExpectationMeasure)
+                    observables = f"\nWith observables: {[o.pauli_string for o in self.job.measure.observables]}"
                 else:
                     observables = ""
                 return f"""{header}
@@ -664,15 +652,11 @@ class Result:
             raise NotImplementedError(
                 f"{self.job.job_type} not handled, only {JobType.SAMPLE} is handled for now."
             )
-        if self.job.measure is None and self.job.measurement is None:
+        if self.job.measure is None:
             raise ValueError(
                 f"{self.job=} has no measure, making the counting impossible"
             )
-        n = (
-            self.job.measure.nb_qubits
-            if self.job.measure
-            else self.job.measurement.nb_qubits  # pyright: ignore[reportOptionalMemberAccess]
-        )
+        n = self.job.measure.nb_qubits
         x_array = [f"|{bin(i)[2:].zfill(n)}⟩" for i in range(2**n)]
         y_array = self.counts
         return x_array, y_array
