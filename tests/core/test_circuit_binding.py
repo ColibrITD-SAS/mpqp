@@ -31,34 +31,87 @@ from mpqp.execution.devices import (
 )
 from mpqp.execution.result import BatchResult
 
-theta, phi, psi = Symbol('θ'), Symbol('phi'), Symbol('psi')
-c1 = QCircuit([U(theta, phi, psi, 0)], label="c1")
-c2 = QCircuit([Y(0)], label="c2")
-c3 = QCircuit([X(0), Id(1)], label="c3")
-c4 = QCircuit([Id(0), X(1)], label="c4")
 
-v1 = {'θ': 1.0, 'phi': 1.0, 'psi': 1.0}
-v2 = {'θ': 2.0, 'phi': 2.0, 'psi': 2.0}
-v3 = {'θ': 3.0, 'phi': 3.0, 'psi': 3.0}
-v4 = {'θ': 4.0, 'phi': 4.0, 'psi': 4.0}
+@pytest.fixture
+def c1() -> QCircuit:
+    theta, phi, psi = Symbol('θ'), Symbol('phi'), Symbol('psi')
+    return QCircuit([U(theta, phi, psi, 0)], label="c1")
 
-m1 = ExpectationMeasure(Observable(pI), label="Exp1", shots=2024)
-m2 = ExpectationMeasure(Observable(pZ @ pZ), label="Exp2", shots=2024)
-m3 = BasisMeasure(label="b3", shots=2024)
-m4 = None
 
-m_I = ExpectationMeasure(Observable(pI), label="Exp_I", shots=2024)
-m_Z = ExpectationMeasure(Observable(pZ), label="Exp_Z", shots=2024)
+@pytest.fixture
+def c2() -> QCircuit:
+    return QCircuit([Y(0)], label="c2")
+
+
+@pytest.fixture
+def c3() -> QCircuit:
+    return QCircuit([X(0), Id(1)], label="c3")
+
+
+@pytest.fixture
+def c4() -> QCircuit:
+    return QCircuit([Id(0), X(1)], label="c4")
+
+
+@pytest.fixture
+def v1() -> dict[str, float]:
+    return {'θ': 1.0, 'phi': 1.0, 'psi': 1.0}
+
+
+@pytest.fixture
+def v2() -> dict[str, float]:
+    return {'θ': 2.0, 'phi': 2.0, 'psi': 2.0}
+
+
+@pytest.fixture
+def v3() -> dict[str, float]:
+    return {'θ': 3.0, 'phi': 3.0, 'psi': 3.0}
+
+
+@pytest.fixture
+def m1() -> ExpectationMeasure:
+    return ExpectationMeasure(Observable(pI), label="Exp1", shots=2024)
+
+
+@pytest.fixture
+def m2() -> ExpectationMeasure:
+    return ExpectationMeasure(Observable(pZ @ pZ), label="Exp2", shots=2024)
+
+
+@pytest.fixture
+def m3() -> BasisMeasure:
+    return BasisMeasure(label="b3", shots=2024)
+
+
+@pytest.fixture
+def m_I() -> ExpectationMeasure:
+    return ExpectationMeasure(Observable(pI), label="Exp_I", shots=2024)
+
+
+@pytest.fixture
+def m_Z() -> ExpectationMeasure:
+    return ExpectationMeasure(Observable(pZ), label="Exp_Z", shots=2024)
 
 
 @pytest.mark.provider("qiskit")
 @pytest.mark.parametrize("mode", list(BindingMode))
-def test_qiskit_to_other_device_grouped_shapes(mode: BindingMode):
+def test_qiskit_to_other_device_grouped_shapes(
+    mode: BindingMode,
+    c1: QCircuit,
+    v1: dict[str, float],
+    v2: dict[str, float],
+    m_I: ExpectationMeasure,
+    m_Z: ExpectationMeasure,
+):
     binding = CircuitBinding(c1, values=[v1, v2], measurements=[m_I, m_Z], mode=mode)
     pubs_with_context = binding.to_other_device(IBMDevice.AER_SIMULATOR)
     assert len(pubs_with_context) == 1
     pub, contexts = pubs_with_context[0]
-    circuit, observables, parameters = pub  # type: ignore
+    (
+        circuit,
+        observables,
+        parameters,
+    ) = pub  # pyright: ignore[reportGeneralTypeIssues,reportAssignmentType]
     expected = (
         [(v1, m_I), (v2, m_Z)]
         if mode == BindingMode.ZIP
@@ -66,31 +119,47 @@ def test_qiskit_to_other_device_grouped_shapes(mode: BindingMode):
     )
     assert len(contexts) == len(expected)
     for row, (values, measure) in enumerate(expected):
-        assert observables[row] == [  # type: ignore
-            o.to_other_language(Language.QISKIT) for o in measure.observables
-        ]
+        assert observables[  # pyright: ignore[reportIndexIssue,reportArgumentType]
+            row
+        ] == [o.to_other_language(Language.QISKIT) for o in measure.observables]
         assert parameters[row] == [values[p.name] for p in circuit.parameters]
-        assert contexts[row].values == values
+        assert contexts[row].index == row
+        assert contexts[row].job.values == values
 
 
 @pytest.mark.provider("qiskit")
-def test_qiskit_to_other_device_recursive_bindings():
+def test_qiskit_to_other_device_recursive_bindings(
+    c1: QCircuit, m1: ExpectationMeasure, v1: dict[str, float], v2: dict[str, float]
+):
     inner = CircuitBinding(c1, measurements=m1)
     binding = CircuitBinding(inner, values=[v1, v2])
     pubs_with_context = binding.to_other_device(IBMDevice.AER_SIMULATOR)
     assert len(pubs_with_context) == 1
     pub, contexts = pubs_with_context[0]
-    circuit, observables, parameters = pub  # type: ignore
+    (
+        circuit,
+        observables,
+        parameters,
+    ) = pub  # pyright: ignore[reportGeneralTypeIssues,reportAssignmentType]
     for row, values in enumerate([v1, v2]):
-        assert observables[row] == [  # type: ignore
-            o.to_other_language(Language.QISKIT) for o in m1.observables
-        ]
+        assert observables[  # pyright: ignore[reportIndexIssue,reportArgumentType]
+            row
+        ] == [o.to_other_language(Language.QISKIT) for o in m1.observables]
         assert parameters[row] == [values[p.name] for p in circuit.parameters]
-        assert contexts[row].values == values
+        assert contexts[row].index == row
+        assert contexts[row].job.values == values
 
 
 @pytest.fixture
-def product_tests_observable():
+def product_tests_observable(
+    c1: QCircuit,
+    c3: QCircuit,
+    v1: dict[str, float],
+    v2: dict[str, float],
+    v3: dict[str, float],
+    m1: ExpectationMeasure,
+    m2: ExpectationMeasure,
+):
     cb_prod = CircuitBinding(
         circuits=c1, values=[v1, v2], measurements=m1, mode=BindingMode.PRODUCT
     )
@@ -135,7 +204,7 @@ def product_tests_observable():
 
 
 @pytest.fixture
-def product_tests_sample():
+def product_tests_sample(c3: QCircuit, c4: QCircuit, m3: BasisMeasure):
     cb_prod = CircuitBinding(
         circuits=[c3, c4], measurements=m3, mode=BindingMode.PRODUCT
     )
@@ -155,7 +224,9 @@ def product_tests_sample():
 
 
 @pytest.fixture
-def product_tests_state_vector():
+def product_tests_state_vector(
+    c1: QCircuit, c2: QCircuit, c3: QCircuit, v1: dict[str, float]
+):
     cb_sv = CircuitBinding(circuits=[c1, c2, c3], values=v1, mode=BindingMode.PRODUCT)
 
     def val_sv(res: BatchResult):
@@ -175,7 +246,15 @@ def product_tests_state_vector():
 
 
 @pytest.fixture
-def zip_tests_observable():
+def zip_tests_observable(
+    c3: QCircuit,
+    v1: dict[str, float],
+    v2: dict[str, float],
+    v3: dict[str, float],
+    m1: ExpectationMeasure,
+    m2: ExpectationMeasure,
+    m_Z: ExpectationMeasure,
+):
     cb_zip = CircuitBinding(
         circuits=c3,
         values=[v1, v2, v3],
@@ -199,9 +278,9 @@ def zip_tests_observable():
 
 
 @pytest.fixture
-def zip_tests_sample():
+def zip_tests_sample(c2: QCircuit, c4: QCircuit, m3: BasisMeasure):
     cb_zip = CircuitBinding(
-        circuits=[c2, c4], values=m4, measurements=[m3, m3], mode=BindingMode.ZIP
+        circuits=[c2, c4], values=None, measurements=[m3, m3], mode=BindingMode.ZIP
     )
 
     def val_zip(res: BatchResult):
@@ -220,7 +299,9 @@ def zip_tests_sample():
 
 
 @pytest.fixture
-def zip_tests_recursive():
+def zip_tests_recursive(
+    c1: QCircuit, m1: ExpectationMeasure, v1: dict[str, float], v2: dict[str, float]
+):
     cb_inner = CircuitBinding(circuits=c1, measurements=m1, mode=BindingMode.ZIP)
     cb_outer = CircuitBinding(
         circuits=cb_inner, values=[v1, v2], mode=BindingMode.PRODUCT

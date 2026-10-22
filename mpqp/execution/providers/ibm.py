@@ -17,6 +17,7 @@ from mpqp.execution.connection.ibm_connection import (
     get_QiskitRuntimeService,
 )
 from mpqp.execution.devices import AZUREDevice, IBMDevice
+from mpqp.execution._execution_context import ExecutionContext
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.providers.providers_params import QiskitParams
 from mpqp.execution.result import BatchResult, Result, Sample, StateVector
@@ -77,22 +78,24 @@ def compute_expectation_value(
     simulator: Optional["AerSimulator"],
     ibm_circuit: Optional["QuantumCircuit"] = None,
     pubs: Optional[list["EstimatorPubLike"]] = None,
-    pubs_contexts: Optional[list[list[Job]]] = None,
+    pubs_contexts: Optional[list[list[ExecutionContext]]] = None,
     shots: Optional[int] = None,
 ) -> Result | BatchResult:
     """Configures observable job and run it locally, and returns the
     corresponding Result. Supports both single circuits and batched PUBs.
 
-    Each batched PUB has an ordered list of context jobs, one for each
-    parameter/measurement pair resolved by the binding mode.
+    Each batched PUB has an ordered list of execution contexts,
+    one for each parameter/measurement pair resolved by the binding mode.
+    Returned results follow binding unroll order, independently of PUB grouping.
 
     Args:
         job: Job containing the execution input data.
         simulator: AerSimulator to be used to set the EstimatorV2 options.
         ibm_circuit: QuantumCircuit (with its qubits already reversed) for which we want
                     to estimate the expectation value.
-        pubs: Equivalent pubs of the inputted CircuitBinding to be running.
-        pubs_contexts: List of Job to sort the pubs' result afterwards.
+        pubs: Equivalent pubs of the inputted CircuitBinding to be ran.
+        pubs_contexts: For each PUB, execution contexts containing jobs and
+            their original unroll indices.
         shots: optional number of shots per executables.
 
     Returns:
@@ -117,7 +120,7 @@ def compute_expectation_value(
     from mpqp.execution.simulated_devices import StaticIBMSimulatedDevice
 
     pubs_to_run = []
-    context_jobs_to_run = []
+    context_jobs_to_run: list[list[ExecutionContext]] = []
 
     if pubs is not None:
         if ibm_circuit is not None:
@@ -193,7 +196,7 @@ def compute_expectation_value(
             qiskit_observables.append(translated)
 
         pubs_to_run = [(ibm_circuit, qiskit_observables)]
-        context_jobs_to_run = [[job]]
+        context_jobs_to_run = [[ExecutionContext(job=job, index=0)]]
 
     if isinstance(job.device, StaticIBMSimulatedDevice) or nb_shots != 0:
         from qiskit_ibm_runtime import EstimatorV2 as Runtime_Estimator
@@ -224,11 +227,12 @@ def compute_expectation_value(
         assert isinstance(job.device, (IBMDevice, StaticIBMSimulatedDevice))
         assert isinstance(estimator_result, list)
 
-    extracted_items = []
+    extracted_items: list[tuple[int, Result | BatchResult]] = []
 
     for i, contexts in enumerate(context_jobs_to_run):
         offset = 0
-        for context_job in contexts:
+        for context in contexts:
+            context_job = context.job
             pub_result = estimator_result[i]
             if pubs is not None:
                 assert isinstance(context_job.measure, ExpectationMeasure)
@@ -244,11 +248,17 @@ def compute_expectation_value(
                 )
                 offset += count
             extracted_items.append(
-                extract_result(pub_result, context_job, job.device, experiment_index=0)
+                (
+                    context.index,
+                    extract_result(
+                        pub_result, context_job, job.device, experiment_index=0
+                    ),
+                )
             )
 
     final_flat_results = []
-    for item in extracted_items:
+    # Restore occurrence order before flattening multi-observable results.
+    for _, item in sorted(extracted_items, key=lambda indexed: indexed[0]):
         if isinstance(item, BatchResult):
             final_flat_results.extend(item.results)
         else:
@@ -545,20 +555,19 @@ def run_aer(job: Job) -> Result | BatchResult:
                     "NoiseModel are ignored when running the circuit on a SimulatedDevice"
                 )
             backend_sim = job.device.to_noisy_simulator()
-
-            binding.transpiled_circuits(job.device, backend_sim=backend_sim)
         else:
-            binding.transpiled_circuits(job.device, backend_sim=backend_sim)
-            if binding.transpiled_noise_model is not None:
-                backend_sim = AerSimulator(
-                    method=job.device.value, noise_model=binding.transpiled_noise_model
-                )
-            else:
-                backend_sim = AerSimulator(method=job.device.value)
+            backend_sim = AerSimulator(method=job.device.value)
 
         if job.job_type == JobType.OBSERVABLE:
 
             pubs_with_context = binding.to_other_device(job.device)
+            if (
+                not isinstance(job.device, StaticIBMSimulatedDevice)
+                and binding.is_noisy
+            ):
+                backend_sim = AerSimulator(
+                    method=job.device.value, noise_model=binding.transpiled_noise_model
+                )
 
             pubs = [item[0] for item in pubs_with_context]
             contexts = [item[1] for item in pubs_with_context]
@@ -571,12 +580,20 @@ def run_aer(job: Job) -> Result | BatchResult:
                 shots=binding.shots,
             )
         elif job.job_type in (JobType.SAMPLE, JobType.STATE_VECTOR):
+            from mpqp.tools.binding_utils import translate_binding_circuits
+
             unrolled_items = binding.unroll()
             bound_circuits = []
             context_jobs = []
-
+            translated_circuits = translate_binding_circuits(
+                binding, job.device, backend_sim=backend_sim
+            )
             for c, v, m in unrolled_items:
-                q_c = c.transpiled_circuit
+                q_c = translated_circuits.get(id(c))
+                if q_c is None:
+                    raise ValueError(
+                        f"Couldn't find circuit with id:{id(c)} in the circuit binding, please report this bug to the maintainers of the library."
+                    )
                 if TYPE_CHECKING:
                     assert isinstance(q_c, QuantumCircuit)
 

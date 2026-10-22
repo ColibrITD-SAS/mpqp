@@ -208,7 +208,7 @@ def run_pseudo_circuit_binding(job: Job) -> BatchResult:
             vector = task.result().values[0]  # pyright: ignore
             if TYPE_CHECKING:
                 assert isinstance(vector, (list, np.ndarray))
-            state_vector = StateVector(vector, nb_qubits=job.circuit.nb_qubits)
+            state_vector = StateVector(vector, nb_qubits=local_job.circuit.nb_qubits)
             results.append(Result(local_job, state_vector, 0, 0))
 
     return BatchResult(results)
