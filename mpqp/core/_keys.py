@@ -94,8 +94,73 @@ def _key_encoder(value_type: type) -> tuple[bool, Callable[[Any, Snapshot], Obje
     if value_type.__module__.startswith("mpqp.") and not issubclass(
         value_type, (Enum, PythonEnum)
     ):
-        return True, _domain_key
+        native_encoder = _native_gate_encoder(value_type)
+        return True, native_encoder if native_encoder is not None else _domain_key
     return False, _object_key
+
+
+def _native_gate_encoder(
+    value_type: type,
+) -> Callable[[Any, Snapshot], ObjectKey] | None:
+    """Specialize common gates while preserving the general structural format."""
+    if value_type.__module__ != "mpqp.core.instruction.gates.native_gates":
+        return None
+    from mpqp.core.instruction.gates import ControlledGate
+    from mpqp.core.instruction.gates.native_gates import NativeGate
+    from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
+
+    if not issubclass(value_type, NativeGate):
+        return None
+    controlled = issubclass(value_type, ControlledGate)
+    parametrized = issubclass(value_type, ParametrizedGate)
+    module, name = value_type.__module__, value_type.__qualname__
+
+    def encode(value: Any, snapshot: Snapshot) -> ObjectKey:
+        if not hasattr(value, "label"):
+            return _domain_key(value, snapshot)
+        fields = [("targets", _numeric_sequence_key(value.targets, snapshot))]
+        if controlled:
+            fields.extend(
+                (
+                    ("controls", _numeric_sequence_key(value.controls, snapshot)),
+                    ("non_controlled_gate", snapshot(value.non_controlled_gate)),
+                )
+            )
+        if parametrized:
+            fields.append(
+                ("parameters", _numeric_sequence_key(value.parameters, snapshot))
+            )
+        fields.append(("label", snapshot(value.label)))
+        return ("object", module, name, tuple(fields))
+
+    return encode
+
+
+def _numeric_sequence_key(value: Any, snapshot: Snapshot) -> ObjectKey:
+    """Copy short numeric gate fields without recursively dispatching each item."""
+    if type(value) not in (list, tuple):
+        return snapshot(value)
+    keys: list[ObjectKey] = []
+    for item in value:
+        item_type = type(item)
+        if item_type is int:
+            keys.append(("number", item, 0))
+        elif item_type is float:
+            if not math.isfinite(item):
+                raise ValueError(
+                    "Non-finite numbers cannot be used in result lookup keys"
+                )
+            keys.append(("number", item, 0))
+        elif item_type is complex:
+            if not math.isfinite(item.real) or not math.isfinite(item.imag):
+                raise ValueError(
+                    "Non-finite numbers cannot be used in result lookup keys"
+                )
+            keys.append(("number", item.real, item.imag))
+        else:
+            # Symbolic parameters and unusual user edits retain general handling.
+            return snapshot(value)
+    return ("sequence", tuple(keys))
 
 
 def _sequence_key(value: Any, snapshot: Snapshot) -> ObjectKey:
@@ -164,9 +229,15 @@ def _array_key(value: np.ndarray[Any, Any], snapshot: Snapshot) -> ObjectKey:
     if fast:
         if not np.all(np.isfinite(value)):
             raise ValueError("Non-finite numbers cannot be used in result lookup keys")
-        packed = np.array(value, dtype="<c16", order="C", copy=True)
-        parts = packed.reshape(-1).view("<f8")
-        parts[parts == 0] = 0
+        packed = np.asarray(value, dtype="<c16", order="C")
+        bits = packed.reshape(-1).view("<u8")
+        negative_zeros = bits == (1 << 63)
+        if np.any(negative_zeros):
+            # Only negative zero needs normalization. Borrow already canonical
+            # input for the final bytes copy, but never write into a source.
+            if np.shares_memory(packed, value):
+                packed = packed.copy()
+            packed.reshape(-1).view("<u8")[negative_zeros] = 0
         return ("array-v2", value.shape, packed.tobytes(), ())
     return _pack_array(value.shape, (snapshot(item) for item in value.flat))
 

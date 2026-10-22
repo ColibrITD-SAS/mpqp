@@ -42,6 +42,7 @@ from mpqp.core._keys import (
     result_key,
 )
 from mpqp.core.instruction.gates.custom_gate import CustomGate
+from mpqp.core.instruction.gates.native_gates import CP, PRX, SWAP, TOF, CRk, Rxx, U
 from mpqp.core.instruction.measurement.basis import HadamardBasis
 from mpqp.execution import BatchResult, Job, JobType, Result, StateVector
 from mpqp.execution.devices import AvailableDevice
@@ -772,3 +773,114 @@ def test_packed_keys_resolve_hash_collisions_by_exact_content():
     assert len(batch) == 2
     assert batch.get_matching(circuit=first).results == [results[0]]
     assert batch.get_matching(circuit=second).results == [results[1]]
+
+
+@pytest.mark.parametrize(
+    "gate,fields",
+    [
+        (H(0), ("targets", "label")),
+        (SWAP(0, 1), ("targets", "label")),
+        (Rx(0.5, 0), ("targets", "parameters", "label")),
+        (Rx(Symbol("theta"), 0), ("targets", "parameters", "label")),
+        (Rxx(0.25, 0, 1), ("targets", "parameters", "label")),
+        (U(0.2, 0.3, 0.4, 0), ("targets", "parameters", "label")),
+        (PRX(0.2, 0.4, 0), ("targets", "parameters", "label")),
+        (CNOT(0, 1), ("targets", "controls", "non_controlled_gate", "label")),
+        (TOF([0, 1], 2), ("targets", "controls", "non_controlled_gate", "label")),
+        (
+            CP(0.3, 0, 1),
+            ("targets", "controls", "non_controlled_gate", "parameters", "label"),
+        ),
+        (
+            CRk(3, 0, 1),
+            ("targets", "controls", "non_controlled_gate", "parameters", "label"),
+        ),
+    ],
+)
+def test_native_gate_keys_preserve_the_stored_structural_format(
+    gate: Any, fields: tuple[str, ...]
+):
+    expected = (
+        "object",
+        type(gate).__module__,
+        type(gate).__qualname__,
+        tuple((field, object_key(getattr(gate, field))) for field in fields),
+    )
+    key = object_key(gate)
+    assert key == expected
+    assert decode_key(encode_key(key)) == expected
+    original = deepcopy(gate)
+    gate.label = "edited gate"
+    assert object_key(gate) != key
+    assert object_key(original) == key
+
+
+@pytest.mark.parametrize(
+    "attribute,value",
+    [
+        ("targets", [2]),
+        ("targets", (0,)),
+        ("targets", [True]),
+        ("targets", np.array([0])),
+        ("parameters", [0]),
+        ("parameters", [-0.0]),
+        ("parameters", [0.5 + 0j]),
+        ("parameters", [np.float64(0.5)]),
+        ("parameters", [2**100]),
+        ("parameters", [Symbol("theta")]),
+        ("parameters", [complex(0.1, 0.2)]),
+    ],
+)
+def test_native_gate_fields_keep_general_numeric_and_symbolic_semantics(
+    attribute: str, value: Any
+):
+    gate = Rx(0.5, 0)
+    setattr(gate, attribute, value)
+    expected = (
+        "object",
+        type(gate).__module__,
+        type(gate).__qualname__,
+        (
+            ("targets", object_key(gate.targets)),
+            ("parameters", object_key(gate.parameters)),
+            ("label", object_key(gate.label)),
+        ),
+    )
+    assert object_key(gate) == expected
+
+
+@pytest.mark.parametrize("bad", [np.nan, np.inf, complex(1, np.inf)])
+def test_native_gate_fast_path_rejects_nonfinite_parameters(bad: Any):
+    gate = Rx(0.5, 0)
+    gate.parameters = [bad]
+    with pytest.raises(ValueError, match="Non-finite"):
+        object_key(gate)
+
+
+@pytest.mark.parametrize("layout", ["C", "F", "strided", "readonly", "big_endian"])
+@pytest.mark.parametrize("negative_zero", [False, True])
+def test_array_fast_path_preserves_source_bits_and_snapshot_independence(
+    layout: str, negative_zero: bool
+):
+    values = np.array([[1 + 2j, 0], [0, -1 - 2j]], dtype=np.complex128)
+    if negative_zero:
+        values.view(np.float64).flat[2] = -0.0
+        values.view(np.float64).flat[5] = -0.0
+    if layout == "F":
+        values = np.asfortranarray(values)
+    elif layout == "strided":
+        values = np.repeat(values, 2, axis=1)[:, ::2]
+    elif layout == "readonly":
+        values.flags.writeable = False
+    elif layout == "big_endian":
+        values = values.astype(">c16")
+    before = values.tobytes()
+    key = object_key(values)
+    assert values.tobytes() == before
+    expected = object_key(np.array([[1 + 2j, 0], [0, -1 - 2j]], dtype=object))
+    assert key == expected
+    assert hash(key) == hash(expected)
+    if values.flags.writeable:
+        values[0, 0] = 3
+        assert key != object_key(values)
+    assert decode_key(encode_key(key)) == expected
