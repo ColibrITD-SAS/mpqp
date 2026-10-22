@@ -862,7 +862,7 @@ class BatchResult:
           Probabilities: [0.25, 0.25, 0.25, 0.25]
           Number of qubits: 2
 
-        >>> batch_result.get_matching(measurement=result2.job.measure) == [result2]
+        >>> batch_result.get_matching(measurement=result2.job.measure).results == [result2]
         True
 
     Note:
@@ -938,7 +938,7 @@ class BatchResult:
         circuit: Optional[QCircuit] = None,
         device: Optional[AvailableDevice] = None,
         measurement: Optional[Measure] | _Unset = _UNSET,
-    ) -> list[Result]:
+    ) -> BatchResult:
         """Retrieve runs matching all supplied submitted criteria.
 
         Criteria combine with AND. Matching uses immutable snapshots captured
@@ -965,8 +965,11 @@ class BatchResult:
                 is distinct from having no measurement.
 
         Returns:
-            An independent list in execution order, including repeated runs.
-            No criteria returns all results; no matches returns an empty list.
+            A new batch in execution order, including repeated runs. Call
+            ``get_matching`` again to refine it, iterate over it, or use
+            ``list(matches)`` to obtain a list. No criteria returns a copy of
+            the full batch; no matches returns an empty batch. The container
+            is independent and contains the same :class:`Result` instances.
 
         Raises:
             TypeError: If a criterion has the wrong type or an unsupported component.
@@ -983,7 +986,17 @@ class BatchResult:
             >>> matches = batch.get_matching(circuit=other)  # doctest: +QISKIT
             >>> len(matches)  # doctest: +QISKIT
             2
-            >>> batch.get_matching(circuit=deepcopy(other)) == matches  # doctest: +QISKIT
+            >>> batch.get_matching(circuit=deepcopy(other)).results == matches.results  # doctest: +QISKIT
+            True
+
+            Refine a selection, or iterate over it as over the original batch:
+
+            >>> refined = matches.get_matching(device=device)  # doctest: +QISKIT
+            >>> isinstance(refined, BatchResult)  # doctest: +QISKIT
+            True
+            >>> list(refined) == list(matches)  # doctest: +QISKIT
+            True
+            >>> refined[0] is batch[1]  # doctest: +QISKIT
             True
 
             Combine criteria, or search by measurement across circuits:
@@ -991,13 +1004,13 @@ class BatchResult:
             >>> measurement = other.measurements[0]
             >>> batch.get_matching(  # doctest: +QISKIT
             ...     device=device, measurement=measurement
-            ... ) == matches
+            ... ).results == matches.results
             True
             >>> batch.get_matching(  # doctest: +QISKIT
             ...     circuit=other, device=device, measurement=measurement
-            ... ) == matches
+            ... ).results == matches.results
             True
-            >>> batch.get_matching(measurement=measurement) == matches  # doctest: +QISKIT
+            >>> batch.get_matching(measurement=measurement).results == matches.results  # doctest: +QISKIT
             True
 
             Labels must match as well as the computation:
@@ -1005,17 +1018,17 @@ class BatchResult:
             >>> renamed = deepcopy(other)
             >>> renamed.label = "another experiment"
             >>> batch.get_matching(circuit=renamed)  # doctest: +QISKIT
-            []
+            BatchResult([])
 
             Omitted criteria are unrestricted. Missing matches return an empty
-            list; ``measurement=None`` selects runs with no explicit measurement:
+            batch; ``measurement=None`` selects runs with no explicit measurement:
 
             >>> len(batch.get_matching())  # doctest: +QISKIT
             3
-            >>> batch.get_matching(measurement=None) == [batch[0]]  # doctest: +QISKIT
+            >>> batch.get_matching(measurement=None).results == [batch[0]]  # doctest: +QISKIT
             True
             >>> batch.get_matching(circuit=QCircuit([X(0)]))  # doctest: +QISKIT
-            []
+            BatchResult([])
             >>> batch[:2] == batch.get_matching()[:2]  # doctest: +QISKIT
             True
 
@@ -1023,10 +1036,10 @@ class BatchResult:
 
             >>> original = deepcopy(circuit)
             >>> circuit.add(X(0))
-            >>> batch.get_matching(circuit=original) == [batch[0]]  # doctest: +QISKIT
+            >>> batch.get_matching(circuit=original).results == [batch[0]]  # doctest: +QISKIT
             True
             >>> batch.get_matching(circuit=circuit)  # doctest: +QISKIT
-            []
+            BatchResult([])
 
         Note:
             Matching uses the complete circuit including its measurements;
@@ -1048,9 +1061,9 @@ class BatchResult:
             and (device_key is None or key.device == device_key)
             and (measurement_key is None or key.measurement == measurement_key)
         }
-        return [
-            self._results[key][index] for key, index in self._order if key in matching
-        ]
+        return BatchResult(
+            [self._results[key][index] for key, index in self._order if key in matching]
+        )
 
     def __len__(self) -> int:
         return len(self._order)
