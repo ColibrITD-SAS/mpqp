@@ -23,17 +23,41 @@ from __future__ import annotations
 
 import math
 import random
+from collections.abc import Iterator
 from numbers import Complex
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Union, overload
 
 import numpy as np
 import numpy.typing as npt
 
+from mpqp.core._keys import ResultKey, Snapshot, result_key
+from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
+from mpqp.core.instruction.measurement.measure import Measure
 from mpqp.execution import Job, JobStatus, JobType
 from mpqp.execution.devices import AvailableDevice
 from mpqp.tools.display import clean_1D_array, clean_number_repr
 from mpqp.tools.errors import ResultAttributeError
+
+
+class _Unset:
+    def __repr__(self) -> str:
+        return "<unspecified>"
+
+
+_UNSET = _Unset()
+
+
+def _validate_matching_criteria(
+    circuit: object, device: object, measurement: object
+) -> None:
+    """Validate runtime inputs independently of the public type annotations."""
+    if circuit is not None and not isinstance(circuit, QCircuit):
+        raise TypeError("circuit must be a QCircuit or None")
+    if device is not None and not isinstance(device, AvailableDevice):
+        raise TypeError("device must be an AvailableDevice or None")
+    if not isinstance(measurement, (_Unset, Measure, type(None))):
+        raise TypeError("measurement must be a Measure or None")
 
 
 class StateVector:
@@ -322,6 +346,7 @@ class Result:
     ):
         self.job = job
         """See parameter description."""
+        self._submitted_key: Optional[ResultKey] = None
         self._expectation_values = None
         self._state_vector = None
         self._probabilities = None
@@ -779,7 +804,13 @@ class Result:
 
 
 class BatchResult:
-    """Class used to handle several Result instances.
+    """Group execution results and filter them by submitted criteria.
+
+    Use :meth:`get_matching` to select runs by circuit, device, or measurement.
+    Integer indexing, slicing, iteration, and ``len(batch)`` refer to individual
+    runs in execution order, including repeated circuits and multiple devices.
+    The :attr:`results` property returns an independent list; editing that list
+    does not change the batch.
 
     Args:
         results: List of results.
@@ -831,29 +862,213 @@ class BatchResult:
           Probabilities: [0.25, 0.25, 0.25, 0.25]
           Number of qubits: 2
 
+        >>> batch_result.get_matching(measurement=result2.job.measure).results == [result2]
+        True
+
+    Note:
+        Matching uses inputs as they were submitted. Editing a circuit or
+        measurement afterward leaves stored results intact, but filtering with
+        the edited object may no longer find them. See :meth:`get_matching` for
+        examples and matching rules.
+
+        When original inputs are unavailable, as with some older saved results
+        or manually constructed results, matching uses the circuit and
+        measurement recorded in each result.
+
     """
 
     def __init__(self, results: list[Result]):
-        self.results = results
-        """See parameter description."""
+        self._results: dict[ResultKey, list[Result]] = {}
+        self._order: list[tuple[ResultKey, int]] = []
+        snapshot = Snapshot()
+        for result in results:
+            key = result._submitted_key  # pyright: ignore[reportPrivateUsage]
+            if key is None:
+                key = result_key(result.job.circuit, result.device, snapshot)
+                result._submitted_key = key  # pyright: ignore[reportPrivateUsage]
+            matches = self._results.setdefault(key, [])
+            self._order.append((key, len(matches)))
+            matches.append(result)
+
+    @property
+    def results(self) -> list[Result]:
+        """Results in execution order, returned as an independent list."""
+        return list(self)
+
+    def __iter__(self) -> Iterator[Result]:
+        for key, index in self._order:
+            yield self._results[key][index]
 
     def __str__(self):
-        header = f"BatchResult: {len(self.results)} results\n"
+        header = f"BatchResult: {len(self)} results\n"
         body = "\n".join(
-            "    " + line
-            for result in self.results
-            for line in str(result).splitlines()
+            "    " + line for result in self for line in str(result).splitlines()
         )
         return header + body
 
     def __repr__(self):
         return f"BatchResult({self.results})"
 
-    def __getitem__(self, index: int):
-        return self.results[index]
+    @overload
+    def __getitem__(self, index: int) -> Result: ...
+
+    @overload
+    def __getitem__(self, index: slice) -> list[Result]: ...
+
+    def __getitem__(self, index: int | slice) -> Result | list[Result]:
+        """Retrieve results by position in execution order.
+
+        Args:
+            index: Integer position or slice.
+
+        Returns:
+            The matching result, or a list for a slice.
+
+        Raises:
+            IndexError: If the integer position is out of range.
+            TypeError: If the index is not an integer or slice.
+        """
+        if isinstance(index, slice):
+            return self.results[index]
+        key, position = self._order[index]
+        return self._results[key][position]
+
+    def get_matching(
+        self,
+        *,
+        circuit: Optional[QCircuit] = None,
+        device: Optional[AvailableDevice] = None,
+        measurement: Optional[Measure] | _Unset = _UNSET,
+    ) -> BatchResult:
+        """Retrieve runs matching all supplied submitted criteria.
+
+        Criteria combine with AND. Matching uses immutable snapshots captured
+        before execution, so users do not need to freeze their objects. Repeated
+        circuits and runs on multiple devices retain every individual result.
+
+        Circuit matching includes dimensions, ordered instructions, parameters,
+        measurements, noise, input global phase, and the labels of all objects.
+        Changing a circuit, gate, measurement, or observable label changes its
+        matching criteria. Automatically generated execution names do not rename
+        the submitted circuit. Inferred-size bookkeeping and execution caches
+        are ignored. Matching uses exact structural values:
+        numerically close matrices and different observable representations are
+        not interchangeable. Existing public equality and numerical equivalence
+        methods are unchanged.
+
+        Args:
+            circuit: Complete submitted circuit, including its measurements.
+                ``None`` leaves the circuit unrestricted.
+            device: Submitted device. ``None`` leaves the device unrestricted.
+            measurement: Submitted measurement. Omission leaves measurements
+                unrestricted; ``None`` selects runs without an explicit measure.
+                An explicit zero-shot :class:`~mpqp.core.instruction.measurement.basis_measure.BasisMeasure`
+                is distinct from having no measurement.
+
+        Returns:
+            A new batch in execution order, including repeated runs. Call
+            ``get_matching`` again to refine it, iterate over it, or use
+            ``list(matches)`` to obtain a list. No criteria returns a copy of
+            the full batch; no matches returns an empty batch. The container
+            is independent and contains the same :class:`Result` instances.
+
+        Raises:
+            TypeError: If a criterion has the wrong type or an unsupported component.
+
+        Examples:
+            Filter a batch containing repeated runs. All executions below use
+            the local Qiskit simulator:
+
+            >>> from copy import deepcopy
+            >>> device = IBMDevice.AER_SIMULATOR
+            >>> circuit = QCircuit([H(0)])
+            >>> other = QCircuit([X(0), BasisMeasure([0], shots=16)])
+            >>> batch = run([circuit, other, deepcopy(other)], device)  # doctest: +QISKIT
+            >>> matches = batch.get_matching(circuit=other)  # doctest: +QISKIT
+            >>> len(matches)  # doctest: +QISKIT
+            2
+            >>> batch.get_matching(circuit=deepcopy(other)).results == matches.results  # doctest: +QISKIT
+            True
+
+            Refine a selection, or iterate over it as over the original batch:
+
+            >>> refined = matches.get_matching(device=device)  # doctest: +QISKIT
+            >>> isinstance(refined, BatchResult)  # doctest: +QISKIT
+            True
+            >>> list(refined) == list(matches)  # doctest: +QISKIT
+            True
+            >>> refined[0] is batch[1]  # doctest: +QISKIT
+            True
+
+            Combine criteria, or search by measurement across circuits:
+
+            >>> measurement = other.measurements[0]
+            >>> batch.get_matching(  # doctest: +QISKIT
+            ...     device=device, measurement=measurement
+            ... ).results == matches.results
+            True
+            >>> batch.get_matching(  # doctest: +QISKIT
+            ...     circuit=other, device=device, measurement=measurement
+            ... ).results == matches.results
+            True
+            >>> batch.get_matching(measurement=measurement).results == matches.results  # doctest: +QISKIT
+            True
+
+            Labels must match as well as the computation:
+
+            >>> renamed = deepcopy(other)
+            >>> renamed.label = "another experiment"
+            >>> batch.get_matching(circuit=renamed)  # doctest: +QISKIT
+            BatchResult([])
+
+            Omitted criteria are unrestricted. Missing matches return an empty
+            batch; ``measurement=None`` selects runs with no explicit measurement:
+
+            >>> len(batch.get_matching())  # doctest: +QISKIT
+            3
+            >>> batch.get_matching(measurement=None).results == [batch[0]]  # doctest: +QISKIT
+            True
+            >>> batch.get_matching(circuit=QCircuit([X(0)]))  # doctest: +QISKIT
+            BatchResult([])
+            >>> batch[:2] == batch.get_matching()[:2]  # doctest: +QISKIT
+            True
+
+            Editing an input leaves stored matches intact:
+
+            >>> original = deepcopy(circuit)
+            >>> circuit.add(X(0))
+            >>> batch.get_matching(circuit=original).results == [batch[0]]  # doctest: +QISKIT
+            True
+            >>> batch.get_matching(circuit=circuit)  # doctest: +QISKIT
+            BatchResult([])
+
+        Note:
+            Matching uses the complete circuit including its measurements;
+            passing a circuit without measurements does not act as a wildcard
+            for those measurements. For results without submitted metadata,
+            matching uses the job metadata at batch construction time, which
+            may already contain substitutions or provider adjustments.
+        """
+        _validate_matching_criteria(circuit, device, measurement)
+        snapshot = Snapshot()
+        circuit_key = snapshot(circuit) if circuit is not None else None
+        device_key = snapshot(device) if device is not None else None
+        measurement_key = (
+            None if isinstance(measurement, _Unset) else snapshot(measurement)
+        )
+        matching = {
+            key
+            for key in self._results
+            if (circuit_key is None or key.circuit == circuit_key)
+            and (device_key is None or key.device == device_key)
+            and (measurement_key is None or key.measurement == measurement_key)
+        }
+        return BatchResult(
+            [self._results[key][index] for key, index in self._order if key in matching]
+        )
 
     def __len__(self) -> int:
-        return len(self.results)
+        return len(self._order)
 
     def plot(self, show: bool = True):
         """Display the result(s) using ``matplotlib.pyplot``.
@@ -877,10 +1092,10 @@ class BatchResult:
         """
         from matplotlib import pyplot as plt
 
-        n_cols = math.ceil((len(self.results) + 1) // 2)
-        n_rows = math.ceil(len(self.results) / n_cols)
+        n_cols = math.ceil((len(self) + 1) // 2)
+        n_rows = math.ceil(len(self) / n_cols)
 
-        for index, result in enumerate(self.results):
+        for index, result in enumerate(self):
             plt.subplot(n_rows, n_cols, index + 1)
 
             result.plot(show=False)
