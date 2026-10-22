@@ -107,22 +107,22 @@ class StateVector:
         }
 
     def to_sample_list(self) -> list[Sample]:
-        """
-        Converts the StateVector object into a list of Samples. This allows
-        to quickly have a binary representation of the basis states composing
-        a StateVector.
+        """Convert the state vector into a list of possible measurement outcomes.
 
-        Note that the samples will be instantiated with probabilities, so
-        we cannot come back after that to the StateVector amplitudes.
+        Each sample contains the binary basis state and its probability.
+        Amplitudes are not preserved, so the original state vector cannot be
+        reconstructed from the samples.
 
         Returns:
-            A list of Samples representing the possible measurement outcomes
-            of the state represented by this StateVector.
+            A sample for each basis state with a nonzero probability.
 
         Example:
-            >>> state_vector = StateVector(np.array([1, 0, 0, -1])/np.sqrt(2), 2)  # doctest: +ELLIPSIS
-            >>> state_vector.to_sample_list()  # doctest: +ELLIPSIS
-            [Sample(2, index=0, count=None, probability=0.5), Sample(2, index=3, count=None, probability=0.5)]
+            >>> state_vector = StateVector(
+            ...     np.array([1, 0, 0, -1]) / np.sqrt(2), 2
+            ... )
+            >>> state_vector.to_sample_list()  # doctest: +NORMALIZE_WHITESPACE
+            [Sample(2, index=0, count=None, probability=0.5),
+             Sample(2, index=3, count=None, probability=0.5)]
 
         """
         return [
@@ -237,7 +237,15 @@ class Sample:
         )
 
     def __repr__(self):
-        return f"Sample({self.nb_qubits}, index={self.index}, count={self.count}, probability={self.probability})"
+        probability = (
+            clean_number_repr(self.probability)
+            if self.probability is not None
+            else None
+        )
+        return (
+            f"Sample({self.nb_qubits}, index={self.index}, count={self.count}, "
+            f"probability={probability})"
+        )
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Sample):
