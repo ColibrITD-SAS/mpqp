@@ -884,3 +884,37 @@ def test_array_fast_path_preserves_source_bits_and_snapshot_independence(
         values[0, 0] = 3
         assert key != object_key(values)
     assert decode_key(encode_key(key)) == expected
+
+
+@pytest.mark.parametrize("gate_class,name", [(H, "H"), (CNOT, "CNOT"), (Rx, "Rx")])
+def test_gate_classes_use_type_keys(gate_class: type, name: str):
+    expected = ("type", "mpqp.core.instruction.gates.native_gates", name)
+    key = object_key(gate_class)
+    assert key == expected
+    assert decode_key(encode_key(key)) == expected
+    assert object_key((gate_class,)) == ("sequence", (expected,))
+    assert key != object_key(H(0))
+
+
+def test_noisy_circuit_matching_distinguishes_gate_classes():
+    circuit = QCircuit([H(0), Depolarizing(0.1, gates=[H])])
+    original = deepcopy(circuit)
+    other = QCircuit([H(0), Depolarizing(0.1, gates=[X])])
+    first, second = make_result(circuit), make_result(other)
+    batch = BatchResult([first, second])
+    assert batch.get_matching(circuit=original).results == [first]
+    assert batch.get_matching(circuit=other).results == [second]
+    circuit.noises[0].gates[0] = X
+    assert batch.get_matching(circuit=original).results == [first]
+    assert batch.get_matching(circuit=circuit).results == [second]
+
+
+def test_storage_preserves_gate_class_selectors(isolated_storage: Path):
+    circuit = QCircuit([H(0), Depolarizing(0.1, gates=[H])])
+    original = deepcopy(circuit)
+    batch = BatchResult([make_result(circuit)])
+    circuit.noises[0].gates[0] = X
+    restored = BatchResult.load_by_local_ids(batch.save())
+    assert len(restored) == 1
+    assert restored.get_matching(circuit=original).results == [restored[0]]
+    assert not restored.get_matching(circuit=circuit)

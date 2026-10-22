@@ -92,7 +92,7 @@ def _key_encoder(value_type: type) -> tuple[bool, Callable[[Any, Snapshot], Obje
     if issubclass(value_type, (list, tuple)):
         return True, _sequence_key
     if value_type.__module__.startswith("mpqp.") and not issubclass(
-        value_type, (Enum, PythonEnum)
+        value_type, (Enum, PythonEnum, type)
     ):
         native_encoder = _native_gate_encoder(value_type)
         return True, native_encoder if native_encoder is not None else _domain_key
