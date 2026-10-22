@@ -17,6 +17,7 @@ from mpqp.execution.connection.ibm_connection import (
     get_QiskitRuntimeService,
 )
 from mpqp.execution.devices import AZUREDevice, IBMDevice
+from mpqp.execution._execution_context import ExecutionContext
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.providers.providers_params import QiskitParams
 from mpqp.execution.result import BatchResult, Result, Sample, StateVector
@@ -77,14 +78,15 @@ def compute_expectation_value(
     simulator: Optional["AerSimulator"],
     ibm_circuit: Optional["QuantumCircuit"] = None,
     pubs: Optional[list["EstimatorPubLike"]] = None,
-    pubs_contexts: Optional[list[list[Job]]] = None,
+    pubs_contexts: Optional[list[list[ExecutionContext]]] = None,
     shots: Optional[int] = None,
 ) -> Result | BatchResult:
     """Configures observable job and run it locally, and returns the
     corresponding Result. Supports both single circuits and batched PUBs.
 
-    Each batched PUB has an ordered list of context jobs, one for each
-    parameter/measurement pair resolved by the binding mode.
+    Each batched PUB has an ordered list of execution contexts,
+    one for each parameter/measurement pair resolved by the binding mode.
+    Returned results follow binding unroll order, independently of PUB grouping.
 
     Args:
         job: Job containing the execution input data.
@@ -92,7 +94,8 @@ def compute_expectation_value(
         ibm_circuit: QuantumCircuit (with its qubits already reversed) for which we want
                     to estimate the expectation value.
         pubs: Equivalent pubs of the inputted CircuitBinding to be ran.
-        pubs_context: List of Job to sort the pubs' result by afterwards.
+        pubs_contexts: For each PUB, execution contexts containing jobs and
+            their original unroll indices.
         shots: optional number of shots per executables.
     """
     from qiskit.primitives import PubResult
@@ -102,7 +105,7 @@ def compute_expectation_value(
     from mpqp.execution.simulated_devices import StaticIBMSimulatedDevice
 
     pubs_to_run = []
-    context_jobs_to_run = []
+    context_jobs_to_run: list[list[ExecutionContext]] = []
 
     if pubs is not None:
         if ibm_circuit is not None:
@@ -178,7 +181,7 @@ def compute_expectation_value(
             qiskit_observables.append(translated)
 
         pubs_to_run = [(ibm_circuit, qiskit_observables)]
-        context_jobs_to_run = [[job]]
+        context_jobs_to_run = [[ExecutionContext(job=job, index=0)]]
 
     if isinstance(job.device, StaticIBMSimulatedDevice) or nb_shots != 0:
         from qiskit_ibm_runtime import EstimatorV2 as Runtime_Estimator
@@ -209,11 +212,12 @@ def compute_expectation_value(
         assert isinstance(job.device, (IBMDevice, StaticIBMSimulatedDevice))
         assert isinstance(estimator_result, list)
 
-    extracted_items = []
+    extracted_items: list[tuple[int, Result | BatchResult]] = []
 
     for i, contexts in enumerate(context_jobs_to_run):
         offset = 0
-        for context_job in contexts:
+        for context in contexts:
+            context_job = context.job
             pub_result = estimator_result[i]
             if pubs is not None:
                 assert isinstance(context_job.measure, ExpectationMeasure)
@@ -229,11 +233,17 @@ def compute_expectation_value(
                 )
                 offset += count
             extracted_items.append(
-                extract_result(pub_result, context_job, job.device, experiment_index=0)
+                (
+                    context.index,
+                    extract_result(
+                        pub_result, context_job, job.device, experiment_index=0
+                    ),
+                )
             )
 
     final_flat_results = []
-    for item in extracted_items:
+    # Restore occurrence order before flattening multi-observable results.
+    for _, item in sorted(extracted_items, key=lambda indexed: indexed[0]):
         if isinstance(item, BatchResult):
             final_flat_results.extend(item.results)
         else:
