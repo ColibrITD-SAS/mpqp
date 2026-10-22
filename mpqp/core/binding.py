@@ -9,7 +9,7 @@ from sympy import Expr
 from mpqp.noise.noise_model import NoiseModel
 
 if TYPE_CHECKING:
-    from mpqp.execution.job import Job
+    from mpqp.execution._execution_context import ExecutionContext
     from qiskit_aer import AerSimulator
     from qiskit.primitives.containers import EstimatorPubLike
     from braket.program_sets import ProgramSet
@@ -62,6 +62,8 @@ class CircuitBinding:
     Note:
         In :attr:`BindingMode.ZIP` mode, every non-singleton axis must have the
         same length. Singleton axes are broadcast when the binding is unrolled.
+        Results returned by :func:`~mpqp.execution.runner.run` follow
+        :meth:`unroll` order, independently of provider execution grouping.
     """
 
     def __init__(
@@ -603,14 +605,14 @@ class CircuitBinding:
     @overload
     def to_other_device(
         self, device: "IBMDevice"
-    ) -> list[tuple["EstimatorPubLike", list["Job"]]]: ...
+    ) -> list[tuple["EstimatorPubLike", list["ExecutionContext"]]]: ...
     @overload
     def to_other_device(
         self, device: "AvailableDevice"
-    ) -> "list[tuple[EstimatorPubLike, list[Job]]] | tuple[ProgramSet, list[Any]]": ...
+    ) -> "list[tuple[EstimatorPubLike, list[ExecutionContext]]] | tuple[ProgramSet, list[Any]]": ...
     def to_other_device(
         self, device: "AvailableDevice"
-    ) -> "list[tuple[EstimatorPubLike, list[Job]]] | tuple[ProgramSet, list[Any]]":
+    ) -> "list[tuple[EstimatorPubLike, list[ExecutionContext]]] | tuple[ProgramSet, list[Any]]":
         """Translate a binding for the selected provider.
 
         Args:
@@ -619,7 +621,8 @@ class CircuitBinding:
         Returns:
             For AWS devices, a Braket ``ProgramSet`` and the MPQP context used
             to reconstruct results. For IBM devices, a list pairing each
-            Qiskit estimator PUB with its ordered context jobs.
+            Qiskit estimator PUB with execution contexts containing each job
+            and its unroll index before provider grouping.
 
         Raises:
             ValueError: If IBM translation is requested for a binding that

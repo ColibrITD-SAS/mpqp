@@ -70,7 +70,8 @@ def test_qiskit_to_other_device_grouped_shapes(mode: BindingMode):
             o.to_other_language(Language.QISKIT) for o in measure.observables
         ]
         assert parameters[row] == [values[p.name] for p in circuit.parameters]
-        assert contexts[row].values == values
+        assert contexts[row].index == row
+        assert contexts[row].job.values == values
 
 
 @pytest.mark.provider("qiskit")
@@ -86,7 +87,8 @@ def test_qiskit_to_other_device_recursive_bindings():
             o.to_other_language(Language.QISKIT) for o in m1.observables
         ]
         assert parameters[row] == [values[p.name] for p in circuit.parameters]
-        assert contexts[row].values == values
+        assert contexts[row].index == row
+        assert contexts[row].job.values == values
 
 
 @pytest.fixture

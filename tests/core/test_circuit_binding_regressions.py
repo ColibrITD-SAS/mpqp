@@ -165,7 +165,8 @@ def test_binding_preserves_pre_measurement_basis():
 
 
 @pytest.mark.provider("qiskit")
-def test_grouping_preserves_execution_associations():
+@pytest.mark.parametrize("nested", [False, True])
+def test_grouping_preserves_execution_associations(nested: bool):
     first = QCircuit([X(0)])
     second = QCircuit(1)
     binding = CircuitBinding(
@@ -177,11 +178,16 @@ def test_grouping_preserves_execution_associations():
         ],
         mode=BindingMode.ZIP,
     )
+    if nested:
+        binding = CircuitBinding(binding)
     pubs = binding.to_other_device(IBMDevice.AER_SIMULATOR)
     assert len(pubs) == 2
     assert pubs[0][0][0] is first.transpiled_circuit  # pyright: ignore
     assert pubs[1][0][0] is second.transpiled_circuit  # pyright: ignore
-    assert [len(contexts) for _, contexts in pubs] == [2, 1]
+    assert [[context.index for context in contexts] for _, contexts in pubs] == [
+        [0, 2],
+        [1],
+    ]
     result = run(binding, IBMDevice.AER_SIMULATOR)
     assert len(result.results) == 3
     # Associate values through their execution metadata, independently of PUB order.
@@ -190,6 +196,7 @@ def test_grouping_preserves_execution_associations():
         assert execution.job.measure is not None
         actual[execution.job.measure.label] = execution.expectation_values
     assert actual == pytest.approx({"first_Z": -1, "second_Z": 1, "first_X": 0})
+    assert [r.expectation_values for r in result.results] == pytest.approx([-1, 1, 0])
 
 
 @pytest.mark.parametrize(
@@ -264,3 +271,36 @@ def test_binding_shot_override_preserves_input_measurement(measure: Measure):
     assert reused.shots == original_shots
     assert reused.measurements is not None
     assert reused.measurements[0].shots == original_shots
+
+
+@pytest.mark.provider("qiskit")
+@pytest.mark.parametrize("mode", list(BindingMode))
+def test_interleaved_repeated_circuits_keep_input_order(mode: BindingMode):
+    first = QCircuit([X(0)])
+    second = QCircuit(1)
+    binding = CircuitBinding(
+        [first, second, first],
+        measurements=ExpectationMeasure(Observable(pZ)),
+        mode=mode,
+    )
+
+    result = run(binding, IBMDevice.AER_SIMULATOR)
+    assert len(result.results) == 3
+    assert [r.expectation_values for r in result.results] == pytest.approx([-1, 1, -1])
+
+
+@pytest.mark.provider("qiskit")
+def test_interleaved_parameterized_circuits_keep_input_order():
+    theta = Symbol("theta")
+    first = QCircuit([Ry(theta, 0)])
+    second = QCircuit([Rz(theta, 0)])
+    binding = CircuitBinding(
+        [first, second, first],
+        values=[{theta: 0.0}, {theta: 0.0}, {theta: np.pi}],
+        measurements=[ExpectationMeasure(Observable(pZ)) for _ in range(3)],
+        mode=BindingMode.ZIP,
+    )
+
+    result = run(binding, IBMDevice.AER_SIMULATOR)
+    assert len(result.results) == 3
+    assert [r.expectation_values for r in result.results] == pytest.approx([1, 1, -1])
