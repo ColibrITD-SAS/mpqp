@@ -78,7 +78,9 @@ def __translate_binding_circuits(
                         nm, modified_circuit = generate_qiskit_noise_model(circuit)
                         circuit.noises = original_noises
                         if cb.transpiled_noise_model is None:
-                            cb.transpiled_noise_model = nm
+                            cb.transpiled_noise_model = (  # pyright: ignore[reportAttributeAccessIssue]
+                                nm
+                            )
 
                         translated_circuit = modified_circuit.to_other_device(
                             device,
