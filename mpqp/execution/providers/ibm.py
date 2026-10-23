@@ -1051,11 +1051,7 @@ def extract_result(
                 else:
                     batch_results = []
                     for idx, val in enumerate(exp_values):
-                        std_val = (
-                            float(stds[idx])
-                            if stds.size.item() > 0 and stds.size > idx  # type: ignore
-                            else 0.0
-                        )
+                        std_val = float(stds[idx]) if stds.size > idx else 0.0
                         m_idx = idx % len(measures) if len(measures) > 0 else 0
                         m = measures[m_idx] if m_idx < len(measures) else measures[0]
                         obs = m.observables[0] if m.observables else None
