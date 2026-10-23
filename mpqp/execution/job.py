@@ -141,11 +141,11 @@ class Job:
         """Optional message associated with the current job status, especially
         for execution errors."""
 
-        """Store the measurement of a circuit, used mostly for ``CircuitBinding`` execution."""
         self._measurement = measurement
+        """Store the measurement of a circuit, used mostly for ``CircuitBinding`` execution."""
 
-        """Store parameters in case the original circuit was parametrized."""
         self.values = values
+        """Store parameters in case the original circuit was parametrized."""
 
     @property
     def measure(self) -> Optional[Measure]:

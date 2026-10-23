@@ -1121,6 +1121,7 @@ def extract_result(
             raise ValueError(
                 "Mismatch between job type and result type: if the result is an"
                 " `EstimatorResult` the job must be of type `OBSERVABLE` but here was not."
+                f" The result is a {type(result).__name__} and the job type is {job.job_type}."
             )
 
         if isinstance(result, EstimatorResult):
