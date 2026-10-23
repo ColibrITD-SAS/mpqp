@@ -1,7 +1,22 @@
 import numpy as np
 import pytest
 
-from mpqp import ExpectationMeasure, BasisMeasure, X, H, Observable, QCircuit, Rx, pI, pX, pY, pZ, run, IBMDevice, AWSDevice
+from mpqp import (
+    ExpectationMeasure,
+    BasisMeasure,
+    X,
+    H,
+    Observable,
+    QCircuit,
+    Rx,
+    pI,
+    pX,
+    pY,
+    pZ,
+    run,
+    IBMDevice,
+    AWSDevice,
+)
 from mpqp.core.instruction.measurement import PauliString
 from mpqp.execution import adjust_measure
 from mpqp.tools.errors import NumberQubitsError
@@ -110,6 +125,7 @@ def test_adjust_measure_targets_mismatch():
         NumberQubitsError, match="Target size 2 doesn't match observable size 1"
     ):
         ExpectationMeasure(Observable(pX), targets=[0, 1])
+
 
 @pytest.mark.provider("qiskit", "braket")
 def test_run_batch_order_is_circuit_major():
