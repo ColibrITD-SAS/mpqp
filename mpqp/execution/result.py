@@ -348,7 +348,9 @@ class Result:
                 job.circuit = job.circuit.circuits[0]
             else:
                 raise ValueError(
-                    "The result class should be only use to hold the result of one job. A CircuitBinding should be associated with a BatchResult."
+                    "The `Result` class should be only use to hold the result of "
+                    "a single job. Use a `BatchResult` for more complex circuit "
+                    "bindings."
                 )
         if data is None:
             if job.status != JobStatus.ERROR:
@@ -359,22 +361,22 @@ class Result:
         if job.job_type == JobType.OBSERVABLE:
             if not isinstance(data, float) and not isinstance(data, dict):
                 raise TypeError(
-                    "Wrong type of data in the Result. "
-                    "Expecting float or dict[str, float] for expectation value of observable(s),"
-                    f"but got {type(data).__name__}"
+                    "Wrong type of data in the Result. Expecting `float` or "
+                    "`dict[str, float]` for expectation value of observable(s),"
+                    f"but got `{type(data).__name__}`"
                 )
             else:
                 self._expectation_values = data
         elif job.job_type == JobType.STATE_VECTOR:
             if not isinstance(data, StateVector):
                 raise TypeError(
-                    "Wrong type of data in the result. Expecting StateVector"
+                    "Wrong type of data in the result. Expecting `StateVector`"
                 )
             else:
                 self._state_vector = data
                 gphase = (
-                    job.circuit.input_g_phase  # type: ignore
-                    + job.circuit._generated_g_phase  # pyright: ignore
+                    job.circuit.input_g_phase  # pyright: ignore[reportAttributeAccessIssue]
+                    + job.circuit._generated_g_phase  # pyright: ignore[reportPrivateUsage,reportAttributeAccessIssue]
                 )
                 if g_phase_handling and gphase != 0:
                     # Reverse the global phase introduced when using CustomGate, due to Qiskit decomposition in QASM2
@@ -383,7 +385,8 @@ class Result:
         elif job.job_type == JobType.SAMPLE:
             if not isinstance(data, list):
                 raise TypeError(
-                    "Wrong type of data in the result (not a list). Expecting list of Sample"
+                    "Wrong type of data in the result (not a list). Expecting "
+                    "`list` of `Sample`"
                 )
             if self.job.measure is None:
                 raise ValueError(
