@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from itertools import product
 from typing import Any, Callable
 
 import numpy as np
@@ -112,11 +113,8 @@ def test_qiskit_to_other_device_grouped_shapes(
         observables,
         parameters,
     ) = pub  # pyright: ignore[reportGeneralTypeIssues,reportAssignmentType]
-    expected = (
-        [(v1, m_I), (v2, m_Z)]
-        if mode == BindingMode.ZIP
-        else [(v1, m_I), (v1, m_Z), (v2, m_I), (v2, m_Z)]
-    )
+    iterable_equivalent = {BindingMode.ZIP: zip, BindingMode.PRODUCT: product}
+    expected = list(iterable_equivalent[mode]([v1, v2], [m_I, m_Z]))
     assert len(contexts) == len(expected)
     for row, (values, measure) in enumerate(expected):
         assert observables[  # pyright: ignore[reportIndexIssue,reportArgumentType]
