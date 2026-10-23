@@ -78,7 +78,6 @@ if TYPE_CHECKING:
     from qiskit.circuit import QuantumCircuit
     from qiskit_aer import AerSimulator
     from sympy import Basic, Expr
-    from mpqp.execution.job import JobType
 
     from mpqp.execution.devices import (
         ATOSDevice,
@@ -88,6 +87,7 @@ if TYPE_CHECKING:
         IBMDevice,
         QUANTINUUMDevice,
     )
+    from mpqp.execution.job import JobType
     from mpqp.execution.simulated_devices import StaticIBMSimulatedDevice
 
 
@@ -1397,9 +1397,10 @@ class QCircuit:
 
         Args:
             device: representing the target device.
-            skip_pre_measure: If true, the ``pre_measure`` circuit will not be
-                added to the output.
-            native_gate_set: If true, checks if every gates in the circuits are natively supported by the device.
+            skip_pre_measure: If ``True``, the ``pre_measure`` circuit will not
+                be added to the output.
+            native_gate_set: If ``True``, checks if every gates in the circuits
+                are natively supported by the device.
             backend_sim: Simulator backend for Qiskit devices.
 
         Returns:
