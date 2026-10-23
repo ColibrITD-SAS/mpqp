@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import math
 import random
+from copy import copy
 from numbers import Complex
 from typing import TYPE_CHECKING, Any, Optional, Union
 
@@ -322,6 +323,10 @@ class Result:
         g_phase_handling: bool = True,
         label: Optional[str] = None,
     ):
+        from mpqp.core.binding import CircuitBinding
+
+        if isinstance(job.circuit, CircuitBinding):
+            job = copy(job)
         self.job = job
         """See parameter description."""
         self._expectation_values = None
@@ -335,8 +340,6 @@ class Result:
         """See parameter description."""
         self._data = data
         self.label = label
-        from mpqp.core.binding import CircuitBinding
-
         if isinstance(job.circuit, CircuitBinding):
             if len(job.circuit.circuits) == 1:
                 if TYPE_CHECKING:
