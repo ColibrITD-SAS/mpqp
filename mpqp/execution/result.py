@@ -277,7 +277,7 @@ class Result:
         errors: Information about the error or the variance in the measurement.
         shots: Number of shots of the experiment (equal to zero if the exact
             value was required).
-        label: Optional string to contextualize the data.
+        label: A label may be used to contextualize the data.
 
     Examples:
         >>> job = Job(JobType.STATE_VECTOR, QCircuit(2), ATOSDevice.MYQLM_CLINALG)
