@@ -653,20 +653,10 @@ def run(
 
     if isinstance(device, Iterable):
         results: list[Result] = []
-        for dev in flatten(device):
-
-            if isinstance(circuit, QCircuit):
-                results.append(
-                    _run_single(
-                        namer(circuit, 1),
-                        dev,
-                        values,
-                        display_breakpoints,
-                        provider_params,
-                    )
-                )
-            elif isinstance(circuit, Iterable):
-                for i, circ in enumerate(flatten(circuit)):
+        devices = flatten(device)
+        if isinstance(circuit, (QCircuit, Iterable)):
+            for i, circ in enumerate(flatten(circuit)):
+                for dev in devices:
                     results.append(
                         _run_single(
                             namer(circ, i + 1),
@@ -676,7 +666,8 @@ def run(
                             provider_params,
                         )
                     )
-            else:
+        else:
+            for dev in devices:
                 if values is not None:
                     raise ValueError("values must be specified in CircuitBinding")
                 result = _run_circuit_binding(
