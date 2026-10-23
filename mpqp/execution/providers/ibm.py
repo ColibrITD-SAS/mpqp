@@ -32,6 +32,7 @@ if TYPE_CHECKING:
     from qiskit import QuantumCircuit
     from qiskit.primitives import (
         EstimatorResult,
+        PrimitiveResult,
         PubResult,
         SamplerPubResult,
     )
@@ -945,7 +946,7 @@ def run_remote_ibm(
 
 
 def extract_result(
-    result: "QiskitResult | EstimatorResult | PubResult | SamplerPubResult",
+    result: "QiskitResult | EstimatorResult | PrimitiveResult[PubResult] | PubResult | SamplerPubResult",
     job: Optional[Job],
     device: "IBMDevice | StaticIBMSimulatedDevice | AZUREDevice",
     experiment_index: int = 0,
@@ -964,8 +965,28 @@ def extract_result(
         The ``qiskit`` result converted to our format.
     """
     import numpy as np
-    from qiskit.primitives import EstimatorResult, PubResult, SamplerPubResult
+    from qiskit.primitives import (
+        EstimatorResult,
+        PrimitiveResult,
+        PubResult,
+        SamplerPubResult,
+    )
     from qiskit.result import Result as QiskitResult
+
+    if isinstance(result, PrimitiveResult):
+        extracted_results: list[Result] = []
+        for pub_result in result:
+            extracted = extract_result(pub_result, job, device, experiment_index)
+            if isinstance(extracted, BatchResult):
+                extracted_results.extend(extracted.results)
+            else:
+                extracted_results.append(extracted)
+
+        if len(extracted_results) == 0:
+            raise ValueError("Cannot extract an empty PrimitiveResult.")
+        if len(extracted_results) == 1:
+            return extracted_results[0]
+        return BatchResult(extracted_results)
 
     # If this is a PubResult from primitives V2
     if isinstance(result, (PubResult | SamplerPubResult)):
@@ -1014,7 +1035,9 @@ def extract_result(
             elif exp_values.ndim == 1:
                 total_obs = sum(len(m.observables) for m in measures)
 
-                if len(exp_values) == total_obs and len(measures) == 1:
+                if len(exp_values) == 1 and len(measures) == 0:
+                    return Result(job, float(exp_values[0]), float(stds[0]), shots)
+                elif len(exp_values) == total_obs and len(measures) == 1:
                     exp_dict, err_dict = {}, {}
                     if len(measures[0].observables) == 1:
                         return Result(job, exp_values[0], stds[0], shots)

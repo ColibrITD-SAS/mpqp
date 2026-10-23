@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import math
 import random
+from copy import copy
 from numbers import Complex
 from typing import TYPE_CHECKING, Any, Optional, Union
 
@@ -322,6 +323,10 @@ class Result:
         g_phase_handling: bool = True,
         label: Optional[str] = None,
     ):
+        from mpqp.core.binding import CircuitBinding
+
+        if isinstance(job.circuit, CircuitBinding):
+            job = copy(job)
         self.job = job
         """See parameter description."""
         self._expectation_values = None
@@ -335,8 +340,6 @@ class Result:
         """See parameter description."""
         self._data = data
         self.label = label
-        from mpqp.core.binding import CircuitBinding
-
         if isinstance(job.circuit, CircuitBinding):
             if len(job.circuit.circuits) == 1:
                 if TYPE_CHECKING:
@@ -532,7 +535,7 @@ class Result:
             )
 
         label = "" if self.job.circuit.label is None else self.job.circuit.label + ", "
-        val = f"\nVariables' values: {str(self.job.values)}" if self.job.values else ""
+        val = f"\n  Variables: {self.job.values}" if self.job.values else ""
         header = (
             f"Result: {label}{type(self.device).__name__}, {self.device.name}" + val
         )
@@ -577,7 +580,7 @@ class Result:
                     from mpqp import ExpectationMeasure
 
                     assert isinstance(self.job.measure, ExpectationMeasure)
-                    observables = f"\nWith observables: {[o.pauli_string for o in self.job.measure.observables]}"
+                    observables = f"\n  Observables: {[o.pauli_string for o in self.job.measure.observables]}"
                 else:
                     observables = ""
                 return f"""{header}
@@ -589,8 +592,8 @@ class Result:
                     assert isinstance(self.error, dict)
                 expectation_str = "\n".join(
                     f"  {label}:\n"
-                    f"Expectation value: {self.expectation_values[label]}\n"
-                    f"Error/Variance: {self.error[label]}"
+                    f"    Expectation value: {self.expectation_values[label]}\n"
+                    f"    Error/Variance: {self.error[label]}"
                     for label in self.expectation_values
                 )
                 return header + "\n" + expectation_str
@@ -885,7 +888,7 @@ class BatchResult:
         body = "\n".join(
             "    " + line
             for result in self.results
-            for line in str(result).splitlines() + ["\n"]
+            for line in str(result).splitlines()
         )
         return header + body
 
