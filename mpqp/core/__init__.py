@@ -1,6 +1,6 @@
 # pyright: reportUnusedImport=false
+from mpqp.core.binding import BindingMode, CircuitBinding
 from mpqp.core.circuit import QCircuit
-from mpqp.core.circuitbinding import CircuitBinding, BindingMode
 from mpqp.core.instruction import Instruction
 from mpqp.core.instruction.barrier import Barrier
 from mpqp.core.instruction.breakpoint import Breakpoint

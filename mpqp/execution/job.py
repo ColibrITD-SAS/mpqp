@@ -26,8 +26,10 @@ if TYPE_CHECKING:
     from sympy import Expr
     from numbers import Complex
     from ..core.circuit import QCircuit
-    from ..core.circuitbinding import CircuitBinding
+    from ..core.binding import CircuitBinding
+
 from mpqp.core.instruction.measurement import BasisMeasure, ExpectationMeasure, Measure
+
 from ..tools.errors import IBMRemoteExecutionError, QLMRemoteExecutionError
 from .connection.azure_connection import get_jobs_by_id
 from .connection.ibm_connection import get_QiskitRuntimeService
@@ -139,22 +141,22 @@ class Job:
         """Optional message associated with the current job status, especially
         for execution errors."""
 
-        """Store the measurement of a circuit."""
-        self.measurement = measurement
+        self._measurement = measurement
+        """Store the measurement of a circuit, used mostly for ``CircuitBinding`` execution."""
 
-        """Store parameters in case the original circuit was parametrized."""
         self.values = values
+        """Store parameters in case the original circuit was parametrized."""
 
     @property
     def measure(self) -> Optional[Measure]:
         """Returns the first measurement from the circuit's measurements."""
-        from ..core.circuitbinding import CircuitBinding
+        from ..core.binding import CircuitBinding
 
         if isinstance(self.circuit, CircuitBinding):
-            return None
+            return self._measurement
 
         return (
-            None
+            self._measurement
             if len(self.circuit.measurements) == 0
             else self.circuit.measurements[0]
         )

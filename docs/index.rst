@@ -34,6 +34,7 @@ on the current available SDKs:
 
    getting-started
    circuit
+   binding
    instructions
    noise
    execution

@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING
+
 from mpqp.environment.var_cache import (
     _INSTALLED_MPQP_PROVIDERS,  # pyright: ignore[reportPrivateUsage]
 )
@@ -10,13 +11,14 @@ if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
     from mpqp.core.instruction.gates.gate import Gate
     from mpqp.core.instruction.gates.gate_decomposition import resolve_gate
     from mpqp.core.instruction.gates.native_gates import U
+    from mpqp.execution._execution_context import ExecutionContext
 
     if TYPE_CHECKING:
         from qiskit import QuantumCircuit
         from qiskit.primitives.containers import EstimatorPubLike
+
+        from mpqp.core.binding import CircuitBinding
         from mpqp.core.circuit import QCircuit
-        from mpqp.execution.job import Job
-        from mpqp.core.circuitbinding import CircuitBinding
         from mpqp.execution.devices import IBMDevice
 
     def qiskit_to_mpqp(qcircuit: "QuantumCircuit"):
@@ -225,11 +227,12 @@ if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
 
     def circuitbinding_to_pubs(
         binding: "CircuitBinding", device: "IBMDevice"
-    ) -> "list[tuple[EstimatorPubLike, list[Job]]]":
-        from mpqp.execution import JobType, Job
+    ) -> "list[tuple[EstimatorPubLike, list[ExecutionContext]]]":
+        from copy import deepcopy
+
         from mpqp.core.instruction import ExpectationMeasure
         from mpqp.core.languages import Language
-        from copy import deepcopy
+        from mpqp.execution import Job, JobType
 
         if binding.job_type != JobType.OBSERVABLE:
             raise ValueError(
@@ -237,16 +240,23 @@ if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
             )
 
         unrolled = binding.unroll()
-        if any(c.transpiled_circuit is None for c, _, _ in unrolled):
-            binding.transpiled_circuits(device=device)
+
+        from mpqp.tools.binding_utils import translate_binding_circuits
+
+        translated_circuits = translate_binding_circuits(binding, device)
 
         grouped = {}
-        for c, values, measure in unrolled:
-            grouped.setdefault(id(c), []).append((c, values, measure))
+        for index, (c, values, measure) in enumerate(unrolled):
+            grouped.setdefault(id(c), []).append((index, c, values, measure))
 
         pubs_with_context = []
         for executions in grouped.values():
-            q_c = executions[0][0].transpiled_circuit
+            _, circuit, _, _ = executions[0]
+            q_c = translated_circuits.get(id(circuit))
+            if q_c is None:
+                raise ValueError(
+                    f"Circuit with id {id(circuit)} wasn't found in the binding, please contact the maintainers of this library."
+                )
             if TYPE_CHECKING:
                 from qiskit.circuit import QuantumCircuit
 
@@ -255,7 +265,7 @@ if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
             params = []
             q_obs = []
             contexts = []
-            for c, values, measure in executions:
+            for index, c, values, measure in executions:
                 normalized_values = {str(k): v for k, v in (values or {}).items()}
                 missing = [
                     name for name in parameter_names if name not in normalized_values
@@ -281,7 +291,12 @@ if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
                 )
                 context = c.without_measurements(deep_copy=False)
                 context.add(deepcopy(measure))
-                contexts.append(Job(binding.job_type, context, device, values=values))
+                contexts.append(
+                    ExecutionContext(
+                        job=Job(binding.job_type, context, device, values=values),
+                        index=index,
+                    )
+                )
 
             if all(len(p) == 0 for p in params):
                 params = None

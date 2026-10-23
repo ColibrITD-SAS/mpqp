@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Optional
 import numpy as np
 
 from mpqp.core import QCircuit
-from mpqp.core.circuitbinding import BindingParameters, CircuitBinding
+from mpqp.core.binding import BindingParameters, CircuitBinding
 from mpqp.core.instruction.gates import CRk
 from mpqp.core.instruction.measurement import (
     BasisMeasure,
@@ -152,11 +152,12 @@ def run_pseudo_circuit_binding(job: Job) -> BatchResult:
 
     So instead of running a ``ProgramSet`` it's going to unroll the CircuitBinding and execute iteratively the jobs.
     """
-    from mpqp.tools.circuitbinding_utils import (
-        translate_circuitbinding_circuits,
-        translate_circuitbinding_measurements,
-    )
     from braket.circuits import Circuit as braket_Circuit
+
+    from mpqp.tools.binding_utils import (
+        translate_binding_circuits,
+        translate_binding_measurements,
+    )
 
     if job.job_type == JobType.OBSERVABLE:
         raise NotImplementedError
@@ -165,8 +166,8 @@ def run_pseudo_circuit_binding(job: Job) -> BatchResult:
         assert isinstance(cb, CircuitBinding)
         assert isinstance(job.device, AWSDevice)
 
-    translated_circuit = translate_circuitbinding_circuits(cb, job.device)
-    translated_measurement = translate_circuitbinding_measurements(cb, job.device)
+    translated_circuit = translate_binding_circuits(cb, job.device)
+    translated_measurement = translate_binding_measurements(cb, job.device)
     device = get_braket_device(job.device, is_noisy=cb.is_noisy)
     results = []
 
@@ -207,7 +208,7 @@ def run_pseudo_circuit_binding(job: Job) -> BatchResult:
             vector = task.result().values[0]  # pyright: ignore
             if TYPE_CHECKING:
                 assert isinstance(vector, (list, np.ndarray))
-            state_vector = StateVector(vector, nb_qubits=job.circuit.nb_qubits)
+            state_vector = StateVector(vector, nb_qubits=local_job.circuit.nb_qubits)
             results.append(Result(local_job, state_vector, 0, 0))
 
     return BatchResult(results)
@@ -272,6 +273,7 @@ def run_circuit_binding(job: Job) -> BatchResult:
             assert circuitBinding.measurements
             assert isinstance(circuitBinding.measurements[0], ExpectationMeasure)
         # used when pauli grouping is done
+        # TODO: clean this later
         """if circuitBinding.measurements[0].optimize_measurement:  # Compute Grouping
             print(circuitBinding.measurements[0].optimize_measurement)
             length = 2**job.circuit.nb_qubits
@@ -638,11 +640,11 @@ def run_braket_observable(job: Job) -> Result:
                 )
 
         if braket_sum is not None:
+            from braket.circuits.observables import Sum
             from braket.program_sets import CircuitBinding, ProgramSet
             from braket.tasks.program_set_quantum_task_result import (
                 ProgramSetQuantumTaskResult,
             )
-            from braket.circuits.observables import Sum
 
             if not isinstance(braket_sum, Sum):
                 braket_sum = [braket_sum]

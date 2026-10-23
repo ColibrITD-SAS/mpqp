@@ -1183,8 +1183,6 @@ class PauliStringMonomial(PauliString):
         return self
 
     def __itruediv__(self, other: Coef) -> PauliStringMonomial:
-        from sympy import Expr, Basic  # pyright: ignore[reportUnusedImport]
-
         new_coef: Coef = (
             self.coef
             / other  # pyright: ignore[reportOperatorIssue, reportAssignmentType]

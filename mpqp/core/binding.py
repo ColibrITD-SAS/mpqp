@@ -1,86 +1,196 @@
+"""Package related quantum computations for optimized provider execution.
+
+A :class:`CircuitBinding` combines circuits, parameter values and measurements
+into a description of related runs. Providers can package these runs into one
+submission and, where supported, share compatible hardware executions. For
+example, Pauli observables with compatible measurement bases can be estimated
+from shared samples of the same circuit, reducing QPU time and cost. Execution
+paths without native support fall back to individual runs.
+
+:class:`BindingMode` specifies how the three execution axes combine:
+
+* :attr:`BindingMode.PRODUCT` explores combinations of circuits, parameter sets
+  and measurements, for example a parameter sweep evaluated against several
+  observables.
+* :attr:`BindingMode.ZIP` associates corresponding entries, for example pairing
+  each parameter set with a particular measurement.
+
+Bindings can be nested to supply parameters and measurements at different
+levels. :meth:`CircuitBinding.unroll` exposes the resolved execution sequence
+without running it. Pass the binding to :func:`~mpqp.execution.runner.run` to
+execute it and obtain a :class:`~mpqp.execution.result.BatchResult`. Its results
+follow unroll order even when a provider groups executions internally. The
+number of logical results need not equal the number of provider submissions or
+hardware executions.
+
+Both public classes are available through ``from mpqp import CircuitBinding,
+BindingMode``.
+"""
+
+from __future__ import annotations
+
+from copy import copy
 from enum import Enum, auto
-from typing import TYPE_CHECKING, Any, overload
-from typing import Optional, TypeVar, Union
 from numbers import Complex
+from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union, overload
+
+from sympy import Expr
+
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.measurement.measure import Measure
-from mpqp.tools.generics import OneOrMany
-from sympy import Expr
 from mpqp.noise.noise_model import NoiseModel
+from mpqp.tools.generics import OneOrMany
 
 if TYPE_CHECKING:
-    from mpqp.execution.job import Job
-    from qiskit_aer import AerSimulator
-    from qiskit.primitives.containers import EstimatorPubLike
     from braket.program_sets import ProgramSet
-    from mpqp.execution.devices import AWSDevice, AvailableDevice, IBMDevice
+    from qiskit.primitives.containers import EstimatorPubLike
+    from qiskit_aer import AerSimulator
+
+    from mpqp.execution._execution_context import ExecutionContext
+    from mpqp.execution.devices import AvailableDevice, AWSDevice, IBMDevice
 
 
-BindingParameters = dict[Union["Expr", str], Union[Complex, float]]
+BindingParameters = dict[Union[Expr, str], Union[Complex, float]]
+"""Parameter values keyed by symbolic expressions or parameter names."""
 BindingExecution = tuple[QCircuit, Optional[BindingParameters], Optional[Measure]]
+"""One logical execution: circuit, optional parameters and optional measurement."""
 BindingOptions = tuple[Optional[BindingParameters], Optional[Measure]]
+"""Optional parameters and measurement combined while resolving a binding."""
 _AxisElement = TypeVar("_AxisElement")
 
 
 class BindingMode(Enum):
     """Control how a :class:`CircuitBinding` combines its execution axes.
 
-    ``PRODUCT`` builds the Cartesian product of circuits, parameter sets and
-    measurements. ``ZIP`` associates elements positionally and broadcasts an
-    axis containing a single element to the length of the longest axis.
+    The axes are circuits, parameter mappings and measurements. An omitted
+    parameter or measurement axis contributes a single unspecified entry.
+    Nested bindings resolve their own axes before being combined with the
+    enclosing binding's options.
     """
 
     PRODUCT = auto()
+    """Builds the Cartesian product of circuits, parameter sets and measurements."""
     ZIP = auto()
+    """Associates elements positionally and broadcasts an axis containing a
+    single element to the length of the longest axis."""
 
 
 class CircuitBinding:
-    """Describe a batch of related circuit executions lazily.
+    """Group related circuit executions for provider optimizations.
 
     A binding groups one or more circuits with optional parameter sets and
     measurements. It can also contain nested bindings. The execution axes are
     resolved only when the binding is translated for a provider or passed to
     :func:`~mpqp.execution.runner.run`.
 
+    Use :attr:`BindingMode.PRODUCT` for a parameter or measurement sweep and
+    :attr:`BindingMode.ZIP` to pair corresponding inputs. Measurements already
+    present in a circuit are extracted into an inner binding automatically.
+
     Args:
         circuits: Circuit, nested binding, or sequence of either to execute.
         values: Parameter mapping or sequence of mappings to bind to the
-            symbolic circuit parameters.
+            symbolic circuit parameters. Keys may be symbolic expressions or
+            parameter names. Omission leaves parameters to an enclosing binding
+            or requires the circuit to have no unbound parameters at execution.
         measurements: Measurement or sequence of measurements to apply. A
             circuit that already contains measurements must not also receive
-            this argument.
+            this argument. Each supplied measurement is shallow-copied before
+            shot overrides are applied. Nested mutable objects, including
+            observables and bases, may remain shared.
         mode: Rule used to combine circuits, values and measurements.
         noises: Noise models shared by every circuit in the binding.
+            Due to provider limitations, all circuits must share the same noise model.
         shots: Number of shots shared by every execution. When omitted, it is
-            inferred from the measurements when possible.
+            inferred from the measurements when possible. Zero shots requests
+            a state vector for basis measurements and exact expectation values
+            for expectation measurements.
 
     Raises:
         ValueError: If the execution axes are incompatible, circuits have
             incompatible job types, or measurements, noise and shots are
             specified inconsistently.
 
+    Examples:
+        Evaluate two parameter sets against two observables. PRODUCT creates
+        four logical executions; ZIP pairs the entries to create two:
+
+        >>> from sympy import Symbol
+        >>> from mpqp import (BindingMode, CircuitBinding, ExpectationMeasure,
+        ...                   Observable, QCircuit, Ry, pX, pZ)
+        >>> theta = Symbol("theta")
+        >>> circuit = QCircuit([Ry(theta, 0)])
+        >>> values = [{theta: 0.0}, {theta: 1.0}]
+        >>> measures = [ExpectationMeasure(Observable(pZ)),
+        ...             ExpectationMeasure(Observable(pX))]
+        >>> product = CircuitBinding(circuit, values=values, measurements=measures)
+        >>> len(product.unroll())
+        4
+        >>> paired = CircuitBinding(circuit, values=values,
+        ...                         measurements=measures, mode=BindingMode.ZIP)
+        >>> len(paired.unroll())
+        2
+
+        Nest a parameter sweep inside a binding that supplies the measurement:
+
+        >>> sweep = CircuitBinding(circuit, values=values)
+        >>> measured = CircuitBinding(sweep, measurements=measures[0])
+        >>> len(measured.unroll())
+        2
+
+        Execute a sweep on a local simulator. The analytic expectation of Z
+        after Ry(theta) is cos(theta):
+
+        >>> import math
+        >>> from mpqp import IBMDevice, run
+        >>> sweep = CircuitBinding(circuit,
+        ...     values=[{theta: 0.0}, {theta: math.pi}],
+        ...     measurements=ExpectationMeasure(Observable(pZ)))
+        >>> result = run(sweep, IBMDevice.AER_SIMULATOR)  # doctest: +QISKIT
+        >>> [round(float(r.expectation_values), 6)
+        ...  for r in result.results]  # doctest: +QISKIT
+        [1.0, -1.0]
+
     Note:
         In :attr:`BindingMode.ZIP` mode, every non-singleton axis must have the
         same length. Singleton axes are broadcast when the binding is unrolled.
+        When both ``values`` and ``measurements`` are supplied directly to the
+        constructor in ZIP mode, their lengths must match, including singleton
+        inputs. A measurement may instead be supplied by an enclosing binding,
+        as in the nesting example.
+
+        Measurements in a binding must have the same type and effective shot
+        count. Binding-level ``shots`` can replace a measurement's default count
+        (1024 for basis measurements, zero for expectation measurements);
+        conflicting non-default counts are rejected. Without an explicit
+        measurement, a numeric circuit requests a state vector.
+
+        Circuits are retained by reference. A shallow measurement copy protects
+        its shot count but does not provide an independent copy of nested arrays,
+        target lists or basis objects. Finish preparing inputs before execution.
+
+        Results returned by :func:`~mpqp.execution.runner.run` follow
+        :meth:`unroll` order, independently of provider execution grouping.
     """
 
     def __init__(
         self,
-        circuits: OneOrMany["QCircuit | CircuitBinding"],
+        circuits: OneOrMany[QCircuit | CircuitBinding],
         values: Optional[OneOrMany[dict[str, float] | dict[Expr, float]]] = None,
         measurements: Optional[OneOrMany[Measure]] = None,
         mode: BindingMode = BindingMode.PRODUCT,
         noises: Optional[list[NoiseModel]] = None,
         shots: Optional[int] = None,
     ) -> None:
-        from mpqp.execution.runner import adjust_measure
-        from mpqp.execution.job import JobType
         from typing import TYPE_CHECKING, Sequence
+
         from mpqp.core.instruction.measurement import (
-            Measure,
-            ExpectationMeasure,
             BasisMeasure,
+            ExpectationMeasure,
+            Measure,
         )
+        from mpqp.execution.job import JobType
+        from mpqp.execution.runner import adjust_measure
 
         if circuits == []:
             raise ValueError(
@@ -90,9 +200,10 @@ class CircuitBinding:
         if mode == BindingMode.ZIP and measurements is not None and values is not None:
             m = measurements if isinstance(measurements, Sequence) else [measurements]
             v = values if isinstance(values, Sequence) else [values]
-            if len(m) != len(v):
+            c = circuits if isinstance(circuits, Sequence) else [circuits]
+            if len(m) != len(v) or (len(c) != 1 and len(c) != len(m)):
                 raise ValueError(
-                    f"In ZIP mode, the number of measurements {len(m)} must match the number of parameter sets {len(v)}."
+                    f"In ZIP mode, the number of measurements {len(m)} must match the number of parameter sets {len(v)} and the number of circuits {len(c)} if there are multiple elements in circuits."
                 )
 
         if not isinstance(circuits, Sequence):
@@ -188,11 +299,8 @@ class CircuitBinding:
                 if isinstance(measurements, Measure)
                 else list(measurements)
             )
-            self.job_type = (
-                JobType.OBSERVABLE
-                if isinstance(measurements[0], ExpectationMeasure)
-                else JobType.SAMPLE
-            )
+            measurements = [copy(measure) for measure in measurements]
+            is_expectation = isinstance(measurements[0], ExpectationMeasure)
 
             shots_ = None
             for index, measure in enumerate(measurements):
@@ -226,17 +334,22 @@ class CircuitBinding:
                     measurements[index] = adjust_measure(
                         measure, QCircuit(self.nb_qubits)
                     )
-                    if self.job_type != JobType.OBSERVABLE:
+                    if not is_expectation:
                         raise ValueError(
                             "All measurements in CircuitBinding must be of the same type."
                         )
                 elif isinstance(measure, BasisMeasure):
-                    if self.job_type != JobType.SAMPLE:
+                    if is_expectation:
                         raise ValueError(
                             "All measurements in CircuitBinding must be of the same type."
                         )
             if shots_ is not None:
                 self.shots = shots_
+            self.job_type = (
+                JobType.OBSERVABLE
+                if is_expectation
+                else JobType.STATE_VECTOR if self.shots == 0 else JobType.SAMPLE
+            )
 
         if (
             self.job_type != JobType.STATE_VECTOR
@@ -269,62 +382,12 @@ class CircuitBinding:
                                 "All measurements in CircuitBinding must have the same number of shots"
                             )
 
-        self.circuits: list["QCircuit | CircuitBinding"] = circuits
+        self.circuits: list[QCircuit | CircuitBinding] = circuits
         self.value = parameters
         self.measurements = (
             self.measurements if self.measurements is not None else measurements
         )
         self.mode = mode
-
-    def transpiled_circuits(
-        self,
-        device: "AvailableDevice",
-        skip_pre_measure: bool = False,
-        backend_sim: Optional["AerSimulator"] = None,
-    ) -> None:
-        """Transpile every circuit in the binding for a target device.
-
-        Transpiled provider circuits are cached on the corresponding
-        :class:`QCircuit` objects. Nested bindings are processed recursively.
-        For noisy IBM executions, the generated Qiskit noise model is cached on
-        this binding.
-
-        Args:
-            device: Device for which the circuits are transpiled.
-            skip_pre_measure: Whether provider translation should omit
-                pre-measurement operations.
-            backend_sim: Optional Qiskit Aer backend used during IBM
-                transpilation.
-        """
-
-        from mpqp.execution.providers.ibm import generate_qiskit_noise_model
-        from mpqp import QCircuit
-
-        for i, c in enumerate(self.circuits):
-            if isinstance(c, QCircuit):
-                if self.is_noisy:
-                    if c.transpiled_circuit is None:
-                        original_noises = c.noises
-                        c.noises = self.noises if self.noises is not None else []
-                        nm, modified_circuit = generate_qiskit_noise_model(c)
-                        c.noises = original_noises
-                        if self.transpiled_noise_model is None:
-                            self.transpiled_noise_model = nm
-
-                        modified_circuit.transpiled_circuit = (
-                            modified_circuit.to_other_device(
-                                device, skip_pre_measure, backend_sim=backend_sim
-                            )
-                        )
-                        self.circuits[i] = (
-                            modified_circuit  # TODO: check if we need to update the circuit in the list or if we can just modify it in place
-                        )
-                else:
-                    c.transpiled_circuit = c.to_other_device(
-                        device, skip_pre_measure, backend_sim=backend_sim
-                    )
-            else:
-                c.transpiled_circuits(device, skip_pre_measure, backend_sim)
 
     def unroll(
         self,
@@ -339,9 +402,32 @@ class CircuitBinding:
         Raises:
             ValueError: If a non-singleton axis cannot be broadcast in
                 :attr:`BindingMode.ZIP` mode.
+
+        Note:
+            For a flat PRODUCT binding, circuit order is outermost, followed by
+            parameter order and then measurement order. ZIP follows the paired
+            axis order. Returned circuits and measurements are references to
+            binding objects, not independent copies.
+
+            Nested bindings combine disjoint parameter mappings. If parent and
+            child mappings contain overlapping parameter names, they contribute
+            alternative parameter sets rather than overwriting one another.
+            Measurements supplied at both levels also contribute alternatives.
+            PRODUCT removes duplicate parameter mappings and repeated identical
+            measurement objects within each circuit branch. These rules can
+            make nested execution counts differ from a simple product of all
+            input lengths.
         """
         import itertools
         from typing import cast
+        from mpqp.tools.binding_utils import (
+            broadcast_axis,
+            expand_branch,
+            combine_zipped_options,
+            product_values,
+            product_measurements,
+            execution_key,
+        )
 
         raw_parent_values = (
             self.value
@@ -362,175 +448,6 @@ class CircuitBinding:
             else ([self.measurements] if self.measurements is not None else [None])
         )  # pyright: ignore[reportAssignmentType]
 
-        def merge_values(
-            child_parameters: Optional[BindingParameters],
-            parent_parameters: Optional[BindingParameters],
-        ) -> Optional[BindingParameters]:
-            """Merge child and parent values, giving precedence to the parent."""
-            if child_parameters is None and parent_parameters is None:
-                return None
-            combined_parameters = (
-                dict(child_parameters) if child_parameters is not None else {}
-            )
-            if parent_parameters is not None:
-                combined_parameters.update(parent_parameters)
-            return combined_parameters
-
-        def bind_same_parameters(
-            child_parameters: Optional[BindingParameters],
-            parent_parameters: Optional[BindingParameters],
-        ) -> bool:
-            """Return whether child and parent bind at least one common name."""
-            if child_parameters is None or parent_parameters is None:
-                return False
-            child_names = {str(key) for key in child_parameters}
-            parent_names = {str(key) for key in parent_parameters}
-            return bool(child_names & parent_names)
-
-        def combine_zipped_options(
-            child_parameters: Optional[BindingParameters],
-            child_measurement: Optional[Measure],
-            parent_parameters: Optional[BindingParameters],
-            parent_measurement: Optional[Measure],
-        ) -> list[BindingOptions]:
-            """Combine one child option with one parent option in ZIP mode."""
-            parameter_collision = bind_same_parameters(
-                child_parameters, parent_parameters
-            )
-            measurement_collision = (
-                child_measurement is not None and parent_measurement is not None
-            )
-            if not parameter_collision and not measurement_collision:
-                return [
-                    (
-                        merge_values(child_parameters, parent_parameters),
-                        (
-                            parent_measurement
-                            if parent_measurement is not None
-                            else child_measurement
-                        ),
-                    )
-                ]
-
-            if parameter_collision:
-                if TYPE_CHECKING:
-                    assert parent_parameters is not None
-                    assert child_parameters is not None
-                parent_execution_parameters = parent_parameters.copy()
-                child_execution_parameters = child_parameters.copy()
-            else:
-                parent_execution_parameters = child_execution_parameters = merge_values(
-                    child_parameters, parent_parameters
-                )
-
-            return [
-                (
-                    parent_execution_parameters,
-                    (
-                        parent_measurement
-                        if parent_measurement is not None
-                        else child_measurement
-                    ),
-                ),
-                (
-                    child_execution_parameters,
-                    (
-                        child_measurement
-                        if child_measurement is not None
-                        else parent_measurement
-                    ),
-                ),
-            ]
-
-        def parameter_set_key(
-            parameter_set: Optional[BindingParameters],
-        ) -> Optional[tuple[tuple[str, str]]]:
-            """Build a stable, hashable key for a parameter mapping."""
-            if parameter_set is None:
-                return None
-            return tuple(
-                sorted((str(key), repr(value)) for key, value in parameter_set.items())
-            )  # pyright: ignore[reportReturnType]
-
-        def execution_key(
-            execution: BindingExecution,
-        ) -> tuple[int, Optional[tuple[tuple[str, str]]], int]:
-            """Build an identity key used to remove duplicate executions."""
-            circuit, parameters, measurement = execution
-            return id(circuit), parameter_set_key(parameters), id(measurement)
-
-        def product_values(
-            child_parameters: Optional[BindingParameters],
-        ) -> list[Optional[BindingParameters]]:
-            """Resolve and deduplicate parameter sets for PRODUCT mode."""
-            unique_values: dict[
-                Optional[tuple[tuple[str, str]]], Optional[BindingParameters]
-            ] = {}
-            keep_child_parameters = False
-
-            for parent_parameters in parent_values:
-                if child_parameters is None:
-                    parameter_set = (
-                        parent_parameters.copy()
-                        if parent_parameters is not None
-                        else None
-                    )
-                elif parent_parameters is None:
-                    keep_child_parameters = True
-                    continue
-                elif bind_same_parameters(child_parameters, parent_parameters):
-                    parameter_set = parent_parameters.copy()
-                    keep_child_parameters = True
-                else:
-                    parameter_set = merge_values(child_parameters, parent_parameters)
-
-                unique_values.setdefault(
-                    parameter_set_key(parameter_set), parameter_set
-                )
-
-            if keep_child_parameters:
-                if TYPE_CHECKING:
-                    assert child_parameters is not None
-                child_parameters = child_parameters.copy()
-                unique_values.setdefault(
-                    parameter_set_key(child_parameters), child_parameters
-                )
-
-            return list(unique_values.values())
-
-        def product_measurements(
-            child_measurement: Optional[Measure],
-        ) -> list[Optional[Measure]]:
-            """Resolve and deduplicate measurements for PRODUCT mode."""
-            unique_measurements: dict[int, Optional[Measure]] = {}
-            keep_child_measurement = False
-
-            for parent_measurement in parent_measurements:
-                if child_measurement is None:
-                    unique_measurements.setdefault(
-                        id(parent_measurement), parent_measurement
-                    )
-                elif parent_measurement is None:
-                    keep_child_measurement = True
-                else:
-                    unique_measurements.setdefault(
-                        id(parent_measurement), parent_measurement
-                    )
-                    keep_child_measurement = True
-
-            if keep_child_measurement:
-                unique_measurements.setdefault(id(child_measurement), child_measurement)
-
-            return list(unique_measurements.values())
-
-        def expand_branch(
-            branch: QCircuit | CircuitBinding,
-        ) -> list[BindingExecution]:
-            """Return the executions represented by a circuit or nested binding."""
-            if isinstance(branch, CircuitBinding):
-                return branch.unroll()
-            return [(branch, None, None)]
-
         executions: list[BindingExecution] = []
 
         if self.mode == BindingMode.ZIP:
@@ -539,18 +456,6 @@ class CircuitBinding:
                 len(parent_values),
                 len(parent_measurements),
             )
-
-            def broadcast_axis(
-                axis: list[_AxisElement], target_length: int
-            ) -> list[_AxisElement]:
-                """Broadcast a singleton ZIP axis or validate its length."""
-                if len(axis) == 1:
-                    return [axis[0]] * target_length
-                if len(axis) != target_length:
-                    raise ValueError(
-                        f"In ZIP mode, lists must be length 1 or match the maximum list length ({target_length})."
-                    )
-                return axis
 
             branches = broadcast_axis(self.circuits, zip_length)
             values = broadcast_axis(parent_values, zip_length)
@@ -581,8 +486,8 @@ class CircuitBinding:
                     branch
                 ):
                     for parameters, measurement in itertools.product(
-                        product_values(child_parameters),
-                        product_measurements(child_measurement),
+                        product_values(child_parameters, parent_values),
+                        product_measurements(child_measurement, parent_measurements),
                     ):
                         execution = (circuit, parameters, measurement)
                         unique_branch_executions.setdefault(
@@ -598,28 +503,36 @@ class CircuitBinding:
 
     @overload
     def to_other_device(
-        self, device: "AWSDevice"
-    ) -> tuple["ProgramSet", list[Any]]: ...
+        self, device: AWSDevice, backend_sim: Optional[AerSimulator] = None
+    ) -> tuple[ProgramSet, list[Any]]: ...
     @overload
     def to_other_device(
-        self, device: "IBMDevice"
-    ) -> list[tuple["EstimatorPubLike", list["Job"]]]: ...
+        self, device: IBMDevice, backend_sim: Optional[AerSimulator] = None
+    ) -> list[tuple[EstimatorPubLike, list[ExecutionContext]]]: ...
     @overload
     def to_other_device(
-        self, device: "AvailableDevice"
-    ) -> "list[tuple[EstimatorPubLike, list[Job]]] | tuple[ProgramSet, list[Any]]": ...
+        self, device: AvailableDevice, backend_sim: Optional[AerSimulator] = None
+    ) -> (
+        list[tuple[EstimatorPubLike, list[ExecutionContext]]]
+        | tuple[ProgramSet, list[Any]]
+    ): ...
     def to_other_device(
-        self, device: "AvailableDevice"
-    ) -> "list[tuple[EstimatorPubLike, list[Job]]] | tuple[ProgramSet, list[Any]]":
+        self, device: AvailableDevice, backend_sim: Optional[AerSimulator] = None
+    ) -> (
+        list[tuple[EstimatorPubLike, list[ExecutionContext]]]
+        | tuple[ProgramSet, list[Any]]
+    ):
         """Translate a binding for the selected provider.
 
         Args:
             device: Provider device targeted by the translation.
+            backend_sim: Optional Aer backend. Currently unused by this method.
 
         Returns:
             For AWS devices, a Braket ``ProgramSet`` and the MPQP context used
             to reconstruct results. For IBM devices, a list pairing each
-            Qiskit estimator PUB with its ordered context jobs.
+            Qiskit estimator PUB with execution contexts containing each job
+            and its unroll index before provider grouping.
 
         Raises:
             ValueError: If IBM translation is requested for a binding that
@@ -630,12 +543,14 @@ class CircuitBinding:
             For IBM, PRODUCT/ZIP combinations are resolved before executions
             are grouped by circuit. PUB fields are circuit, observables and
             parameter values; absent trailing fields are omitted.
+            This method prepares provider input and execution context; it does
+            not submit jobs. Prefer :func:`~mpqp.execution.runner.run` when
+            execution results are needed.
         """
         from mpqp.execution.devices import (
-            IBMDevice,
             AWSDevice,
+            IBMDevice,
         )
-        from mpqp.execution.devices import IBMDevice, AWSDevice
 
         if isinstance(device, IBMDevice):
             from mpqp.translation.qiskit import circuitbinding_to_pubs
