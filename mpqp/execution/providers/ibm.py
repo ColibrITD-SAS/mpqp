@@ -1052,7 +1052,7 @@ def extract_result(
                     for idx, val in enumerate(exp_values):
                         std_val = (
                             float(stds[idx])
-                            if stds.size.item() > 0 and stds.size > idx  # type: ignore
+                            if stds.size > idx
                             else 0.0
                         )
                         m_idx = idx % len(measures) if len(measures) > 0 else 0
