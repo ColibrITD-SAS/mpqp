@@ -100,6 +100,7 @@ class CircuitBinding:
             observables and bases, may remain shared.
         mode: Rule used to combine circuits, values and measurements.
         noises: Noise models shared by every circuit in the binding.
+            Due to provider limitations, all circuits must share the same noise model.
         shots: Number of shots shared by every execution. When omitted, it is
             inferred from the measurements when possible. Zero shots requests
             a state vector for basis measurements and exact expectation values
@@ -199,9 +200,10 @@ class CircuitBinding:
         if mode == BindingMode.ZIP and measurements is not None and values is not None:
             m = measurements if isinstance(measurements, Sequence) else [measurements]
             v = values if isinstance(values, Sequence) else [values]
-            if len(m) != len(v):
+            c = circuits if isinstance(circuits, Sequence) else [circuits]
+            if len(m) != len(v) or (len(c) != 1 and len(c) != len(m)):
                 raise ValueError(
-                    f"In ZIP mode, the number of measurements {len(m)} must match the number of parameter sets {len(v)}."
+                    f"In ZIP mode, the number of measurements {len(m)} must match the number of parameter sets {len(v)} and the number of circuits {len(c)} if there are multiple elements in circuits."
                 )
 
         if not isinstance(circuits, Sequence):
@@ -387,56 +389,6 @@ class CircuitBinding:
         )
         self.mode = mode
 
-    def transpiled_circuits(
-        self,
-        device: AvailableDevice,
-        skip_pre_measure: bool = False,
-        backend_sim: Optional[AerSimulator] = None,
-    ) -> None:
-        """Transpile every circuit in the binding for a target device.
-
-        Transpiled provider circuits are cached on the corresponding
-        :class:`QCircuit` objects. Nested bindings are processed recursively.
-        For noisy IBM executions, the generated Qiskit noise model is cached on
-        this binding.
-
-        Args:
-            device: Device for which the circuits are transpiled.
-            skip_pre_measure: Whether provider translation should omit
-                pre-measurement operations.
-            backend_sim: Optional Qiskit Aer backend used during IBM
-                transpilation.
-        """
-
-        from mpqp import QCircuit
-        from mpqp.execution.providers.ibm import generate_qiskit_noise_model
-
-        for i, c in enumerate(self.circuits):
-            if isinstance(c, QCircuit):
-                if self.is_noisy:
-                    if c.transpiled_circuit is None:
-                        original_noises = c.noises
-                        c.noises = self.noises if self.noises is not None else []
-                        nm, modified_circuit = generate_qiskit_noise_model(c)
-                        c.noises = original_noises
-                        if self.transpiled_noise_model is None:
-                            self.transpiled_noise_model = nm
-
-                        modified_circuit.transpiled_circuit = (
-                            modified_circuit.to_other_device(
-                                device, skip_pre_measure, backend_sim=backend_sim
-                            )
-                        )
-                        self.circuits[i] = (
-                            modified_circuit  # TODO: check if we need to update the circuit in the list or if we can just modify it in place
-                        )
-                else:
-                    c.transpiled_circuit = c.to_other_device(
-                        device, skip_pre_measure, backend_sim=backend_sim
-                    )
-            else:
-                c.transpiled_circuits(device, skip_pre_measure, backend_sim)
-
     def unroll(
         self,
     ) -> list[BindingExecution]:
@@ -468,6 +420,14 @@ class CircuitBinding:
         """
         import itertools
         from typing import cast
+        from mpqp.tools.binding_utils import (
+            broadcast_axis,
+            expand_branch,
+            combine_zipped_options,
+            product_values,
+            product_measurements,
+            execution_key,
+        )
 
         raw_parent_values = (
             self.value
@@ -488,175 +448,6 @@ class CircuitBinding:
             else ([self.measurements] if self.measurements is not None else [None])
         )  # pyright: ignore[reportAssignmentType]
 
-        def merge_values(
-            child_parameters: Optional[BindingParameters],
-            parent_parameters: Optional[BindingParameters],
-        ) -> Optional[BindingParameters]:
-            """Merge child and parent values, giving precedence to the parent."""
-            if child_parameters is None and parent_parameters is None:
-                return None
-            combined_parameters = (
-                dict(child_parameters) if child_parameters is not None else {}
-            )
-            if parent_parameters is not None:
-                combined_parameters.update(parent_parameters)
-            return combined_parameters
-
-        def bind_same_parameters(
-            child_parameters: Optional[BindingParameters],
-            parent_parameters: Optional[BindingParameters],
-        ) -> bool:
-            """Return whether child and parent bind at least one common name."""
-            if child_parameters is None or parent_parameters is None:
-                return False
-            child_names = {str(key) for key in child_parameters}
-            parent_names = {str(key) for key in parent_parameters}
-            return bool(child_names & parent_names)
-
-        def combine_zipped_options(
-            child_parameters: Optional[BindingParameters],
-            child_measurement: Optional[Measure],
-            parent_parameters: Optional[BindingParameters],
-            parent_measurement: Optional[Measure],
-        ) -> list[BindingOptions]:
-            """Combine one child option with one parent option in ZIP mode."""
-            parameter_collision = bind_same_parameters(
-                child_parameters, parent_parameters
-            )
-            measurement_collision = (
-                child_measurement is not None and parent_measurement is not None
-            )
-            if not parameter_collision and not measurement_collision:
-                return [
-                    (
-                        merge_values(child_parameters, parent_parameters),
-                        (
-                            parent_measurement
-                            if parent_measurement is not None
-                            else child_measurement
-                        ),
-                    )
-                ]
-
-            if parameter_collision:
-                if TYPE_CHECKING:
-                    assert parent_parameters is not None
-                    assert child_parameters is not None
-                parent_execution_parameters = parent_parameters.copy()
-                child_execution_parameters = child_parameters.copy()
-            else:
-                parent_execution_parameters = child_execution_parameters = merge_values(
-                    child_parameters, parent_parameters
-                )
-
-            return [
-                (
-                    parent_execution_parameters,
-                    (
-                        parent_measurement
-                        if parent_measurement is not None
-                        else child_measurement
-                    ),
-                ),
-                (
-                    child_execution_parameters,
-                    (
-                        child_measurement
-                        if child_measurement is not None
-                        else parent_measurement
-                    ),
-                ),
-            ]
-
-        def parameter_set_key(
-            parameter_set: Optional[BindingParameters],
-        ) -> Optional[tuple[tuple[str, str]]]:
-            """Build a stable, hashable key for a parameter mapping."""
-            if parameter_set is None:
-                return None
-            return tuple(
-                sorted((str(key), repr(value)) for key, value in parameter_set.items())
-            )  # pyright: ignore[reportReturnType]
-
-        def execution_key(
-            execution: BindingExecution,
-        ) -> tuple[int, Optional[tuple[tuple[str, str]]], int]:
-            """Build an identity key used to remove duplicate executions."""
-            circuit, parameters, measurement = execution
-            return id(circuit), parameter_set_key(parameters), id(measurement)
-
-        def product_values(
-            child_parameters: Optional[BindingParameters],
-        ) -> list[Optional[BindingParameters]]:
-            """Resolve and deduplicate parameter sets for PRODUCT mode."""
-            unique_values: dict[
-                Optional[tuple[tuple[str, str]]], Optional[BindingParameters]
-            ] = {}
-            keep_child_parameters = False
-
-            for parent_parameters in parent_values:
-                if child_parameters is None:
-                    parameter_set = (
-                        parent_parameters.copy()
-                        if parent_parameters is not None
-                        else None
-                    )
-                elif parent_parameters is None:
-                    keep_child_parameters = True
-                    continue
-                elif bind_same_parameters(child_parameters, parent_parameters):
-                    parameter_set = parent_parameters.copy()
-                    keep_child_parameters = True
-                else:
-                    parameter_set = merge_values(child_parameters, parent_parameters)
-
-                unique_values.setdefault(
-                    parameter_set_key(parameter_set), parameter_set
-                )
-
-            if keep_child_parameters:
-                if TYPE_CHECKING:
-                    assert child_parameters is not None
-                child_parameters = child_parameters.copy()
-                unique_values.setdefault(
-                    parameter_set_key(child_parameters), child_parameters
-                )
-
-            return list(unique_values.values())
-
-        def product_measurements(
-            child_measurement: Optional[Measure],
-        ) -> list[Optional[Measure]]:
-            """Resolve and deduplicate measurements for PRODUCT mode."""
-            unique_measurements: dict[int, Optional[Measure]] = {}
-            keep_child_measurement = False
-
-            for parent_measurement in parent_measurements:
-                if child_measurement is None:
-                    unique_measurements.setdefault(
-                        id(parent_measurement), parent_measurement
-                    )
-                elif parent_measurement is None:
-                    keep_child_measurement = True
-                else:
-                    unique_measurements.setdefault(
-                        id(parent_measurement), parent_measurement
-                    )
-                    keep_child_measurement = True
-
-            if keep_child_measurement:
-                unique_measurements.setdefault(id(child_measurement), child_measurement)
-
-            return list(unique_measurements.values())
-
-        def expand_branch(
-            branch: QCircuit | CircuitBinding,
-        ) -> list[BindingExecution]:
-            """Return the executions represented by a circuit or nested binding."""
-            if isinstance(branch, CircuitBinding):
-                return branch.unroll()
-            return [(branch, None, None)]
-
         executions: list[BindingExecution] = []
 
         if self.mode == BindingMode.ZIP:
@@ -665,18 +456,6 @@ class CircuitBinding:
                 len(parent_values),
                 len(parent_measurements),
             )
-
-            def broadcast_axis(
-                axis: list[_AxisElement], target_length: int
-            ) -> list[_AxisElement]:
-                """Broadcast a singleton ZIP axis or validate its length."""
-                if len(axis) == 1:
-                    return [axis[0]] * target_length
-                if len(axis) != target_length:
-                    raise ValueError(
-                        f"In ZIP mode, lists must be length 1 or match the maximum list length ({target_length})."
-                    )
-                return axis
 
             branches = broadcast_axis(self.circuits, zip_length)
             values = broadcast_axis(parent_values, zip_length)
@@ -707,8 +486,8 @@ class CircuitBinding:
                     branch
                 ):
                     for parameters, measurement in itertools.product(
-                        product_values(child_parameters),
-                        product_measurements(child_measurement),
+                        product_values(child_parameters, parent_values),
+                        product_measurements(child_measurement, parent_measurements),
                     ):
                         execution = (circuit, parameters, measurement)
                         unique_branch_executions.setdefault(

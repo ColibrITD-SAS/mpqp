@@ -1397,10 +1397,10 @@ class QCircuit:
 
         Args:
             device: representing the target device.
-            skip_pre_measure: If ``True``, the ``pre_measure`` circuit will not
-                be added to the output.
-            native_gate_set: If ``True``, checks if every gates in the circuits
-                are natively supported by the device.
+            skip_pre_measure: If ``True``, the ``pre_measure`` circuit will not be
+                added to the output.
+            native_gate_set: If ``True``, checks if every gates in the circuits are natively supported by the device.
+                For IBM's Stabilizer simulators this variable is defaulted to ``True`` since they only support a limited set of gates. For other devices, it is defaulted to ``False``.
             backend_sim: Simulator backend for Qiskit devices.
 
         Returns:
