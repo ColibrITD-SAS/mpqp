@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from mpqp import ExpectationMeasure, H, Observable, QCircuit, Rx, pI, pX, pY, pZ
+from mpqp import ExpectationMeasure, BasisMeasure, X, H, Observable, QCircuit, Rx, pI, pX, pY, pZ, run, IBMDevice, AWSDevice
 from mpqp.core.instruction.measurement import PauliString
 from mpqp.execution import adjust_measure
 from mpqp.tools.errors import NumberQubitsError
@@ -110,3 +110,20 @@ def test_adjust_measure_targets_mismatch():
         NumberQubitsError, match="Target size 2 doesn't match observable size 1"
     ):
         ExpectationMeasure(Observable(pX), targets=[0, 1])
+
+@pytest.mark.provider("qiskit", "braket")
+def test_run_batch_order_is_circuit_major():
+    c1 = QCircuit([X(0), BasisMeasure([0], shots=10)], label="c1")
+    c2 = QCircuit([BasisMeasure([0], shots=10)], label="c2")
+    devices = [IBMDevice.AER_SIMULATOR, AWSDevice.BRAKET_LOCAL_SIMULATOR]
+    batch = run([c1, c2], devices)
+    order = [
+        (r.job.circuit.label, r.device)  # pyright: ignore[reportAttributeAccessIssue]
+        for r in batch.results  # pyright: ignore[reportAttributeAccessIssue]
+    ]
+    assert order == [
+        ("c1", devices[0]),
+        ("c1", devices[1]),
+        ("c2", devices[0]),
+        ("c2", devices[1]),
+    ]
