@@ -12,12 +12,12 @@ from mpqp.core.instruction.gates.native_gates import NativeGate
 from mpqp.core.instruction.measurement import BasisMeasure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
 from mpqp.core.languages import Language
+from mpqp.execution._execution_context import ExecutionContext
 from mpqp.execution.connection.ibm_connection import (
     get_backend,
     get_QiskitRuntimeService,
 )
 from mpqp.execution.devices import AZUREDevice, IBMDevice
-from mpqp.execution._execution_context import ExecutionContext
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.providers.providers_params import QiskitParams
 from mpqp.execution.result import BatchResult, Result, Sample, StateVector
@@ -975,7 +975,8 @@ def extract_result(
 
     if isinstance(result, PrimitiveResult):
         extracted_results: list[Result] = []
-        for pub_result in result:
+        for i in range(len(result)):
+            pub_result = result[i]  # dumb fix because qiskit fucked up their __iter__
             extracted = extract_result(pub_result, job, device, experiment_index)
             if isinstance(extracted, BatchResult):
                 extracted_results.extend(extracted.results)
