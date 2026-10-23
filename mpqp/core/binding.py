@@ -131,6 +131,13 @@ class CircuitBinding:
         >>> len(paired.unroll())
         2
 
+        A single measurement is reused across the parameter axis in ZIP mode:
+
+        >>> shared_measurement = CircuitBinding(circuit, values=values,
+        ...     measurements=measures[0], mode=BindingMode.ZIP)
+        >>> len(shared_measurement.unroll())
+        2
+
         Nest a parameter sweep inside a binding that supplies the measurement:
 
         >>> sweep = CircuitBinding(circuit, values=values)
@@ -154,10 +161,9 @@ class CircuitBinding:
     Note:
         In :attr:`BindingMode.ZIP` mode, every non-singleton axis must have the
         same length. Singleton axes are broadcast when the binding is unrolled.
-        When both ``values`` and ``measurements`` are supplied directly to the
-        constructor in ZIP mode, their lengths must match, including singleton
-        inputs. A measurement may instead be supplied by an enclosing binding,
-        as in the nesting example.
+        This applies equally to circuits, parameter sets and measurements.
+        An omitted parameter or measurement axis counts as one unspecified
+        entry. A nested binding counts as one entry in the circuit axis.
 
         Measurements in a binding must have the same type and effective shot
         count. Binding-level ``shots`` can replace a measurement's default count
@@ -197,13 +203,17 @@ class CircuitBinding:
                 "At least one Circuit/CircuitBinding must be provided to a CircuitBinding."
             )
 
-        if mode == BindingMode.ZIP and measurements is not None and values is not None:
-            m = measurements if isinstance(measurements, Sequence) else [measurements]
-            v = values if isinstance(values, Sequence) else [values]
-            c = circuits if isinstance(circuits, Sequence) else [circuits]
-            if len(m) != len(v) or (len(c) != 1 and len(c) != len(m)):
+        if mode == BindingMode.ZIP:
+            lengths = [
+                len(axis) if isinstance(axis, Sequence) else 1
+                for axis in (circuits, values, measurements)
+            ]
+            zip_length = max(lengths)
+            if any(length not in (1, zip_length) for length in lengths):
                 raise ValueError(
-                    f"In ZIP mode, the number of measurements {len(m)} must match the number of parameter sets {len(v)} and the number of circuits {len(c)} if there are multiple elements in circuits."
+                    "In ZIP mode, each axis must have length 1 or match the "
+                    f"maximum axis length ({zip_length}); got lengths "
+                    f"{tuple(lengths)} for circuits, values and measurements."
                 )
 
         if not isinstance(circuits, Sequence):
