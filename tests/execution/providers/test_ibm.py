@@ -7,8 +7,7 @@ from mpqp.measures import *
 from qiskit import QuantumCircuit, transpile
 from qiskit.quantum_info import SparsePauliOp
 from qiskit_aer import AerSimulator
-from qiskit_ibm_runtime import EstimatorV2,SamplerV2
-
+from qiskit_ibm_runtime import EstimatorV2, SamplerV2
 
 
 @pytest.mark.provider("qiskit")
@@ -40,9 +39,6 @@ def test_extract_result_accepts_estimator_primitive_result():
 
 @pytest.mark.provider("qiskit")
 def test_extract_result_accepts_sampler_primitive_result():
-
-
-
 
     qc = QuantumCircuit(1, 1)  # classical register named "c", as produced by MPQP
     qc.x(0)
