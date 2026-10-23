@@ -397,3 +397,10 @@ def exec_statevector_handle(device: AvailableDevice):
     assert len(result.probabilities) != 0
     assert len(result.state_vector.vector) != 0
     assert result.shots == 0
+
+
+def test_result_does_not_mutate_its_job_circuit_binding():  # 4c
+    binding = CircuitBinding(QCircuit(1), measurements=BasisMeasure([0], shots=10))
+    job = Job(JobType.SAMPLE, binding, IBMDevice.AER_SIMULATOR)
+    Result(job, [Sample(1, index=0, count=10)], shots=10)
+    assert job.circuit is binding

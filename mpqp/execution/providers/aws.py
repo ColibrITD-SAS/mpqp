@@ -273,6 +273,7 @@ def run_circuit_binding(job: Job) -> BatchResult:
             assert circuitBinding.measurements
             assert isinstance(circuitBinding.measurements[0], ExpectationMeasure)
         # used when pauli grouping is done
+        # TODO: clean this later
         """if circuitBinding.measurements[0].optimize_measurement:  # Compute Grouping
             print(circuitBinding.measurements[0].optimize_measurement)
             length = 2**job.circuit.nb_qubits
