@@ -47,10 +47,11 @@ python -m pytest benchmarks --benchmark-only --benchmark-save=baseline
 corresponding to the operating system and Python version.
 
 Compare a new run against this baseline and fail if the median execution time
-increases by more than 15%:
+increases by more than 15%. Use the numeric prefix printed when saving the
+baseline: for example, `0001` for `0001_baseline.json`.
 
 ```bash
-python -m pytest benchmarks --benchmark-only --benchmark-compare=baseline --benchmark-compare-fail=median:15%
+python -m pytest benchmarks --benchmark-only --benchmark-compare=0001 --benchmark-compare-fail=median:15%
 ```
 
 Generate SVG charts from saved measurements:
