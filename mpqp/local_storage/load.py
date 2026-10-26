@@ -41,6 +41,9 @@ def jobs_local_storage_to_mpqp(jobs: Optional[list[DictDB] | DictDB]) -> list[Jo
                 eval("JobType." + jobs['type']),
                 eval(eval(jobs['circuit'])),
                 eval(jobs['device']),
+                measurement=(
+                    None if jobs['measure'] is None else eval(eval(jobs['measure']))
+                ),
             )
         )
     else:
@@ -50,6 +53,9 @@ def jobs_local_storage_to_mpqp(jobs: Optional[list[DictDB] | DictDB]) -> list[Jo
                     eval("JobType." + job['type']),
                     eval(eval(job['circuit'])),
                     eval(job['device']),
+                    measurement=(
+                        None if job['measure'] is None else eval(eval(job['measure']))
+                    ),
                 )
             )
 
