@@ -1,133 +1,131 @@
-# Benchmarks de performance MPQP
+# MPQP performance benchmarks
 
-Cette suite mesure les performances des opérations importantes de MPQP sans
-effectuer d'appel réseau ni exécuter de job chez un fournisseur quantique.
+This suite measures the performance of key MPQP operations without making network
+requests or running jobs on a quantum provider.
 
-Les benchmarks actuels couvrent :
+The current benchmarks cover:
 
-- la construction d'un circuit ;
-- le calcul de sa profondeur ;
-- sa conversion en matrice ;
-- l'import et l'export QASM 2 ;
-- le regroupement de chaînes de Pauli.
+- circuit construction;
+- circuit depth calculation;
+- circuit conversion to a matrix;
+- QASM 2 import and export;
+- Pauli-string grouping.
 
-Tous les résultats générés localement sont placés dans `.benchmarks/`. Ce dossier
-est ignoré par Git afin d'éviter de créer des fichiers à la racine du dépôt ou de
-les ajouter accidentellement à un commit.
+All locally generated results are stored in `.benchmarks/`. This directory is
+ignored by Git to keep generated files away from the repository root and prevent
+them from being committed accidentally.
 
 ## Installation
 
-Depuis la racine du dépôt MPQP :
+From the root of the MPQP repository:
 
 ```bash
 python -m pip install -r requirements-dev.txt
 ```
 
-## Lancer les benchmarks localement
+## Running benchmarks locally
 
-Exécution simple avec affichage des résultats dans le terminal :
+Run the benchmarks and display the results in the terminal:
 
 ```bash
 python -m pytest benchmarks --benchmark-only
 ```
 
-Exécution avec export JSON :
+Export the results as JSON:
 
 ```bash
 python -m pytest benchmarks --benchmark-only --benchmark-json=.benchmarks/results/benchmark-results.json
 ```
 
-Enregistrer une mesure de référence :
+Save a baseline:
 
 ```bash
 python -m pytest benchmarks --benchmark-only --benchmark-save=baseline
 ```
 
-`pytest-benchmark` enregistre cette référence dans un sous-dossier de
-`.benchmarks/` correspondant au système et à la version de Python.
+`pytest-benchmark` saves this baseline in a subdirectory of `.benchmarks/`
+corresponding to the operating system and Python version.
 
-Comparer une nouvelle exécution à cette référence et échouer si la médiane est
-plus lente de 15 % :
+Compare a new run against this baseline and fail if the median execution time
+increases by more than 15%:
 
 ```bash
 python -m pytest benchmarks --benchmark-only --benchmark-compare=baseline --benchmark-compare-fail=median:15%
 ```
 
-Générer les graphiques SVG à partir des mesures sauvegardées :
+Generate SVG charts from saved measurements:
 
 ```bash
 pytest-benchmark compare --histogram=.benchmarks/reports/benchmark-histogram
 ```
 
-La commande normale `python -m pytest` continue uniquement à exécuter les tests
-fonctionnels présents dans `tests/`.
+The standard `python -m pytest` command continues to run only the functional tests
+in `tests/`.
 
-## Workflow GitHub Actions
+## GitHub Actions workflow
 
-Le workflow `.github/workflows/benchmarks.yml` peut être lancé :
+The `.github/workflows/benchmarks.yml` workflow can run:
 
-- automatiquement après un push ou un merge sur `main` ;
-- automatiquement sur `perf-benchmark`, en enregistrant également la mesure ;
-- manuellement depuis **Actions → Benchmarks dashboard → Run workflow**.
+- automatically after a push or merge to `main`;
+- automatically on `perf-benchmark`, also saving the measurement;
+- manually from **Actions → Benchmarks dashboard → Run workflow**.
 
-Pour une exécution manuelle, les paramètres suivants sont disponibles :
+The following inputs are available for manual runs:
 
-| Paramètre | Description |
-| --- | --- |
-| `runner` | Machine utilisée pour mesurer les performances. |
-| `python_version` | Version de Python utilisée. |
-| `commit_ref` | Branche, tag ou SHA à mesurer. Vide signifie le commit courant. |
-| `save` | Indique si le résultat doit être ajouté à l'historique permanent. |
-| `gh_pages_branch` | Branche cible dans `MPQP-PrivateBenchmark`. |
+| Input             | Description                                                      |
+| ----------------- | ---------------------------------------------------------------- |
+| `runner`          | Machine used to measure performance.                             |
+| `python_version`  | Python version to use.                                           |
+| `commit_ref`      | Branch, tag, or SHA to benchmark. Empty uses the current commit. |
+| `save`            | Whether to add the result to the permanent history.              |
+| `gh_pages_branch` | Target branch in `MPQP-PrivateBenchmark`.                        |
 
-Les fichiers JSON du workflow sont d'abord créés dans un dossier qui identifie
-le runner et la version de Python :
+The workflow first creates its JSON files in a directory identifying the runner
+and Python version:
 
 ```text
 .benchmarks/<system>-CPython-<version>/log/<run>_<commit>.json
 ```
 
-Par exemple :
+For example:
 
 ```text
 .benchmarks/Linux-CPython-3.12/log/42_a1b2c3d4.json
 ```
 
-Ils sont disponibles pendant 90 jours dans les artefacts GitHub Actions. Quand
-la mesure est sauvegardée, le même fichier JSON est aussi archivé avec la page
-web dans `MPQP-PrivateBenchmark`.
+The files are available as GitHub Actions artifacts for 90 days. When a measurement
+is saved, the same JSON file is also archived alongside the web page in
+`MPQP-PrivateBenchmark`.
 
-## Fonctionnement de `save`
+## How `save` works
 
-Avec `save=false`, le workflow :
+With `save=false`, the workflow:
 
-1. exécute les benchmarks ;
-2. produit le fichier JSON sous `.benchmarks/<environnement>/log/` ;
-3. compare les résultats avec l'historique existant ;
-4. ajoute un résumé dans GitHub Actions ;
-5. ne pousse aucune modification dans `MPQP-PrivateBenchmark`.
+1. runs the benchmarks;
+2. produces the JSON file under `.benchmarks/<environment>/log/`;
+3. compares the results with the existing history;
+4. adds a summary in GitHub Actions;
+5. does not push any changes to `MPQP-PrivateBenchmark`.
 
-Avec `save=true`, il effectue les mêmes opérations puis ajoute la mesure et met à
-jour la page web dans :
+With `save=true`, it performs the same operations, then adds the measurement and
+updates the web page in:
 
 ```text
 ColibrITD-SAS/MPQP-PrivateBenchmark
 ```
 
-Les exécutions automatiques sur `main` et `perf-benchmark` sont toujours
-sauvegardées, même si le paramètre `save` n'est pas présent sur ce type
-d'événement.
+Automatic runs on `main` and `perf-benchmark` are always saved, even though the
+`save` input is not present for push events.
 
-Si la publication échoue à l'étape `Check benchmark publishing token`, le secret
-est absent. Si elle échoue ensuite pendant `github-action-benchmark`, vérifier
-que le token n'est pas expiré, que son accès à l'organisation est approuvé et
-qu'il possède la permission **Contents: Read and write** sur
-`MPQP-PrivateBenchmark`.
+If publishing fails at the `Check benchmark publishing token` step, the secret is
+missing. If it fails later during `github-action-benchmark`, check that the token
+has not expired, that its organization access is approved, and that it has
+**Contents: Read and write** permission on `MPQP-PrivateBenchmark`.
 
-## Organisation du dépôt MPQP-PrivateBenchmark
+## MPQP-PrivateBenchmark repository layout
 
-Les résultats sont séparés par système d'exploitation et version de Python afin
-de ne comparer que des mesures prises dans un environnement équivalent :
+Results are separated by operating system and Python version so that comparisons
+use measurements from equivalent environments:
 
 ```text
 MPQP-PrivateBenchmark/
@@ -145,13 +143,12 @@ MPQP-PrivateBenchmark/
             └── 43_c9d0e1f2.json
 ```
 
-La page Linux/Python 3.12 est disponible à l'adresse suivante lorsque GitHub
-Pages est activé :
+The Linux/Python 3.12 page is available at the following URL when GitHub Pages is
+enabled:
 
 ```text
 https://colibritd-sas.github.io/MPQP-PrivateBenchmark/dev/Linux-CPython-3.12/
 ```
 
-Chaque page contient l'évolution temporelle de chaque benchmark ainsi que les
-informations du commit correspondant. L'historique est limité aux 100 dernières
-mesures par graphique.
+Each page shows performance over time for each benchmark, along with the
+corresponding commit information. Each chart displays the latest 100 measurements.
