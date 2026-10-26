@@ -958,7 +958,7 @@ def run_qctrl_function(job: Job, qiskit_params: QiskitParams):
             "Cannot run QiskitFunctions on local simulator please pick a real hardware to run on."
         )
 
-    if job.measure is None or job.measure.shots == 0:
+    if job.job_type == JobType.STATE_VECTOR:
         raise ValueError(
             "Cannot run a STATEVECTOR or an ideal Observable job with a QiskitFunction"
         )
@@ -977,19 +977,28 @@ def run_qctrl_function(job: Job, qiskit_params: QiskitParams):
         pubs_with_context = circuit.to_other_device(job.device)
         pubs = [item[0] for item in pubs_with_context]
         jobs = [item[1] for item in pubs_with_context]
+
+        run = func.run(
+            primitive=primitive,
+            pubs=pubs,
+            backend_name=job.device.value,
+        )
+        # TODO: Use this run instead of the compute_expectation_value function
+        # Sync refactoring with J so that we can have better handling of pubs.
         return compute_expectation_value(
             job, None, pubs=pubs, pubs_contexts=jobs, shots=circuit.shots
         )
     else:
         if isinstance(job.circuit, CircuitBinding):
             raise ValueError("WIP: cannot run a pubs with BasisMeasure inside of them.")
+        nb_shots = job.measure.shots if job.measure else 0
         pubs = [(job.circuit.to_other_device(job.device),)]
         jobs = [job]
         job.status = JobStatus.RUNNING
         run = func.run(
             primitive=primitive,
             options={
-                "default_shots": job.measure.shots,
+                "default_shots": nb_shots,
                 "job_tags": ["q-ctrl/test", "test-test_id"],
             },
             pubs=pubs,
