@@ -1,5 +1,6 @@
 from copy import deepcopy
 from importlib import import_module
+from itertools import permutations, product
 from unittest.mock import patch
 
 import numpy as np
@@ -7,6 +8,7 @@ import pytest
 from sympy import Symbol
 
 from mpqp import (
+    AWSDevice,
     BasisMeasure,
     ExpectationMeasure,
     IBMDevice,
@@ -15,6 +17,7 @@ from mpqp import (
     Ry,
     Rz,
     X,
+    pI,
     pX,
     pZ,
     run,
@@ -24,6 +27,121 @@ from mpqp.core.instruction.measurement.measure import Measure
 from mpqp.execution.job import JobType
 from mpqp.execution.providers.providers_params import QiskitParams
 from mpqp.execution.result import BatchResult
+
+
+@pytest.mark.parametrize("lengths", list(product((1, 2), repeat=3)))
+@pytest.mark.parametrize("nested", [False, True])
+def test_zip_broadcasts_each_axis(lengths: tuple[int, int, int], nested: bool):
+    theta = Symbol("theta")
+    circuits = [QCircuit([Ry(theta, 0)]), QCircuit([Ry(theta, 0), X(0)])]
+    values = [{"theta": 0.0}, {"theta": np.pi}]
+    measurements = [
+        ExpectationMeasure(Observable(pZ), label="Z"),
+        ExpectationMeasure(Observable(pX), label="X"),
+    ]
+    nc, nv, nm = lengths
+    branches = [CircuitBinding(circuit) for circuit in circuits] if nested else circuits
+    binding = CircuitBinding(
+        branches[:nc],
+        values=values[:nv],
+        measurements=measurements[:nm],
+        mode=BindingMode.ZIP,
+    )
+
+    executions = binding.unroll()
+
+    assert len(executions) == max(lengths)
+    for i, (circuit, parameters, measurement) in enumerate(executions):
+        assert circuit is circuits[0 if nc == 1 else i]
+        assert parameters == values[0 if nv == 1 else i]
+        assert measurement is not None
+        assert measurement.label == measurements[0 if nm == 1 else i].label
+
+
+@pytest.mark.parametrize("omit_values", [False, True])
+@pytest.mark.parametrize("omit_measurements", [False, True])
+def test_zip_broadcasts_omitted_axes(omit_values: bool, omit_measurements: bool):
+    values = None if omit_values else [{"theta": 0.0}, {"theta": np.pi}]
+    measurements = (
+        None
+        if omit_measurements
+        else [ExpectationMeasure(Observable(pZ)), ExpectationMeasure(Observable(pX))]
+    )
+    binding = CircuitBinding(
+        [QCircuit(1), QCircuit(1)],
+        values=values,
+        measurements=measurements,
+        mode=BindingMode.ZIP,
+    )
+
+    executions = binding.unroll()
+
+    assert len(executions) == 2
+    for i, (_, parameters, measurement) in enumerate(executions):
+        assert parameters == (None if values is None else values[i])
+        if measurements is None:
+            assert measurement is None
+        else:
+            assert isinstance(measurement, ExpectationMeasure)
+            assert measurement.observables == measurements[i].observables
+
+
+@pytest.mark.parametrize(
+    "lengths",
+    list(permutations((1, 2, 3))) + [(2, 3, None), (2, None, 3), (1, 0, 1), (1, 1, 0)],
+)
+def test_zip_rejects_incompatible_axes_at_construction(
+    lengths: tuple[int, int | None, int | None],
+):
+    nc, nv, nm = lengths
+    with pytest.raises(ValueError, match="each axis must have length 1"):
+        CircuitBinding(
+            [QCircuit(1) for _ in range(nc)],
+            values=None if nv is None else [{} for _ in range(nv)],
+            measurements=(
+                None
+                if nm is None
+                else [ExpectationMeasure(Observable(pZ)) for _ in range(nm)]
+            ),
+            mode=BindingMode.ZIP,
+        )
+
+
+@pytest.mark.parametrize("lengths", list(product((1, 2), repeat=3)))
+@pytest.mark.parametrize(
+    "device",
+    [
+        pytest.param(IBMDevice.AER_SIMULATOR, marks=pytest.mark.provider("qiskit")),
+        pytest.param(
+            AWSDevice.BRAKET_LOCAL_SIMULATOR, marks=pytest.mark.provider("braket")
+        ),
+    ],
+)
+def test_zip_broadcast_execution_order_and_values(
+    lengths: tuple[int, int, int], device: IBMDevice | AWSDevice
+):
+    theta = Symbol("theta")
+    nc, nv, nm = lengths
+    circuits = [QCircuit([Ry(theta, 0)]), QCircuit([Ry(theta, 0), X(0)])]
+    binding = CircuitBinding(
+        circuits[:nc],
+        values=[{"theta": 0.0}, {"theta": np.pi}][:nv],
+        measurements=[
+            ExpectationMeasure(Observable(pZ), shots=1000),
+            ExpectationMeasure(Observable(pI), shots=1000),
+        ][:nm],
+        mode=BindingMode.ZIP,
+    )
+    # At position 1, X and Ry(pi) each flip Z's sign when their axes vary.
+    # The second measurement is identity, whose expectation is always one.
+    expected = [1.0]
+    if max(lengths) == 2:
+        expected.append(1.0 if nm == 2 else (-1.0) ** ((nc == 2) + (nv == 2)))
+
+    result = run(binding, device)
+
+    assert isinstance(result, BatchResult)
+    assert [r.expectation_values for r in result.results] == pytest.approx(expected)
 
 
 @pytest.mark.provider("qiskit")
