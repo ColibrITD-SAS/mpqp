@@ -94,15 +94,15 @@ repository, and find the one you need to modify to achieve your goal.
 
 Here are some useful scripts for when you are developing:
 
-| Command                                  | Description                                   |
-| ---------------------------------------- | --------------------------------------------- |
-| `sphinx-build -b html docs build`        | Builds the documentation                      |
-| `python -m pytest`                       | Runs the test suite                           |
-| `python -m pytest --long`                | Runs the long tests too                       |
-| `python -m pytest --long-local`          | Runs the local long tests                     |
-| `python -m pytest --seed=<your_seed>`    | Runs the test suite with a specified seed     |
-| `python -m pytest --provider <provider>` | Runs the test suite with a specified provider |
-| `python -m pytest benchmarks --benchmark-only` | Runs the performance benchmarks       |
+| Command                                        | Description                                   |
+| ---------------------------------------------- | --------------------------------------------- |
+| `sphinx-build -b html docs build`              | Builds the documentation                      |
+| `python -m pytest`                             | Runs the test suite                           |
+| `python -m pytest --long`                      | Runs the long tests too                       |
+| `python -m pytest --long-local`                | Runs the local long tests                     |
+| `python -m pytest --seed=<your_seed>`          | Runs the test suite with a specified seed     |
+| `python -m pytest --provider <provider>`       | Runs the test suite with a specified provider |
+| `python -m pytest benchmarks --benchmark-only` | Runs the performance benchmarks               |
 
 See [`benchmarks/README.md`](benchmarks/README.md) for saving a baseline,
 comparing runs, and generating local graphs.
