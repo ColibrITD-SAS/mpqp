@@ -30,30 +30,26 @@ def jobs_local_storage_to_mpqp(jobs: Optional[list[DictDB] | DictDB]) -> list[Jo
     """
     if jobs is None:
         return []
-    from numpy import (
-        array,  # pyright: ignore[reportUnusedImport]
-        complex64,  # pyright: ignore[reportUnusedImport]
-        complex128,  # pyright: ignore[reportUnusedImport]
-    )
+    from numpy import array  # pyright: ignore[reportUnusedImport]
+    from numpy import complex64  # pyright: ignore[reportUnusedImport]
+    from numpy import complex128  # pyright: ignore[reportUnusedImport]
 
+    stored_jobs = [jobs] if isinstance(jobs, dict) else jobs
     jobs_mpqp = []
-    if isinstance(jobs, dict):
+
+    for stored_job in stored_jobs:
         jobs_mpqp.append(
             Job(
-                eval("JobType." + jobs['type']),
-                eval(eval(jobs['circuit'])),
-                eval(jobs['device']),
+                eval("JobType." + stored_job['type']),
+                eval(eval(stored_job['circuit'])),
+                eval(stored_job['device']),
+                measurement=(
+                    None
+                    if stored_job['measure'] is None
+                    else eval(eval(stored_job['measure']))
+                ),
             )
         )
-    else:
-        for job in jobs:
-            jobs_mpqp.append(
-                Job(
-                    eval("JobType." + job['type']),
-                    eval(eval(job['circuit'])),
-                    eval(job['device']),
-                )
-            )
 
     return jobs_mpqp
 
@@ -79,6 +75,9 @@ def results_local_storage_to_mpqp(
         Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR), [Sample(...), ...], None, 1024)
 
     """
+    # can be used when we call eval.
+    import numpy as np  # pyright: ignore[reportUnusedImport]
+
     if results is None:
         return []
     results_mpqp = []

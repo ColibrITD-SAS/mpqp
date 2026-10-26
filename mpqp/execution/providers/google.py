@@ -423,6 +423,9 @@ def run_google_remote(job: Job) -> Result:
     import cirq_ionq as ionq
     from cirq.circuits.circuit import Circuit as CirqCircuit
 
+    if TYPE_CHECKING:
+        assert isinstance(job.circuit, QCircuit)
+
     if job.circuit.transpiled_circuit is None:
         job_CirqCircuit = job.circuit.to_other_device(job.device)
     else:
@@ -491,6 +494,9 @@ def run_local(job: Job) -> Result:
     from cirq.circuits.circuit import Circuit as CirqCircuit
     from cirq.sim.sparse_simulator import Simulator
 
+    if TYPE_CHECKING:
+        assert isinstance(job.circuit, QCircuit)
+
     if job.device.is_processor():
         return run_local_processor(job)
 
@@ -557,6 +563,8 @@ def run_local_processor(job: Job) -> Result:
         calibrations={calibration.timestamp // 1000: calibration},
     )
     simulator = SimulatedLocalEngine([sim_processor])
+    if TYPE_CHECKING:
+        assert isinstance(job.circuit, QCircuit)
 
     if job.circuit.transpiled_circuit is None:
         cirq_circuit = job.circuit.to_other_device(job.device)

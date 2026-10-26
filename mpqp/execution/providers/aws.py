@@ -7,6 +7,7 @@ import numpy as np
 import numpy.typing as npt
 
 from mpqp.core.circuit import QCircuit
+from mpqp.core.binding import BindingParameters, CircuitBinding
 from mpqp.core.instruction.gates import CRk
 from mpqp.core.instruction.measurement import (
     BasisMeasure,
@@ -17,7 +18,7 @@ from mpqp.core.languages import Language
 from mpqp.execution.connection.aws_connection import get_braket_device
 from mpqp.execution.devices import AWSDevice
 from mpqp.execution.job import Job, JobStatus, JobType
-from mpqp.execution.result import Result, Sample, StateVector
+from mpqp.execution.result import BatchResult, Result, Sample, StateVector
 from mpqp.noise.noise_model import NoiseModel
 from mpqp.tools.errors import (
     AWSBraketRemoteExecutionError,
@@ -201,7 +202,9 @@ def run_braket(job: Job) -> Result:
         if isinstance(job.measure, ExpectationMeasure):
             return run_braket_observable(job)
 
-        job.id, task = submit_job_braket(job)
+        if isinstance(job.circuit, CircuitBinding):
+            return run_circuit_binding(job)
+        _, task = submit_job_braket(job)
         res = task.result()
         if TYPE_CHECKING:
             assert isinstance(res, GateModelQuantumTaskResult)
@@ -219,6 +222,332 @@ def run_braket(job: Job) -> Result:
             data=None,
             shots=0,
         )
+
+
+def run_pseudo_circuit_binding(job: Job) -> BatchResult:
+    """Execute a pseudo circuit binding job through AWS Braket.
+    This function is used if the requested job type is not supported by ``ProgramSet`` which is STATE_VECTOR and OBSERVABLE_ideal.
+
+    So instead of running a ``ProgramSet`` it's going to unroll the CircuitBinding and execute iteratively the jobs.
+    """
+    from braket.circuits import Circuit as braket_Circuit
+
+    from mpqp.tools.binding_utils import (
+        translate_binding_circuits,
+        translate_binding_measurements,
+    )
+
+    if job.job_type == JobType.OBSERVABLE:
+        raise NotImplementedError
+    cb = job.circuit
+    if TYPE_CHECKING:
+        assert isinstance(cb, CircuitBinding)
+        assert isinstance(job.device, AWSDevice)
+
+    translated_circuit = translate_binding_circuits(cb, job.device)
+    translated_measurement = translate_binding_measurements(cb, job.device)
+    device = get_braket_device(job.device, is_noisy=cb.is_noisy)
+    results = []
+    job_ids: list[str] = []
+
+    job.status = JobStatus.RUNNING
+    for c, v, m in cb.unroll():
+        transpiled_circuit = translated_circuit[id(c)]
+        transpiled_measurement = (
+            translated_measurement[id(m)] if m is not None else None
+        )
+        braket_inputs = (
+            {str(key): value for key, value in v.items()} if v is not None else None
+        )
+
+        if TYPE_CHECKING:
+            assert isinstance(transpiled_circuit, braket_Circuit)
+            assert isinstance(transpiled_measurement, braket_Circuit)
+
+        executable_circuit = transpiled_circuit
+        if (
+            transpiled_measurement
+            is not None  # pyright: ignore[reportUnnecessaryComparison]
+        ):
+            executable_circuit += transpiled_measurement
+
+        if job.job_type == JobType.STATE_VECTOR:
+            executable_circuit.state_vector()  # pyright: ignore[reportAttributeAccessIssue]
+
+        task = device.run(
+            executable_circuit,
+            shots=0,
+            inputs=braket_inputs,  # pyright: ignore[reportArgumentType]
+        )
+        job_ids.append(task.id)
+
+        local_job = Job(job.job_type, c, job.device, m, v)
+        local_job.id = task.id
+        local_job.status = JobStatus.DONE
+        if job.job_type == JobType.STATE_VECTOR:
+            vector = task.result().values[0]  # pyright: ignore
+            if TYPE_CHECKING:
+                assert isinstance(vector, (list, np.ndarray))
+            state_vector = StateVector(vector, nb_qubits=local_job.circuit.nb_qubits)
+            results.append(Result(local_job, state_vector, 0, 0))
+
+    job.id = job_ids[0] if len(job_ids) == 1 else job_ids
+    job.status = JobStatus.DONE
+    return BatchResult(results)
+
+
+def run_circuit_binding(job: Job) -> BatchResult:
+    """Execute a circuit binding through an AWS Braket ``ProgramSet``.
+
+    The binding is translated into a Braket program set, submitted as a single
+    task, and its provider results are converted back into an ordered MPQP
+    batch. The translation context preserves the original circuit,
+    measurement and parameter values for each result.
+
+    Args:
+        job: Observable or sample job whose circuit is a
+            :class:`~mpqp.core.circuit.CircuitBinding` and whose device is an
+            :class:`~mpqp.execution.devices.AWSDevice`.
+
+    Returns:
+        The individual execution results in binding order.
+
+    Raises:
+        ValueError: If the job does not target an AWS device.
+    """
+
+    circuitBinding = job.circuit
+    assert isinstance(circuitBinding, CircuitBinding)
+    if job.job_type == JobType.STATE_VECTOR:
+        return run_pseudo_circuit_binding(job)
+    if not isinstance(job.device, AWSDevice):
+        raise ValueError(
+            "`job` must correspond to an `AWSDevice`, but corresponds to a "
+            f"{job.device} instead"
+        )
+    device = get_braket_device(job.device, is_noisy=circuitBinding.is_noisy)
+    braket_circuit, jobs = circuitBinding.to_other_device(job.device)
+
+    if TYPE_CHECKING:
+        from braket.circuits import Circuit as braket_Circuit
+
+        assert isinstance(braket_circuit, braket_Circuit)
+    task = device.run(braket_circuit, shots=None, inputs=None)
+    task_result = task.result()
+    nbr_shots = circuitBinding.shots if circuitBinding.shots is not None else 0
+    job.id = task.id
+    job.status = JobStatus.DONE
+
+    if TYPE_CHECKING:
+        from braket.tasks.program_set_quantum_task_result import (
+            ProgramSetQuantumTaskResult,
+        )
+
+        assert isinstance(task_result, ProgramSetQuantumTaskResult)
+    if len(task_result.entries) != len(jobs):
+        raise ValueError(
+            "Braket returned a different number of program entries than requested."
+        )
+
+    indexed_results = []
+    if job.job_type == JobType.OBSERVABLE:
+        if TYPE_CHECKING:
+            assert circuitBinding.measurements
+            assert isinstance(circuitBinding.measurements[0], ExpectationMeasure)
+        # used when pauli grouping is done
+        # TODO: clean this later
+        """if circuitBinding.measurements[0].optimize_measurement:  # Compute Grouping
+            print(circuitBinding.measurements[0].optimize_measurement)
+            length = 2**job.circuit.nb_qubits
+            sorted_values: list[float] = []
+            for i in range(length):
+                sorted_values.append(0)
+            for context in jobs:
+                # Jobs contains the whole context to both be able to compute the expectation value
+                # and to create the individual jobs
+                (
+                    circuit,
+                    observables,
+                    values,
+                    eigenvalues,
+                    grouping,
+                ) = context  # pyright: ignore[reportAssignmentType]
+
+                if TYPE_CHECKING:
+                    assert isinstance(circuit, QCircuit)
+                    assert isinstance(observables, list)
+                expectation_values = {}
+                exp_value, errors = {}, {}
+                for j in range(len(grouping)):
+                    result = task[index][0]
+                    for name, eigenvalue in eigenvalues.items():
+                        for i in range(length):
+                            binary_state = f"{bin(i)[2:].zfill(len(bin(length))- 3)}"
+                            if binary_state in result.probabilities:
+                                sorted_values[i] = result.probabilities[
+                                    binary_state
+                                ].real
+                            else:
+                                sorted_values[i] = 0
+                        expectation_value: float = np.dot(
+                            eigenvalue,
+                            np.array(sorted_values, dtype=np.float64),
+                        )
+                        expectation_values[name] = expectation_value
+
+                    if TYPE_CHECKING:
+                        assert isinstance(observables, Measure)
+                    local_job = Job(
+                        job.job_type, circuit, job.device, observables, values
+                    )
+                    for i, obs in enumerate(observables):
+                        string = obs.pauli_string
+                        local: float = 0
+                        for monoms in string.monomials:
+                            if TYPE_CHECKING:
+                                assert isinstance(monoms.coef, (int, float))
+                            local += expectation_values[monoms.name] * monoms.coef
+                        exp_value.update({f"observable_{i}": local})
+                        errors.update({f"observable_{len(errors)}": None})
+                    results.append(Result(local_job, exp_value, errors))
+                index += 1
+        else:  # 1 run per monomials"""
+        observable_results: dict[
+            int,
+            tuple[
+                QCircuit,
+                ExpectationMeasure,
+                BindingParameters | None,
+                dict[int, tuple[float, float]],
+            ],
+        ] = {}
+        for execution, contexts in zip(task_result.entries, jobs):
+            if len(execution.entries) != sum(context[3] for context in contexts):
+                raise ValueError(
+                    "Braket returned a different number of observable executions "
+                    "than requested."
+                )
+            executable_index = 0
+            for (
+                circuit,
+                measurement,
+                variables,
+                span,
+                result_index,
+                observable_index,
+            ) in contexts:
+                if not isinstance(measurement, ExpectationMeasure):
+                    raise TypeError(
+                        "Observable execution context must contain an "
+                        "ExpectationMeasure."
+                    )
+                if observable_index is None:
+                    raise ValueError(
+                        "Observable execution context is missing its observable index."
+                    )
+                exp_value = 0
+                error = 0
+                for result in execution.entries[
+                    executable_index : executable_index + span
+                ]:
+                    expectation = result.expectation
+                    if expectation is None:
+                        raise ValueError("Braket returned no observable expectation.")
+                    c = (
+                        result.observable.coefficient  # pyright: ignore[reportOptionalMemberAccess]
+                    )
+                    var = (c**2 - expectation**2) / nbr_shots  # cannot be 0
+                    exp_value += expectation
+                    error += var
+                executable_index += span
+                result_data = observable_results.get(result_index)
+                if result_data is None:
+                    result_data = (circuit, measurement, variables, {})
+                    observable_results[result_index] = result_data
+                result_data[3][observable_index] = (exp_value, error)
+
+        for result_index, (
+            circuit,
+            measurement,
+            variables,
+            results,
+        ) in observable_results.items():
+            if len(results) != measurement.nb_observables:
+                raise ValueError(
+                    "Braket did not return every observable from the "
+                    "ExpectationMeasure."
+                )
+            if measurement.nb_observables == 1:
+                result_value, error_value = results[0]
+            else:
+                result_value = {}
+                error_value = {}
+                for index in range(measurement.nb_observables):
+                    exp_value, error = results[index]
+                    result_value.update(
+                        {
+                            measurement.observables[index].label
+                            or f"observable_{index}": exp_value
+                        }
+                    )
+                    error_value.update(
+                        {
+                            measurement.observables[index].label
+                            or f"observable_{index}": error
+                        }
+                    )
+            local_job = Job(job.job_type, circuit, job.device, measurement, variables)
+            local_job.id = job.id
+            local_job.status = job.status
+            indexed_results.append(
+                (
+                    result_index,
+                    Result(
+                        local_job, result_value, errors=error_value, shots=nbr_shots
+                    ),
+                )
+            )
+    else:
+        for res, contexts in zip(task_result.entries, jobs):
+            if len(res.entries) != len(contexts):
+                raise ValueError(
+                    "Braket returned a different number of sample executions "
+                    "than requested."
+                )
+            for execution, context in zip(res.entries, contexts):
+                counts = execution.counts
+                sample_info = []
+                for state in counts.keys():
+                    sample_info.append(
+                        Sample(
+                            job.circuit.nb_qubits,
+                            count=counts[state],
+                            bin_str=state,
+                        )
+                    )
+                circuit, measure, values, _, result_index, _ = context
+                local_job = Job(
+                    job.job_type,
+                    circuit,
+                    job.device,
+                    measurement=measure,
+                    values=values,
+                )
+                local_job.id = job.id
+                local_job.status = JobStatus.DONE
+                indexed_results.append(
+                    (
+                        result_index,
+                        Result(
+                            local_job,
+                            sample_info,
+                            shots=nbr_shots,
+                        ),
+                    )
+                )
+
+    indexed_results.sort(key=lambda indexed_result: indexed_result[0])
+    return BatchResult([result for _, result in indexed_results])
 
 
 def _run_exact_braket_observables(
@@ -505,7 +834,12 @@ def run_braket_observable(job: Job) -> Result:
 
     assert isinstance(job.device, AWSDevice)
     if job.circuit.transpiled_circuit is None:
-        transpiled_circuit = job.circuit.to_other_device(job.device)
+        # Observable target ordering is handled by ``adjust_measure`` and the
+        # Braket-specific execution helpers below. Reapplying the generic
+        # measurement pre-circuit would duplicate those swaps.
+        transpiled_circuit = job.circuit.to_other_device(
+            job.device, skip_pre_measure=True
+        )
     else:
         transpiled_circuit = job.circuit.transpiled_circuit
         assert isinstance(transpiled_circuit, Circuit)

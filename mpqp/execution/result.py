@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import math
 import random
+from copy import copy
 from numbers import Complex
 from typing import TYPE_CHECKING, Any, Optional, Union
 
@@ -105,6 +106,31 @@ class StateVector:
             "probabilities": probabilities_dict,
             "nb_qubits": self.nb_qubits,
         }
+
+    def to_sample_list(self) -> list[Sample]:
+        """
+        Converts the StateVector object into a list of Samples. This allows
+        to quickly have a binary representation of the basis states composing
+        a StateVector.
+
+        Note that the samples will be instantiated with probabilities, so
+        we cannot come back after that to the StateVector amplitudes.
+
+        Returns:
+            A list of Samples representing the possible measurement outcomes
+            of the state represented by this StateVector.
+
+        Example:
+            >>> state_vector = StateVector(np.array([1, 0, 0, -1])/np.sqrt(2), 2)  # doctest: +ELLIPSIS
+            >>> state_vector.to_sample_list()  # doctest: +ELLIPSIS
+            [Sample(2, index=0, count=None, probability=...), Sample(2, index=3, count=None, probability=...)]
+
+        """
+        return [
+            Sample(self.nb_qubits, index=index, probability=proba)
+            for index, proba in enumerate(self.probabilities)
+            if not np.isclose(proba, 0)
+        ]
 
     def __eq__(self, other) -> bool:  # pyright: ignore[reportMissingParameterType]
         if not isinstance(other, StateVector):
@@ -252,6 +278,7 @@ class Result:
         errors: Information about the error or the variance in the measurement.
         shots: Number of shots of the experiment (equal to zero if the exact
             value was required).
+        label: A label may be used to contextualize the data.
 
     Examples:
         >>> job = Job(JobType.STATE_VECTOR, QCircuit(2), ATOSDevice.MYQLM_CLINALG)
@@ -294,7 +321,12 @@ class Result:
         errors: Optional[float | dict[Any, Any]] = None,
         shots: int = 0,
         g_phase_handling: bool = True,
+        label: Optional[str] = None,
     ):
+        from mpqp.core.binding import CircuitBinding
+
+        if isinstance(job.circuit, CircuitBinding):
+            job = copy(job)
         self.job = job
         """See parameter description."""
         self._expectation_values = None
@@ -307,7 +339,22 @@ class Result:
         self.error = errors
         """See parameter description."""
         self._data = data
-
+        self.label = label
+        if isinstance(job.circuit, CircuitBinding):
+            if len(job.circuit.circuits) == 1:
+                if TYPE_CHECKING:
+                    assert job.circuit.measurements
+                # Keep the binding's measurement when unwrapping its circuit.
+                job._measurement = (  # pyright: ignore[reportPrivateUsage]
+                    job.circuit.measurements[0]
+                )
+                job.circuit = job.circuit.circuits[0]
+            else:
+                raise ValueError(
+                    "The `Result` class should be only use to hold the result of "
+                    "a single job. Use a `BatchResult` for more complex circuit "
+                    "bindings."
+                )
         if data is None:
             if job.status != JobStatus.ERROR:
                 raise TypeError("Result data cannot be None unless job.status == ERROR")
@@ -317,22 +364,22 @@ class Result:
         if job.job_type == JobType.OBSERVABLE:
             if not isinstance(data, float) and not isinstance(data, dict):
                 raise TypeError(
-                    "Wrong type of data in the Result. "
-                    "Expecting float or dict[str, float] for expectation value of observable(s),"
-                    f"but got {type(data).__name__}"
+                    "Wrong type of data in the Result. Expecting `float` or "
+                    "`dict[str, float]` for expectation value of observable(s),"
+                    f"but got `{type(data).__name__}`"
                 )
             else:
                 self._expectation_values = data
         elif job.job_type == JobType.STATE_VECTOR:
             if not isinstance(data, StateVector):
                 raise TypeError(
-                    "Wrong type of data in the result. Expecting StateVector"
+                    "Wrong type of data in the result. Expecting `StateVector`"
                 )
             else:
                 self._state_vector = data
                 gphase = (
-                    job.circuit.input_g_phase
-                    + job.circuit._generated_g_phase  # pyright: ignore[reportPrivateUsage]
+                    job.circuit.input_g_phase  # pyright: ignore[reportAttributeAccessIssue]
+                    + job.circuit._generated_g_phase  # pyright: ignore[reportPrivateUsage,reportAttributeAccessIssue]
                 )
                 if g_phase_handling and gphase != 0:
                     # Reverse the global phase introduced when using CustomGate, due to Qiskit decomposition in QASM2
@@ -341,33 +388,35 @@ class Result:
         elif job.job_type == JobType.SAMPLE:
             if not isinstance(data, list):
                 raise TypeError(
-                    "Wrong type of data in the result (not a list). Expecting list of Sample"
+                    "Wrong type of data in the result (not a list). Expecting "
+                    "`list` of `Sample`"
                 )
             if self.job.measure is None:
                 raise ValueError(
                     f"{self.job=} has no measure, making the counting impossible"
                 )
+            nb_qubits = self.job.measure.nb_qubits
+            if nb_qubits == 0:
+                nb_qubits = self.job.circuit.nb_qubits
+            shots = self.job.measure.shots
             self._samples = data
             is_counts = all([sample.count is not None for sample in data])
             is_probas = all([sample.probability is not None for sample in data])
             if is_probas:
-                probas = [0.0] * (2**self.job.measure.nb_qubits)
+                probas = [0.0] * (2**nb_qubits)
                 for sample in data:
                     probas[sample.index] = sample.probability
                 self._probabilities = np.array(probas, dtype=float)
 
                 if not is_counts:
                     counts = [
-                        int(count)
-                        for count in np.round(
-                            self.job.measure.shots * self._probabilities
-                        )
+                        int(count) for count in np.round(shots * self._probabilities)
                     ]
                     self._counts = counts
                     for sample in self._samples:
                         sample.count = self._counts[sample.index]
             if is_counts:
-                counts: list[int] = [0] * (2**self.job.measure.nb_qubits)
+                counts: list[int] = [0] * (2**nb_qubits)
                 for sample in data:
                     if TYPE_CHECKING:
                         assert sample.count is not None
@@ -409,8 +458,11 @@ class Result:
     def amplitudes(self) -> npt.NDArray[np.complex128]:
         """Get the amplitudes of the state of this result"""
         if self.job.job_type != JobType.STATE_VECTOR:
+            from mpqp.tools.errors import result_error_message
+
             raise ResultAttributeError(
-                "Cannot get amplitudes if the job was not of type STATE_VECTOR"
+                "Cannot get amplitudes if the job was not of type STATE_VECTOR\n"
+                + result_error_message(self.job.job_type)
             )
         if TYPE_CHECKING:
             assert self._state_vector is not None
@@ -420,8 +472,11 @@ class Result:
     def state_vector(self) -> StateVector:
         """Get the state vector of the state associated with this result"""
         if self.job.job_type != JobType.STATE_VECTOR:
+            from mpqp.tools.errors import result_error_message
+
             raise ResultAttributeError(
-                "Cannot get state vector if the job was not of type STATE_VECTOR"
+                "Cannot get state vector if the job was not of type STATE_VECTOR\n"
+                + result_error_message(self.job.job_type)
             )
         if TYPE_CHECKING:
             assert self._state_vector is not None
@@ -431,8 +486,11 @@ class Result:
     def samples(self) -> list[Sample]:
         """Get the list of samples of the result"""
         if self.job.job_type != JobType.SAMPLE:
+            from mpqp.tools.errors import result_error_message
+
             raise ResultAttributeError(
-                "Cannot get samples if the job was not of type SAMPLE"
+                "Cannot get samples if the job was not of type SAMPLE\n"
+                + result_error_message(self.job.job_type)
             )
         if TYPE_CHECKING:
             assert self._samples is not None
@@ -442,9 +500,12 @@ class Result:
     def probabilities(self) -> npt.NDArray[np.float64]:
         """Get the list of probabilities associated with this result"""
         if self.job.job_type not in (JobType.SAMPLE, JobType.STATE_VECTOR):
+            from mpqp.tools.errors import result_error_message
+
             raise ResultAttributeError(
                 "Cannot get probabilities if the job was not of"
-                " type SAMPLE or STATE_VECTOR"
+                " type SAMPLE or STATE_VECTOR\n"
+                + result_error_message(self.job.job_type)
             )
         if TYPE_CHECKING:
             assert self._probabilities is not None
@@ -454,8 +515,11 @@ class Result:
     def counts(self) -> list[int]:
         """Get the list of counts for each sample of the experiment"""
         if self.job.job_type != JobType.SAMPLE:
+            from mpqp.tools.errors import result_error_message
+
             raise ResultAttributeError(
-                "Cannot get counts if the job was not of type SAMPLE"
+                "Cannot get counts if the job was not of type SAMPLE\n"
+                + result_error_message(self.job.job_type)
             )
 
         if TYPE_CHECKING:
@@ -463,23 +527,25 @@ class Result:
         return self._counts
 
     def __str__(self):
-        label = "" if self.job.circuit.label is None else self.job.circuit.label + ", "
-        header = f"Result: {label}{type(self.device).__name__}, {self.device.name}"
+        from mpqp import QCircuit
 
+        if not isinstance(self.job.circuit, QCircuit):
+            raise ValueError(
+                "Result's job should be made for one individual circuit not a CircuitBinding."
+            )
+
+        label = "" if self.job.circuit.label is None else self.job.circuit.label + ", "
+        val = f"\n  Variables: {self.job.values}" if self.job.values else ""
+        header = (
+            f"Result: {label}{type(self.device).__name__}, {self.device.name}" + val
+        )
         if self.job.status == JobStatus.ERROR:
             return f"{header}\n  Status: ERROR\n  Message: {self.job.status_message}"
-
         if self.job.job_type == JobType.SAMPLE:
-            measures = self.job.circuit.measurements
-            if not len(measures) == 1:
-                raise ValueError(
-                    "Mismatch between the number of measurements and the job type."
-                )
-            measure = measures[0]
+            measure = self.job.measure
+
             if not isinstance(measure, BasisMeasure):
                 raise ValueError("Mismatch between measurements type and job type.")
-
-            # assert all(sample.probability is not None for sample in self.samples)
 
             probabilities = [
                 sample.probability
@@ -510,9 +576,16 @@ class Result:
 
         if self.job.job_type == JobType.OBSERVABLE:
             if isinstance(self.expectation_values, float):
+                if self.job.measure:
+                    from mpqp import ExpectationMeasure
+
+                    assert isinstance(self.job.measure, ExpectationMeasure)
+                    observables = f"\n  Observables: {[o.pauli_string for o in self.job.measure.observables]}"
+                else:
+                    observables = ""
                 return f"""{header}
   Expectation value: {self.expectation_values}
-  Error/Variance: {self.error}"""
+  Error/Variance: {self.error}""" + observables
             else:
                 if TYPE_CHECKING:
                     assert isinstance(self.expectation_values, dict)
@@ -563,7 +636,16 @@ class Result:
         plt.xlabel("State")
         plt.ylabel("Counts")
         device = self.job.device
-        plt.title(f"{self.job.circuit.label}, {type(device).__name__}\n{device.name}")
+        from mpqp import QCircuit
+
+        if not self.label is None:
+            label = self.label
+        else:
+            if isinstance(self.job.circuit, QCircuit):
+                label = "" if self.job.circuit.label is None else self.job.circuit.label
+            else:
+                label = ""
+        plt.title(f"{label}, {type(device).__name__}\n{device.name}")
 
         if show:
             plt.show()
@@ -688,7 +770,11 @@ class Result:
         Uses :func:`~mpqp.local_storage.load.get_results_with_result`.
 
         Example:
-            >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR), StateVector([1, 0, 0, 0]), 0, 0)
+            >>> result = Result(Job(
+            ...     JobType.STATE_VECTOR,
+            ...     QCircuit([], nb_qubits=2, label="circuit 1"),
+            ...     IBMDevice.AER_SIMULATOR
+            ... ), StateVector([1, 0, 0, 0]), 0, 0)
             >>> for result in result.load_similar(): # doctest: +ELLIPSIS
             ...     print(repr(result))
             Result(Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR), StateVector(...), 0, 0)

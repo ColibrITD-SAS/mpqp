@@ -135,10 +135,12 @@ one_parametrized_gate_qasm = {
     "rx": Rx,
     "ry": Ry,
     "rz": Rz,
+    "prx": PRX,
 }
 
 two_qubits_parametrized_gate_qasm = {
     "cp": CP,
+    "rzz": Rzz,
 }
 
 
