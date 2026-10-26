@@ -57,10 +57,18 @@ jobs:
       folder: ${{ steps.benchmark_ref.outputs.folder }}
       artifact_name: benchmark-results-${{ runner.os }}-py${{ inputs.python_version || '3.12' }}-${{ github.run_number }}
     steps:
-      - name: Checkout repository
+      - name: Checkout benchmark suite
+        uses: actions/checkout@v4
+        with:
+          # Keep the same benchmark suite when measuring revisions that predate it.
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Checkout benchmarked revision
         uses: actions/checkout@v4
         with:
           ref: ${{ inputs.commit_ref || github.sha }}
+          path: .benchmarks/source
           fetch-depth: 0
           # Prevent selected code from reading checkout credentials from Git config.
           persist-credentials: false
@@ -68,6 +76,7 @@ jobs:
       - name: Resolve benchmarked commit
         id: benchmark_ref
         shell: pwsh
+        working-directory: .benchmarks/source
         run: |
           "sha=$(git rev-parse HEAD)" >> $env:GITHUB_OUTPUT
           "folder=${{ runner.os }}-CPython-${{ inputs.python_version || '3.12' }}" >> $env:GITHUB_OUTPUT
@@ -81,7 +90,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install .
+          python -m pip install ./.benchmarks/source
           python -m pip install pytest==9.0.3 pytest-benchmark==5.3.0
 
       - name: Prepare benchmark output directory
@@ -90,10 +99,17 @@ jobs:
           Path('.benchmarks/${{ steps.benchmark_ref.outputs.folder }}/log').mkdir(parents=True, exist_ok=True)"
 
       - name: Run benchmarks
+        # Run from the selected checkout so JSON commit metadata identifies it.
+        working-directory: .benchmarks/source
+        # Isolated Python and importlib prevent either checkout from shadowing the
+        # installed MPQP revision. confcutdir excludes unrelated test hooks.
         run: >-
-          python -m pytest benchmarks
+          python -I -m pytest ../../benchmarks
+          -c ../../pytest.ini
+          --confcutdir=../../benchmarks
+          --import-mode=importlib
           --benchmark-only
-          --benchmark-json=.benchmarks/${{ steps.benchmark_ref.outputs.folder }}/log/${{ github.run_number }}_${{ steps.benchmark_ref.outputs.sha }}.json
+          --benchmark-json=../${{ steps.benchmark_ref.outputs.folder }}/log/${{ github.run_number }}_${{ steps.benchmark_ref.outputs.sha }}.json
           --benchmark-columns=min,median,mean,stddev,rounds
 
       - name: Upload raw benchmark result

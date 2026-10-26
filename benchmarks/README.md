@@ -80,6 +80,13 @@ The following inputs are available for manual runs:
 | `save`            | Whether to add the result to the permanent history.              |
 | `gh_pages_branch` | Target branch in `MPQP-PrivateBenchmark`.                        |
 
+The benchmark suite always comes from the revision that triggers the workflow.
+`commit_ref` selects only the MPQP revision to install and measure, so commits
+without a `benchmarks/` directory can also be benchmarked. The selected revision
+must be installable with the chosen Python version and support the APIs used by
+the suite. Benchmarks import the installed package, and the JSON commit metadata
+identifies the selected revision.
+
 The workflow first creates its JSON files in a directory identifying the runner
 and Python version:
 
