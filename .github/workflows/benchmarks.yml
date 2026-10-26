@@ -45,18 +45,25 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: write
+  # Selected revisions and their installation scripts must not receive write access.
+  contents: read
 
 jobs:
   benchmark:
     name: ${{ inputs.runner || 'ubuntu-24.04' }} / Python ${{ inputs.python_version || '3.12' }}
     runs-on: ${{ inputs.runner || 'ubuntu-24.04' }}
+    outputs:
+      sha: ${{ steps.benchmark_ref.outputs.sha }}
+      folder: ${{ steps.benchmark_ref.outputs.folder }}
+      artifact_name: benchmark-results-${{ runner.os }}-py${{ inputs.python_version || '3.12' }}-${{ github.run_number }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           ref: ${{ inputs.commit_ref || github.sha }}
           fetch-depth: 0
+          # Prevent selected code from reading checkout credentials from Git config.
+          persist-credentials: false
 
       - name: Resolve benchmarked commit
         id: benchmark_ref
@@ -96,17 +103,25 @@ jobs:
           path: .benchmarks/${{ steps.benchmark_ref.outputs.folder }}/log/${{ github.run_number }}_${{ steps.benchmark_ref.outputs.sha }}.json
           retention-days: 90
 
+  publish:
+    name: Publish benchmark results
+    needs: benchmark
+    # A fresh runner prevents benchmark code from surviving to read publishing secrets.
+    runs-on: ${{ inputs.runner || 'ubuntu-24.04' }}
+    steps:
       - name: Prepare dashboard publishing workspace
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.commit_ref || github.sha }}
+          # Publishing uses the triggering revision, never the selected benchmark code.
+          ref: ${{ github.sha }}
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Restore raw benchmark result in dashboard directory
         uses: actions/download-artifact@v4
         with:
-          name: benchmark-results-${{ runner.os }}-py${{ inputs.python_version || '3.12' }}-${{ github.run_number }}
-          path: dev/${{ steps.benchmark_ref.outputs.folder }}/log
+          name: ${{ needs.benchmark.outputs.artifact_name }}
+          path: dev/${{ needs.benchmark.outputs.folder }}/log
 
       - name: Check benchmark publishing token
         if: ${{ github.event_name == 'push' || inputs.save }}
@@ -123,12 +138,12 @@ jobs:
         with:
           name: MPQP / ${{ runner.os }} / Python ${{ inputs.python_version || '3.12' }}
           tool: pytest
-          output-file-path: dev/${{ steps.benchmark_ref.outputs.folder }}/log/${{ github.run_number }}_${{ steps.benchmark_ref.outputs.sha }}.json
-          benchmark-data-dir-path: dev/${{ steps.benchmark_ref.outputs.folder }}
+          output-file-path: dev/${{ needs.benchmark.outputs.folder }}/log/${{ github.run_number }}_${{ needs.benchmark.outputs.sha }}.json
+          benchmark-data-dir-path: dev/${{ needs.benchmark.outputs.folder }}
           gh-pages-branch: ${{ inputs.gh_pages_branch || 'main' }}
           gh-repository: github.com/ColibrITD-SAS/MPQP-PrivateBenchmark
           github-token: ${{ secrets.MPQP_BENCHMARK_TOKEN }}
-          ref: ${{ steps.benchmark_ref.outputs.sha }}
+          ref: ${{ needs.benchmark.outputs.sha }}
           auto-push: ${{ github.event_name == 'push' || inputs.save }}
           alert-threshold: 120%
           fail-threshold: 150%
@@ -151,22 +166,25 @@ jobs:
         if: ${{ github.event_name == 'push' || inputs.save }}
         uses: actions/download-artifact@v4
         with:
-          name: benchmark-results-${{ runner.os }}-py${{ inputs.python_version || '3.12' }}-${{ github.run_number }}
-          path: .benchmarks/publish/dev/${{ steps.benchmark_ref.outputs.folder }}/log
+          name: ${{ needs.benchmark.outputs.artifact_name }}
+          path: .benchmarks/publish/dev/${{ needs.benchmark.outputs.folder }}/log
 
       - name: Push raw benchmark result
         if: ${{ github.event_name == 'push' || inputs.save }}
         shell: pwsh
         working-directory: .benchmarks/publish
+        env:
+          BENCHMARK_FOLDER: ${{ needs.benchmark.outputs.folder }}
+          GH_PAGES_BRANCH: ${{ inputs.gh_pages_branch || 'main' }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- "dev/${{ steps.benchmark_ref.outputs.folder }}/log"
+          git add -- "dev/$env:BENCHMARK_FOLDER/log"
           git diff --cached --quiet
           if ($LASTEXITCODE -eq 0) {
             Write-Output "The raw benchmark result is already archived."
             exit 0
           }
           git commit -m "Add raw benchmark result for run ${{ github.run_number }}"
-          git pull --rebase origin "${{ inputs.gh_pages_branch || 'main' }}"
-          git push origin "HEAD:${{ inputs.gh_pages_branch || 'main' }}"
+          git pull --rebase origin "$env:GH_PAGES_BRANCH"
+          git push origin "HEAD:$env:GH_PAGES_BRANCH"
