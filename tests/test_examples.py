@@ -28,7 +28,9 @@ def generate_tests_for_notebooks():
     def make_test_func(file: str):
         def test_func():
             notebook_path = os.path.join(NOTEBOOK_DIR, file)
-            env["PYTHONPATH"] = f"{project_root};{os.path.join(project_root, 'tests')}"
+            env["PYTHONPATH"] = os.pathsep.join(
+                [project_root, os.path.join(project_root, "tests")]
+            )
             result = subprocess.run(
                 [sys.executable, "-m", "pytest", "--nbmake", notebook_path], env=env
             )

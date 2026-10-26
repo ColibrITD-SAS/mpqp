@@ -59,3 +59,13 @@ Controlled Custom Gates
 -----------------------
 
 .. automodule:: mpqp.core.instruction.gates.custom_controlled_gate
+
+Gate Decomposition
+------------------
+
+When a target language or device does not support a
+:class:`~mpqp.core.instruction.gates.native_gates.ComposedGate` natively, MPQP
+recursively resolves it into gates supported by the target gate set. Gates that
+are already supported are preserved without decomposition.
+
+.. automodule:: mpqp.core.instruction.gates.gate_decomposition

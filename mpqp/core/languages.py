@@ -15,5 +15,6 @@ class Language(Enum):
     MY_QLM = auto()
     BRAKET = auto()
     CIRQ = auto()
+    TKET = auto()
     QASM2 = auto()
     QASM3 = auto()

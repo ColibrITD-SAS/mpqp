@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from mpqp.core.instruction.gates.custom_controlled_gate import CustomControlledGate
+from mpqp.core.instruction.gates.native_gates import ComposedGate
 
 if TYPE_CHECKING:
     from mpqp.core.circuit import QCircuit
@@ -152,62 +153,66 @@ def mpqp_to_qasm2(
                     gphase += phase
         if skip_measurements and isinstance(instruction, Measure):
             continue
-        if simplify:
-            if isinstance(instruction, (SingleQubitGate, BasisMeasure)):
-                if previous is None:
-                    previous = instruction
-                elif type(instruction) != type(previous) or (
-                    isinstance(instruction, ParametrizedGate)
-                    and instruction.parameters
-                    != previous.parameters  # pyright: ignore[reportAttributeAccessIssue]
-                ):
-                    if isinstance(previous, BasisMeasure):
-                        qasm_measure += _simplify_instruction_to_qasm(
-                            previous, targets, c_targets
-                        )
-                    else:
-                        qasm_str += _simplify_instruction_to_qasm(
-                            previous, targets, c_targets
-                        )
-                    targets = {i: 0 for i in range(qcircuit.nb_qubits)}
-                    c_targets = {i: 0 for i in range(qcircuit.nb_qubits)}
-                    previous = instruction
+        instructions = [instruction]
+        if isinstance(instruction, ComposedGate):
+            instructions = instruction.decompose()
+        for instruction in instructions:
+            if simplify:
+                if isinstance(instruction, (SingleQubitGate, BasisMeasure)):
+                    if previous is None:
+                        previous = instruction
+                    elif type(instruction) != type(previous) or (
+                        isinstance(instruction, ParametrizedGate)
+                        and instruction.parameters
+                        != previous.parameters  # pyright: ignore[reportAttributeAccessIssue]
+                    ):
+                        if isinstance(previous, BasisMeasure):
+                            qasm_measure += _simplify_instruction_to_qasm(
+                                previous, targets, c_targets
+                            )
+                        else:
+                            qasm_str += _simplify_instruction_to_qasm(
+                                previous, targets, c_targets
+                            )
+                        targets = {i: 0 for i in range(qcircuit.nb_qubits)}
+                        c_targets = {i: 0 for i in range(qcircuit.nb_qubits)}
+                        previous = instruction
 
-                for target in instruction.targets:
-                    targets[target] += 1
-                if isinstance(instruction, BasisMeasure):
-                    if instruction.c_targets is not None:
-                        for c_target in instruction.c_targets:
-                            c_targets[c_target] += 1
+                    for target in instruction.targets:
+                        targets[target] += 1
+                    if isinstance(instruction, BasisMeasure):
+                        if instruction.c_targets is not None:
+                            for c_target in instruction.c_targets:
+                                c_targets[c_target] += 1
+                        else:
+                            for i in range(len(instruction.targets)):
+                                c_targets[i] += 1
+                else:
+                    if previous:
+                        if isinstance(previous, BasisMeasure):
+                            qasm_measure += _simplify_instruction_to_qasm(
+                                previous, targets, c_targets
+                            )
+                        else:
+                            qasm_str += _simplify_instruction_to_qasm(
+                                previous, targets, c_targets
+                            )
+                        previous = None
+                        targets = {i: 0 for i in range(qcircuit.nb_qubits)}
+                        c_targets = {i: 0 for i in range(qcircuit.nb_qubits)}
+                    qasm, phase = _instruction_to_qasm2(instruction)
+                    if isinstance(instruction, BasisMeasure):
+                        qasm_measure += qasm
                     else:
-                        for i in range(len(instruction.targets)):
-                            c_targets[i] += 1
+                        qasm_str += qasm
+                    gphase += phase
             else:
-                if previous:
-                    if isinstance(previous, BasisMeasure):
-                        qasm_measure += _simplify_instruction_to_qasm(
-                            previous, targets, c_targets
-                        )
-                    else:
-                        qasm_str += _simplify_instruction_to_qasm(
-                            previous, targets, c_targets
-                        )
-                    previous = None
-                    targets = {i: 0 for i in range(qcircuit.nb_qubits)}
-                    c_targets = {i: 0 for i in range(qcircuit.nb_qubits)}
                 qasm, phase = _instruction_to_qasm2(instruction)
                 if isinstance(instruction, BasisMeasure):
                     qasm_measure += qasm
                 else:
                     qasm_str += qasm
                 gphase += phase
-        else:
-            qasm, phase = _instruction_to_qasm2(instruction)
-            if isinstance(instruction, BasisMeasure):
-                qasm_measure += qasm
-            else:
-                qasm_str += qasm
-            gphase += phase
     if previous:
         qasm_str += _simplify_instruction_to_qasm(previous, targets, c_targets)
 

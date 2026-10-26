@@ -5,6 +5,7 @@ call the function :func:`qasm2_to_myqlm_Circuit` to generate the circuit from
 the qasm code."""
 
 from __future__ import annotations
+
 import re
 from typing import TYPE_CHECKING
 
