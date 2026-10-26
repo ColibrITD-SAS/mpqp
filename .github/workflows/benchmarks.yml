@@ -149,25 +149,6 @@ jobs:
             throw "MPQP_BENCHMARK_TOKEN is missing. Add a token with Contents: Read and write access to MPQP-PrivateBenchmark."
           }
 
-      - name: Update historical charts and detect regressions
-        uses: benchmark-action/github-action-benchmark@52576c92bccf6ac60c8223ec7eb2565637cae9ba # v1.22.1
-        with:
-          name: MPQP / ${{ runner.os }} / Python ${{ inputs.python_version || '3.12' }}
-          tool: pytest
-          output-file-path: dev/${{ needs.benchmark.outputs.folder }}/log/${{ github.run_number }}_${{ needs.benchmark.outputs.sha }}.json
-          benchmark-data-dir-path: dev/${{ needs.benchmark.outputs.folder }}
-          gh-pages-branch: ${{ inputs.gh_pages_branch || 'main' }}
-          gh-repository: github.com/ColibrITD-SAS/MPQP-PrivateBenchmark
-          github-token: ${{ secrets.MPQP_BENCHMARK_TOKEN }}
-          ref: ${{ needs.benchmark.outputs.sha }}
-          auto-push: ${{ github.event_name == 'push' || inputs.save }}
-          alert-threshold: 120%
-          fail-threshold: 150%
-          fail-on-alert: true
-          comment-on-alert: false
-          summary-always: true
-          max-items-in-chart: 100
-
       - name: Checkout benchmark archive
         if: ${{ github.event_name == 'push' || inputs.save }}
         uses: actions/checkout@v4
@@ -204,3 +185,22 @@ jobs:
           git commit -m "Add raw benchmark result for run ${{ github.run_number }}"
           git pull --rebase origin "$env:GH_PAGES_BRANCH"
           git push origin "HEAD:$env:GH_PAGES_BRANCH"
+
+      - name: Update historical charts and detect regressions
+        uses: benchmark-action/github-action-benchmark@52576c92bccf6ac60c8223ec7eb2565637cae9ba # v1.22.1
+        with:
+          name: MPQP / ${{ runner.os }} / Python ${{ inputs.python_version || '3.12' }}
+          tool: pytest
+          output-file-path: dev/${{ needs.benchmark.outputs.folder }}/log/${{ github.run_number }}_${{ needs.benchmark.outputs.sha }}.json
+          benchmark-data-dir-path: dev/${{ needs.benchmark.outputs.folder }}
+          gh-pages-branch: ${{ inputs.gh_pages_branch || 'main' }}
+          gh-repository: github.com/ColibrITD-SAS/MPQP-PrivateBenchmark
+          github-token: ${{ secrets.MPQP_BENCHMARK_TOKEN }}
+          ref: ${{ needs.benchmark.outputs.sha }}
+          auto-push: ${{ github.event_name == 'push' || inputs.save }}
+          alert-threshold: 120%
+          fail-threshold: 150%
+          fail-on-alert: true
+          comment-on-alert: false
+          summary-always: true
+          max-items-in-chart: 100
