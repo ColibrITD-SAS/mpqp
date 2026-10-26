@@ -353,7 +353,7 @@ def submit_job_nexus(
     )
 
     if TYPE_CHECKING:
-        assert job.id is not None
+        assert isinstance(job.id, str)
 
     return job.id, execute_job_ref
 
@@ -425,7 +425,7 @@ def submit_nexus_observable(
     )
 
     if TYPE_CHECKING:
-        assert job.id is not None
+        assert isinstance(job.id, str)
 
     return job.id, execute_job_ref
 

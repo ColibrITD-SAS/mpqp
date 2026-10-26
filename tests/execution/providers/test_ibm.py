@@ -2,18 +2,18 @@ import sys
 
 import numpy as np
 import pytest
-from mpqp import BatchResult, H, IBMDevice, Job, JobType, QCircuit, Result
-from mpqp.execution.providers.ibm import extract_result, submit_remote_ibm
-from mpqp.execution.runner import generate_job
-from mpqp.gates import *
-from mpqp.measures import *
-
 from qiskit import QuantumCircuit, transpile
 from qiskit.primitives import PubResult
 from qiskit.primitives.containers import DataBin
 from qiskit.quantum_info import SparsePauliOp
 from qiskit_aer import AerSimulator
 from qiskit_ibm_runtime import EstimatorV2, SamplerV2
+
+from mpqp import BatchResult, H, IBMDevice, Job, JobType, QCircuit, Result
+from mpqp.execution.providers.ibm import extract_result, submit_remote_ibm
+from mpqp.execution.runner import generate_job
+from mpqp.gates import *
+from mpqp.measures import *
 
 
 @pytest.mark.provider("qiskit")
@@ -29,6 +29,7 @@ def remote_ibm_execution_binds_job_id():
     assert isinstance(job.device, IBMDevice)
     result = extract_result(ibm_job.result(), job, job.device)
 
+    assert isinstance(result, Result)
     assert result.job.id == job_id
 
 

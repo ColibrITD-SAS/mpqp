@@ -11,11 +11,14 @@ from mpqp import (
     H,
     Observable,
     QCircuit,
+    Result,
     X,
     run,
 )
 from mpqp.execution.providers.aws import (
     _ordered_measurement_probabilities,  # pyright: ignore[reportPrivateUsage]
+)
+from mpqp.execution.providers.aws import (
     run_braket,
     submit_job_braket,
 )
@@ -103,6 +106,7 @@ def test_run_braket_preserves_task_id_in_result():
 
     result = run_braket(job)
 
+    assert isinstance(result, Result)
     assert result.job is job
     assert result.job.id == job.id
     assert isinstance(result.job.id, str)

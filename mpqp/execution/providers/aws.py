@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING, Optional
 import numpy as np
 import numpy.typing as npt
 
-from mpqp.core.circuit import QCircuit
 from mpqp.core.binding import BindingParameters, CircuitBinding
+from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.gates import CRk
 from mpqp.core.instruction.measurement import (
     BasisMeasure,
@@ -170,7 +170,7 @@ def apply_noise_to_braket_circuit(
     return noisy_circuit
 
 
-def run_braket(job: Job) -> Result:
+def run_braket(job: Job) -> Result | BatchResult:
     """Executes the job on the right AWS Braket device (local or remote)
     precised in the job in parameter and waits until the task is completed, then
     returns the Result.
@@ -558,7 +558,8 @@ def _run_exact_braket_observables(
     """Evaluate all exact observables as result types of one circuit."""
     from copy import deepcopy
 
-    from braket.circuits.observables import Hermitian, I as BraketIdentity
+    from braket.circuits.observables import Hermitian
+    from braket.circuits.observables import I as BraketIdentity
     from braket.circuits.result_types import Expectation
     from braket.tasks import GateModelQuantumTaskResult
 
@@ -833,6 +834,7 @@ def run_braket_observable(job: Job) -> Result:
     from braket.circuits import Circuit
 
     assert isinstance(job.device, AWSDevice)
+    assert isinstance(job.circuit, QCircuit)
     if job.circuit.transpiled_circuit is None:
         # Observable target ordering is handled by ``adjust_measure`` and the
         # Braket-specific execution helpers below. Reapplying the generic
@@ -888,6 +890,7 @@ def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
             "`job` must correspond to an `AWSDevice`, but corresponds to a "
             f"{job.device} instead"
         )
+    assert isinstance(job.circuit, QCircuit)
 
     if job.job_type == JobType.STATE_VECTOR and job.device.is_remote():
         raise DeviceJobIncompatibleError(
