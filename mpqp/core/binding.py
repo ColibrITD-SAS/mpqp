@@ -196,7 +196,6 @@ class CircuitBinding:
             Measure,
         )
         from mpqp.execution.job import JobType
-        from mpqp.execution.runner import adjust_measure
 
         if circuits == []:
             raise ValueError(
@@ -236,7 +235,10 @@ class CircuitBinding:
                     deep_copy=False
                 )
 
-                circuit_without_measurements.transpiled_circuit = None
+                if isinstance(circuit_without_measurements.transpiled_circuit, dict):
+                    circuit_without_measurements.transpiled_circuit.clear()
+                else:
+                    circuit_without_measurements.transpiled_circuit = None
 
                 normalized_circuits.append(
                     CircuitBinding(
@@ -313,7 +315,7 @@ class CircuitBinding:
             is_expectation = isinstance(measurements[0], ExpectationMeasure)
 
             shots_ = None
-            for index, measure in enumerate(measurements):
+            for measure in measurements:
                 if self.shots is not None:
                     # TODO: this is a check for default shots but it is hardcode
                     if self.shots != measure.shots:
@@ -341,9 +343,6 @@ class CircuitBinding:
                         )
                 if isinstance(measure, ExpectationMeasure):
 
-                    measurements[index] = adjust_measure(
-                        measure, QCircuit(self.nb_qubits)
-                    )
                     if not is_expectation:
                         raise ValueError(
                             "All measurements in CircuitBinding must be of the same type."
@@ -404,6 +403,10 @@ class CircuitBinding:
     ) -> list[BindingExecution]:
         """Resolve the lazy binding graph into individual executions.
 
+        Expectation measurements are embedded into each resolved circuit's
+        register, not the largest register in the binding. Input measurements
+        are not modified when embedding or reordering their targets.
+
         Returns:
             A flat, ordered list of ``(circuit, values, measurement)`` tuples.
             Values and measurements can be ``None`` when the corresponding
@@ -411,13 +414,15 @@ class CircuitBinding:
 
         Raises:
             ValueError: If a non-singleton axis cannot be broadcast in
-                :attr:`BindingMode.ZIP` mode.
+                :attr:`BindingMode.ZIP` mode, or expectation measurement targets
+                fall outside a resolved circuit's register.
 
         Note:
             For a flat PRODUCT binding, circuit order is outermost, followed by
             parameter order and then measurement order. ZIP follows the paired
-            axis order. Returned circuits and measurements are references to
-            binding objects, not independent copies.
+            axis order. Returned circuits and unchanged measurements are
+            references to binding objects. Measurements requiring embedding
+            are copied and reused for matching register sizes within this call.
 
             Nested bindings combine disjoint parameter mappings. If parent and
             child mappings contain overlapping parameter names, they contribute
@@ -429,7 +434,11 @@ class CircuitBinding:
             input lengths.
         """
         import itertools
+        from copy import deepcopy
         from typing import cast
+
+        from mpqp.core.instruction.measurement import ExpectationMeasure
+        from mpqp.execution.runner import adjust_measure
         from mpqp.tools.binding_utils import (
             broadcast_axis,
             expand_branch,
@@ -505,7 +514,27 @@ class CircuitBinding:
                         )
                 executions.extend(unique_branch_executions.values())
 
-        return executions
+        # Resolve ZIP/PRODUCT and nested bindings before choosing a register size.
+        # Reuse embeddings within this unroll to preserve measurement identity.
+        adjusted: dict[tuple[int, int], ExpectationMeasure] = {}
+        resolved: list[BindingExecution] = []
+        for circuit, parameters, measurement in executions:
+            if isinstance(measurement, ExpectationMeasure):
+                if any(
+                    target < 0 or target >= circuit.nb_qubits
+                    for target in measurement.targets
+                ):
+                    raise ValueError(
+                        f"Measurement targets {measurement.targets} are outside "
+                        f"the resolved circuit's {circuit.nb_qubits}-qubit register."
+                    )
+                if measurement.targets != list(range(circuit.nb_qubits)):
+                    key = (id(measurement), circuit.nb_qubits)
+                    if key not in adjusted:
+                        adjusted[key] = adjust_measure(deepcopy(measurement), circuit)
+                    measurement = adjusted[key]
+            resolved.append((circuit, parameters, measurement))
+        return resolved
 
     def __repr__(self):
         """Return an unambiguous representation of the binding."""

@@ -240,6 +240,8 @@ def generate_job(
         if isinstance(circuit, CircuitBinding):
             raise ValueError("values must be specified in CircuitBinding")
         circuit = circuit.subs(values)
+        if device in circuit.transpiled_circuit:
+            circuit.bind_parameters(device, values)
 
     if isinstance(circuit, CircuitBinding):
         job = Job(circuit.job_type, circuit, device)
