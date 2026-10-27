@@ -335,7 +335,7 @@ class Result:
         """See parameter description."""
         self._data = data
         self.label = label
-        from mpqp.core.circuitbinding import CircuitBinding
+        from mpqp.core.binding import CircuitBinding
 
         if isinstance(job.circuit, CircuitBinding):
             if len(job.circuit.circuits) == 1:

@@ -21,14 +21,14 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
     from braket.program_sets import CircuitBinding as BraketBinding
 
     from mpqp.core.circuit import QCircuit
-    from mpqp.core.circuitbinding import BindingParameters
+    from mpqp.core.binding import BindingParameters
     from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
     from mpqp.core.instruction.measurement.measure import Measure
 
     if TYPE_CHECKING:
         from braket.program_sets import ProgramSet
 
-        from mpqp.core.circuitbinding import CircuitBinding
+        from mpqp.core.binding import CircuitBinding
         from mpqp.execution.devices import AvailableDevice
 
     def braket_to_mpqp(qcircuit: "braket_Circuit") -> "QCircuit":
@@ -258,7 +258,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
         from braket.program_sets import ProgramSet
         from braket.circuits import Circuit as braket_Circuit
         from mpqp.core import Language, QCircuit
-        from mpqp.core.circuitbinding import CircuitBinding, BindingMode
+        from mpqp.core.binding import CircuitBinding, BindingMode
 
         # translate inner circuits to braket and CB's elements to Braket
         translated: list[CircuitBinding | braket_Circuit] = []

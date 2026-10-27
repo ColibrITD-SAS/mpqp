@@ -15,7 +15,7 @@ from mpqp import (
     pZ,
     run,
 )
-from mpqp.core.circuitbinding import BindingMode, CircuitBinding
+from mpqp.core.binding import BindingMode, CircuitBinding
 
 
 def _circuits() -> tuple[QCircuit, QCircuit]:

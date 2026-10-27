@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Iterable, Optional, Sequence, overload
 
 import numpy as np
 
-from mpqp.core.circuitbinding import CircuitBinding
+from mpqp.core.binding import CircuitBinding
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.breakpoint import Breakpoint
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure

@@ -21,8 +21,8 @@ from .execution import (
     run,
     submit,
 )
-from .core.circuitbinding import BindingMode as BindingMode
-from .core.circuitbinding import CircuitBinding as CircuitBinding
+from .core.binding import BindingMode as BindingMode
+from .core.binding import CircuitBinding as CircuitBinding
 from .execution.devices import (
     ATOSDevice,
     AWSDevice,

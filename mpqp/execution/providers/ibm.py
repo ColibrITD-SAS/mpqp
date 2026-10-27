@@ -6,7 +6,7 @@ from copy import deepcopy
 from typing import TYPE_CHECKING, Optional
 
 from mpqp import QCircuit
-from mpqp.core.circuitbinding import CircuitBinding
+from mpqp.core.binding import CircuitBinding
 from mpqp.core.instruction.gates import ControlledGate, Gate, Id
 from mpqp.core.instruction.gates.native_gates import NativeGate
 from mpqp.core.instruction.measurement import BasisMeasure

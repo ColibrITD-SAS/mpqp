@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 from mpqp.core.instruction.measurement import BasisMeasure, ExpectationMeasure, Measure
 
 from ..core.circuit import QCircuit
-from ..core.circuitbinding import CircuitBinding
+from ..core.binding import CircuitBinding
 from ..tools.errors import IBMRemoteExecutionError, QLMRemoteExecutionError
 from .connection.azure_connection import get_jobs_by_id
 from .connection.ibm_connection import get_QiskitRuntimeService

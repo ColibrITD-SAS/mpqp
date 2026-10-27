@@ -2,7 +2,7 @@ import pytest
 from sympy import Symbol
 
 from mpqp.core.circuit import QCircuit
-from mpqp.core.circuitbinding import CircuitBinding, BindingMode
+from mpqp.core.binding import CircuitBinding, BindingMode
 from mpqp.core.instruction.measurement.expectation_value import (
     ExpectationMeasure,
     Observable,
