@@ -720,72 +720,130 @@ def test_variables_follow_add_and_remove():
     assert circuit.variables() == {phi}
 
 
-def test_variables_indexes_built_on_add():
-    circuit = QCircuit([Ry(theta, 0), Ry(phi, 0)])
-    assert circuit._variables == {  # pyright: ignore[reportPrivateUsage]
-        theta: [0],
-        phi: [1],
-    }
+def test_variables_follow_shared_gate_mutation():
+    gate = Rx(theta, 0)
+    circuits = [QCircuit([gate]), QCircuit([gate])]
+    assert all(circuit.variables() == {theta} for circuit in circuits)
 
-    circuit.add([X(0), Rz(theta + phi, 0)])
-    assert circuit._variables == {  # pyright: ignore[reportPrivateUsage]
-        theta: [0, 3],
-        phi: [1, 3],
-    }
+    gate.parameters[0] = phi
+
+    assert all(circuit.variables() == {phi} for circuit in circuits)
+
+
+def test_variables_follow_parameter_list_replacement():
+    gate = Rx(0.5, 0)
+    circuit = QCircuit([gate])
+    assert circuit.variables() == set()
+
+    parameters: list[Expr | float] = [theta + phi]
+    gate.parameters = parameters
     assert circuit.variables() == {theta, phi}
 
+    parameters[0] = alpha
+    assert circuit.variables() == {alpha}
 
-def test_variables_indexes_same_variable_in_several_parameters():
+    parameters = [0.5]
+    gate.parameters = parameters
+    assert circuit.variables() == set()
+
+
+@pytest.mark.parametrize("deep_copy", [False, True])
+def test_variables_follow_copy_ownership(deep_copy: bool):
+    gate = Rx(theta, 0)
+    circuit = QCircuit([gate, BasisMeasure([0])])
+    copied = circuit.without_measurements(deep_copy=deep_copy)
+    assert circuit.variables() == copied.variables() == {theta}
+
+    gate.parameters[0] = phi
+
+    assert circuit.variables() == {phi}
+    assert copied.variables() == ({theta} if deep_copy else {phi})
+
+
+def test_variables_follow_shared_instruction_storage():
+    circuit = QCircuit([Rx(theta, 0), X(0)])
+    copied = circuit.without_noises(deep_copy=False)
+    assert circuit.variables() == copied.variables() == {theta}
+
+    copied.remove(copied.gates[0])
+    copied.add(Ry(phi, 0))
+
+    assert circuit.variables() == copied.variables() == {phi}
+
+
+def test_variables_follow_deep_copy_instruction_ownership():
+    circuit = QCircuit([Rx(theta, 0)])
+    assert circuit.variables() == {theta}
+    copied = circuit.without_noises(deep_copy=True)
+    copied_gate = copied.gates[0]
+    assert isinstance(copied_gate, Rx)
+
+    copied_gate.parameters[0] = phi
+
+    assert circuit.variables() == {theta}
+    assert copied.variables() == {phi}
+
+
+def test_variables_does_not_change_circuit_equality():
+    circuit = QCircuit([Rx(theta, 0)])
+    equivalent = QCircuit([Rx(theta, 0)])
+
+    assert circuit.variables() == {theta}
+
+    assert circuit == equivalent
+
+
+def test_variables_from_expressions():
+    circuit = QCircuit([Ry(theta, 0), Ry(phi, 0)])
+    assert circuit.variables() == {theta, phi}
+
+    circuit.add([X(0), Rz(theta + phi + alpha, 0)])
+    assert circuit.variables() == {theta, phi, alpha}
+
+
+def test_variables_same_variable_in_several_parameters():
     circuit = QCircuit([U(theta, theta, phi, 0)])
-    assert circuit._variables == {  # pyright: ignore[reportPrivateUsage]
-        theta: [0],
-        phi: [0],
-    }
+    assert circuit.variables() == {theta, phi}
 
     circuit.remove(U(theta, theta, phi, 0))
-    assert circuit._variables == {}  # pyright: ignore[reportPrivateUsage]
+    assert circuit.variables() == set()
 
 
-def test_variables_indexes_follow_remove_and_insert():
+def test_variables_follow_remove_and_insert():
     circuit = QCircuit([Ry(theta, 0), X(0), Ry(phi, 0), Rz(theta, 0)])
 
     circuit.remove(X(0))
-    assert circuit._variables == {  # pyright: ignore[reportPrivateUsage]
-        theta: [0, 2],
-        phi: [1],
-    }
+    assert circuit.variables() == {theta, phi}
 
     circuit.remove(Ry(theta, 0))
-    assert circuit._variables == {  # pyright: ignore[reportPrivateUsage]
-        phi: [0],
-        theta: [1],
-    }
+    assert circuit.variables() == {theta, phi}
 
-    circuit._insert_instruction(0, Rx(phi, 0))  # pyright: ignore[reportPrivateUsage]
-    assert circuit._variables == {  # pyright: ignore[reportPrivateUsage]
-        phi: [0, 1],
-        theta: [2],
-    }
+    circuit._insert_instruction(0, Rx(alpha, 0))  # pyright: ignore[reportPrivateUsage]
+    assert circuit.variables() == {theta, phi, alpha}
 
     circuit.remove(Rz(theta, 0))
-    assert circuit._variables == {phi: [0, 1]}  # pyright: ignore[reportPrivateUsage]
-    assert circuit.variables() == {phi}
+    assert circuit.variables() == {phi, alpha}
 
 
-def test_variables_indexes_without_measurements():
+def test_variables_without_measurements():
     circuit = QCircuit(
         [Ry(theta, 0), BasisMeasure([0], shots=10), Ry(phi, 0)], nb_qubits=1
     )
-    assert circuit._variables == {  # pyright: ignore[reportPrivateUsage]
-        theta: [0],
-        phi: [2],
-    }
+    assert circuit.variables() == {theta, phi}
 
     without = circuit.without_measurements()
-    assert without._variables == {  # pyright: ignore[reportPrivateUsage]
-        theta: [0],
-        phi: [1],
-    }
+    assert without.variables() == {theta, phi}
+
+
+def test_variables_returns_independent_set():
+    circuit = QCircuit([Rx(theta, 0)])
+    variables = circuit.variables()
+
+    circuit.add(Ry(phi, 0))
+    assert variables == {theta}
+
+    variables.clear()
+    assert circuit.variables() == {theta, phi}
 
 
 @pytest.mark.parametrize(
@@ -801,6 +859,7 @@ def test_variables_are_updated_after_substitution(
     expected_variables: set[Expr],
 ):
     circuit = QCircuit([Rx(theta + phi, 0), Rz(theta, 0)])
+    assert circuit.variables() == {theta, phi}
 
     substituted = circuit.subs(substitutions)
 
