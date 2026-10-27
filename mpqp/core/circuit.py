@@ -315,10 +315,14 @@ class QCircuit:
                     f" size ({self.nb_qubits})."
                 )
         else:
-            if components._dynamic is False:  # pyright: ignore[reportPrivateUsage]
-                self._set_nb_qubits_dynamic(
-                    max(self.nb_qubits, max(components.connections()) + 1)
-                )
+            required_qubits = (
+                0
+                if components._dynamic  # pyright: ignore[reportPrivateUsage]
+                else max(components.connections(), default=-1) + 1
+            )
+            if isinstance(components, NoiseModel):
+                required_qubits = max(required_qubits, components.min_nb_qubits)
+            self._set_nb_qubits_dynamic(max(self.nb_qubits, required_qubits))
 
         if components._dynamic:  # pyright: ignore[reportPrivateUsage]
             components = self._update_targets_components(components)
@@ -391,6 +395,10 @@ class QCircuit:
 
         When several equal instructions are present, only the first matching
         instruction is removed for each instruction provided.
+
+        Dynamically sized circuits retain enough qubits for the remaining
+        instructions and noise models. Explicitly set register sizes are
+        preserved.
 
         Args:
             instructions: Instruction(s) to remove from the circuit.
@@ -485,7 +493,12 @@ class QCircuit:
                 for component in static_components
                 for connection in component.connections()
             }
-            self._set_nb_qubits_dynamic(max(connections, default=-1) + 1)
+            min_noise_qubits = max(
+                (noise.min_nb_qubits for noise in self.noises), default=0
+            )
+            self._set_nb_qubits_dynamic(
+                max(max(connections, default=-1) + 1, min_noise_qubits)
+            )
 
         if self._user_nb_cbits is None:
             classical_targets = {
@@ -636,13 +649,14 @@ class QCircuit:
         if not hasattr(self, "_nb_qubits") or nb_qubits != self._nb_qubits:
             self._nb_qubits = nb_qubits
 
-            for noise in self.noises:
-                if noise._dynamic:  # pyright: ignore[reportPrivateUsage]
-                    self._update_targets_components(noise)
             instructions = self.with_measurement(deep_copy=False)
             for instruction in instructions:
                 if instruction._dynamic:  # pyright: ignore[reportPrivateUsage]
                     self._update_targets_components(instruction)
+            # Noise validation requires measurements to already span the new width.
+            for noise in self.noises:
+                if noise._dynamic:  # pyright: ignore[reportPrivateUsage]
+                    self._update_targets_components(noise)
 
     def append(self, other: QCircuit, qubits_offset: int = 0) -> None:
         """Appends the circuit at the end (right side) of this circuit, inplace.

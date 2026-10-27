@@ -390,6 +390,52 @@ def test_remove_recomputes_highest_used_qubit():
     assert circuit.nb_qubits == 1
 
 
+@pytest.mark.parametrize("dimension", [1, 2, 3])
+@pytest.mark.parametrize("with_measurement", [False, True])
+def test_remove_retains_noise_width(dimension: int, with_measurement: bool):
+    noises = [Depolarizing(0.1, dimension=dimension), BitFlip(0.1)]
+    circuit = QCircuit(noises)
+    assert circuit.nb_qubits == dimension
+    if with_measurement:
+        circuit.add(BasisMeasure())
+    circuit.add([X(0), X(4)])
+
+    circuit.remove(X(4))
+
+    assert circuit.gates == [X(0)]
+    assert circuit.nb_qubits == dimension
+    assert all(noise.targets == list(range(dimension)) for noise in noises)
+    if with_measurement:
+        assert circuit.measurements[0].targets == list(range(dimension))
+        assert circuit.nb_cbits == dimension
+
+    circuit.remove(X(0))
+    assert circuit.gates == []
+    assert circuit.nb_qubits == dimension
+
+
+def test_remove_retains_explicit_noise_targets():
+    noise = Depolarizing(0.1, targets=[1, 4], dimension=2)
+    circuit = QCircuit([X(6), noise])
+
+    circuit.remove(X(6))
+
+    assert circuit.nb_qubits == 5
+    assert noise.targets == [1, 4]
+
+
+@pytest.mark.parametrize(
+    "noise", [BitFlip(0.1), AmplitudeDamping(0.1), PhaseDamping(0.1)]
+)
+def test_remove_retains_single_qubit_noise_width(noise: NoiseModel):
+    circuit = QCircuit([X(3), noise])
+
+    circuit.remove(X(3))
+
+    assert circuit.nb_qubits == 1
+    assert noise.targets == [0]
+
+
 @pytest.mark.provider("qiskit")
 @pytest.mark.parametrize("nb_qubits", [1, 2])
 def test_remove_preserves_observable_width(nb_qubits: int):
