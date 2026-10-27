@@ -102,7 +102,7 @@ def run_braket(job: Job, provider_params: BraketParams) -> Result:
     Args:
         job: Job to be executed, it MUST be corresponding to a
             :class:`mpqp.execution.devices.AWSDevice`.
-        provider_params: 
+        provider_params:
 
     Returns:
         The result of the job.
@@ -680,7 +680,9 @@ def run_braket_observable(job: Job, provider_params: BraketParams) -> Result:
     return Result(job, results, errors, job.measure.shots)
 
 
-def submit_job_braket(job: Job, provider_params: BraketParams) -> tuple[str, "QuantumTask"]:
+def submit_job_braket(
+    job: Job, provider_params: BraketParams
+) -> tuple[str, "QuantumTask"]:
     """Submits the job to the right local/remote device and returns the
     generated task.
 

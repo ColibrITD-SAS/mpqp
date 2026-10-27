@@ -25,6 +25,7 @@ class QiskitParams(ProviderParams):
     def __init__(self, instance: Optional[str] = None):
         self.instance = instance
 
+
 class BraketParams(ProviderParams):
     """
     Class meant to regroup all AWS specific parameters for remote execution.
@@ -36,6 +37,7 @@ class BraketParams(ProviderParams):
 
     def __init__(self, reservation_arn: Optional[str] = None):
         self.reservation_arn = reservation_arn
+
 
 class QuantinuumParams(ProviderParams):
     """Configuration parameters for Quantinuum execution.
