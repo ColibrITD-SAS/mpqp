@@ -781,7 +781,6 @@ def submit_job_braket(
         braket_circuit.state_vector()  # pyright: ignore[reportAttributeAccessIssue]
         job.status = JobStatus.RUNNING
 
-
         with optional_reservation_arn(device, reservation_arn):
             task = device.run(braket_circuit, shots=0, inputs=None)
 
