@@ -390,6 +390,24 @@ def test_remove_recomputes_highest_used_qubit():
     assert circuit.nb_qubits == 1
 
 
+@pytest.mark.provider("qiskit")
+@pytest.mark.parametrize("nb_qubits", [1, 2])
+def test_remove_preserves_observable_width(nb_qubits: int):
+    observable = Observable(np.diag([1] + [-1] * (2**nb_qubits - 1)))
+    measurement = ExpectationMeasure(observable)
+    gate = X(nb_qubits - 1)
+    circuit = QCircuit([gate, measurement])
+
+    circuit.remove(gate)
+
+    assert circuit.nb_qubits == nb_qubits
+    assert measurement.targets == list(range(nb_qubits))
+    assert run(circuit, IBMDevice.AER_SIMULATOR).expectation_values == pytest.approx(1)
+
+    circuit.remove(measurement)
+    assert circuit.nb_qubits == 0
+
+
 def test_remove_preserves_explicit_dimensions():
     gate = X(3)
     measurement = BasisMeasure([3], [2])
