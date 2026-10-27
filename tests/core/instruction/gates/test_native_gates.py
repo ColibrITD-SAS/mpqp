@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from sympy import Expr, I, pi, symbols
+from sympy import Abs, Expr, I, acos, asin, atan, pi, symbols
 
 from mpqp.core.circuit import QCircuit
 from mpqp.core.languages import Language
@@ -306,6 +306,22 @@ def test_qiskit_symbolic_expressions(
             expected_probability
         )
         assert len(translated.parameters) == len(values)
+
+
+@pytest.mark.provider("qiskit")
+@pytest.mark.parametrize(
+    "angle, expected_angle",
+    [
+        (asin(theta), np.arcsin(-0.25)),
+        (acos(theta), np.arccos(-0.25)),
+        (atan(theta), np.arctan(-0.25)),
+        (Abs(theta), 0.25),
+    ],
+)
+def test_qiskit_symbolic_function_names(angle: Expr, expected_angle: float):
+    translated = QCircuit([Ry(angle, 0)]).to_other_language(Language.QISKIT)
+    bound = translated.assign_parameters({"θ": -0.25})
+    assert float(bound.data[0].operation.params[0]) == pytest.approx(expected_angle)
 
 
 @pytest.mark.provider("braket")

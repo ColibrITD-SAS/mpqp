@@ -51,9 +51,15 @@ def _apply_qiskit_function(
     name: str, value: "ParameterExpression"
 ) -> "ParameterExpression":
     """Apply a supported symbolic function to a Qiskit expression."""
-    operation = getattr(value, name, None)
+    function_names = {
+        "asin": "arcsin",
+        "acos": "arccos",
+        "atan": "arctan",
+        "Abs": "abs",
+    }
+    operation = getattr(value, function_names.get(name, name), None)
     if not callable(operation):
-        raise ValueError(f"Qiskit parameters do not support the function {name!r}.")
+        raise ValueError(f"Qiskit parameters do not support the function `{name}`.")
     return cast("ParameterExpression", operation())
 
 
@@ -88,7 +94,7 @@ def _qiskit_parameter_adder(
             name = str(symbol)
             matches = [item for item in qiskit_parameters if item.name == name]
             if len(matches) > 1:
-                raise ReferenceError(f"Several Qiskit parameters are named {name!r}.")
+                raise ReferenceError(f"Several Qiskit parameters are named `{name}`.")
             if matches:
                 parameters.append(matches[0])
             else:
@@ -123,7 +129,7 @@ def _sympy_to_braket_param(
             try:
                 return float(val.evalf())  # pyright: ignore[reportArgumentType]
             except Exception as e:
-                raise ValueError(f"Failed to evaluate sympy expression '{val}': {e}")
+                raise ValueError(f"Failed to evaluate sympy expression `{val}`: {e}")
     else:
         return float(val)
 
