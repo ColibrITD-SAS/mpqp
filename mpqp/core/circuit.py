@@ -171,13 +171,34 @@ class QCircuit:
         self._instructions: list[Instruction] = []
         """Private list of instructions with positions in the circuit."""
         self._instruction_revision = Shared(0)
-        """Shared with shallow clones that share instruction storage."""
+        """Counter incremented when instructions are added, removed, or replaced.
+        Shallow clones sharing instruction storage share this counter, so edits
+        through either circuit invalidate both circuits' cached gate lists.
+        Independent instruction storage gets an independent counter.
+        """
         self._measurement_indexes: list[int] = []
         """Indexes of the measurements in ``_instructions``."""
         self._variable_gates: list[ParametrizedGate] = []
+        """References to parameterized gates at ``_variable_revision``.
+        Rebuilt lazily by :meth:`variables` after instruction storage changes.
+        Keeping gate references lets parameter checks see mutations made through
+        a gate shared with another circuit or retained by the caller.
+        """
         self._variable_revision = -1
+        """Instruction revision used to build ``_variable_gates``.
+        The initial value forces the first :meth:`variables` call to build it.
+        """
         self._variable_parameters: Optional[tuple[Expr | float, ...]] = None
+        """Parameter-value snapshot used to compute ``_variables``.
+        Every :meth:`variables` call compares current gate parameters with this
+        snapshot, because editing a parameter does not change the instruction
+        revision. ``None`` forces the initial symbol extraction.
+        """
         self._variables: set[Expr] = set()
+        """Cached free symbols of ``_variable_parameters``.
+        May be stale until :meth:`variables` checks the gates and their parameters.
+        That method returns a copy so callers cannot modify the cached set.
+        """
         self.noises: list[NoiseModel] = []
         """List of noise models attached to the circuit."""
         self._user_nb_cbits: Optional[int] = None
@@ -946,7 +967,8 @@ class QCircuit:
         qubits, gate restriction) in parameter.
 
         Args:
-            criteria: String, or list of strings, regrouping the criteria of optimization of the circuit.
+            criteria: String, or list of strings, regrouping the criteria of
+            optimization of the circuit.
 
         Returns:
             the optimized QCircuit
@@ -1166,6 +1188,7 @@ class QCircuit:
             exclude_attrs = []
         if isinstance(exclude_attrs, str):
             exclude_attrs = [exclude_attrs]
+        # Rebuild derived caches against the clone's own instruction objects.
         excluded_attrs = set(exclude_attrs) | {
             "_variable_gates",
             "_variable_revision",

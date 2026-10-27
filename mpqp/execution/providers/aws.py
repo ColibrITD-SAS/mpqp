@@ -526,10 +526,9 @@ def run_braket_observable(job: Job) -> Result:
                 for group in grouping
             ]
             for circuit in pre_measure:
-                instructions = (
-                    circuit._instructions  # pyright: ignore[reportPrivateUsage]
-                )
-                for instr in instructions:
+                for (
+                    instr
+                ) in circuit._instructions:  # pyright: ignore[reportPrivateUsage]
                     instr.targets = [job.measure.targets[t] for t in instr.targets]
             transpiled_pre_measures = [
                 pre_m.to_other_language(Language.BRAKET) for pre_m in pre_measure
