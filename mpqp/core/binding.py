@@ -235,6 +235,11 @@ class CircuitBinding:
                     deep_copy=False
                 )
 
+                if isinstance(circuit_without_measurements.transpiled_circuit, dict):
+                    circuit_without_measurements.transpiled_circuit.clear()
+                else:
+                    circuit_without_measurements.transpiled_circuit = None
+
                 normalized_circuits.append(
                     CircuitBinding(
                         circuits=circuit_without_measurements,
