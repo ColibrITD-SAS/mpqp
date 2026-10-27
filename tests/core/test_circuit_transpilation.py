@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from sympy import Symbol
 
-from mpqp import QCircuit
+from mpqp import BasisMeasure, QCircuit
 from mpqp.execution.devices import IBMDevice
 from mpqp.execution.runner import run
 from mpqp.gates import Ry, X
@@ -48,5 +48,16 @@ def test_shallow_copy_has_independent_preparation_cache():
     template = circuit.transpiled_for_device(device)
     clone = circuit.without_measurements(deep_copy=False)
     clone.add(X(0))
+    assert clone.transpiled_circuit == {}
+    assert circuit.transpiled_circuit[device] is template
+
+
+@pytest.mark.provider("qiskit")
+def test_removing_measurement_invalidates_only_the_clone_cache():
+    circuit = QCircuit([X(0), BasisMeasure([0], shots=100)])
+    device = IBMDevice.AER_SIMULATOR
+    template = circuit.transpiled_for_device(device)
+    clone = circuit.without_measurements(deep_copy=False)
+    assert clone.measurements == []
     assert clone.transpiled_circuit == {}
     assert circuit.transpiled_circuit[device] is template

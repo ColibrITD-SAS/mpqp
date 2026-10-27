@@ -258,6 +258,7 @@ def test_CRk(angle_bin_pow: int, result_matrix: Matrix):
 
 @pytest.fixture
 def symbolic_circuits() -> list[tuple[QCircuit, dict[str, float], float]]:
+    assumed_theta = symbols("assumed_theta", real=True)
     return [
         (
             QCircuit([Ry(2 * theta + phi, 0)]),
@@ -279,6 +280,11 @@ def symbolic_circuits() -> list[tuple[QCircuit, dict[str, float], float]]:
             QCircuit([Ry(sin(theta), 0), Ry(theta, 0)]),
             {"θ": 0.2},
             float(np.sin((np.sin(0.2) + 0.2) / 2) ** 2),
+        ),
+        (
+            QCircuit([Ry(assumed_theta, 0)]),
+            {"assumed_theta": 0.2},
+            float(np.sin(0.1) ** 2),
         ),
     ]
 
@@ -314,14 +320,14 @@ def test_braket_symbolic_expressions(
         assert {str(parameter) for parameter in translated.parameters} == set(values)
         assert len(translated.parameters) == len(values)
         bound = translated.make_bound_circuit(
-            values
-        )  # pyright: ignore[reportArgumentType]
+            values  # pyright: ignore[reportArgumentType]
+        )
         result = simulator.run(
-            bound.probability(), shots=0
-        ).result()  # pyright: ignore[reportAttributeAccessIssue]
-        assert result.values[0][1] == pytest.approx(
-            expected_probability
-        )  # pyright: ignore[reportAttributeAccessIssue]
+            bound.probability(), shots=0  # pyright: ignore[reportAttributeAccessIssue]
+        ).result()
+        assert result.values[0][  # pyright: ignore[reportAttributeAccessIssue]
+            1
+        ] == pytest.approx(expected_probability)
         assert len(translated.parameters) == len(values)
 
 
@@ -336,8 +342,8 @@ def test_cirq_symbolic_expressions(
         translated = circuit.to_other_language(Language.CIRQ)
         assert cirq.parameter_names(translated) == set(values)
         bound = cirq.resolve_parameters(
-            translated, values
-        )  # pyright: ignore[reportArgumentType]
+            translated, values  # pyright: ignore[reportArgumentType]
+        )
         assert not cirq.is_parameterized(bound)
         result = simulator.simulate(bound)
         assert abs(result.final_state_vector[1]) ** 2 == pytest.approx(

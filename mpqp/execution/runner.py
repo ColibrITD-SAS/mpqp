@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING, Optional, Sequence, Union, overload
 import numpy as np
 
 from mpqp.core.circuit import QCircuit
-from mpqp.core.circuitbinding import CircuitBinding
+from mpqp.core.binding import CircuitBinding
 from mpqp.core.instruction.breakpoint import Breakpoint
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
 from mpqp.core.instruction.measurement.expectation_value import (
@@ -48,7 +48,6 @@ from mpqp.execution.providers.atos import run_atos, submit_QLM
 from mpqp.execution.providers.aws import run_braket, submit_job_braket
 from mpqp.execution.providers.azure import run_azure, submit_job_azure
 from mpqp.execution.providers.google import run_google
-from mpqp.execution.providers.ibm import run_ibm, submit_remote_ibm
 from mpqp.execution.providers.providers_params import (
     AWSParams,
     ProviderParams,
@@ -271,6 +270,8 @@ def generate_job(
         The Job containing information about the execution of the circuit.
     """
     exec_mode = exec_mode or ExecutionMode.JOB
+    from ..core.binding import CircuitBinding
+
     if values is not None:
         if isinstance(circuit, CircuitBinding):
             raise ValueError("values must be specified in CircuitBinding")
@@ -358,6 +359,8 @@ def _compute_result_diagonal_observables(
     """
 
     probas = result.probabilities
+    observable_job.id = result.job.id
+    observable_job.status = JobStatus.DONE
 
     error = 0 if exp_measure.shots == 0 else None
     if exp_measure.nb_observables == 1:
@@ -375,7 +378,6 @@ def _compute_result_diagonal_observables(
             # 3M-TODO: replace this dot product with copy, apparently more optim
             exp_values[obs.label] = float(probas.dot(obs.diagonal_elements))
             errors[obs.label] = error
-
         result = Result(
             observable_job,
             exp_values,
