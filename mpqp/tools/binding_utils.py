@@ -89,10 +89,12 @@ def __translate_binding_circuits(
                         )
                     else:
                         if device not in circuit.transpiled_circuit:
-                            circuit.transpiled_circuit[device] = circuit.to_other_device(
-                                device,
-                                skip_pre_measure=skip_pre_measure,
-                                backend_sim=backend_sim,
+                            circuit.transpiled_circuit[device] = (
+                                circuit.to_other_device(
+                                    device,
+                                    skip_pre_measure=skip_pre_measure,
+                                    backend_sim=backend_sim,
+                                )
                             )
                         translated_circuit = circuit.transpiled_circuit[device]
                     result.update({id(circuit): translated_circuit})
