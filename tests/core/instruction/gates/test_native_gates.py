@@ -258,6 +258,7 @@ def test_CRk(angle_bin_pow: int, result_matrix: Matrix):
 
 @pytest.fixture
 def symbolic_circuits() -> list[tuple[QCircuit, dict[str, float], float]]:
+    assumed_theta = symbols("assumed_theta", real=True)
     return [
         (
             QCircuit([Ry(2 * theta + phi, 0)]),
@@ -279,6 +280,11 @@ def symbolic_circuits() -> list[tuple[QCircuit, dict[str, float], float]]:
             QCircuit([Ry(sin(theta), 0), Ry(theta, 0)]),
             {"θ": 0.2},
             float(np.sin((np.sin(0.2) + 0.2) / 2) ** 2),
+        ),
+        (
+            QCircuit([Ry(assumed_theta, 0)]),
+            {"assumed_theta": 0.2},
+            float(np.sin(0.1) ** 2),
         ),
     ]
 

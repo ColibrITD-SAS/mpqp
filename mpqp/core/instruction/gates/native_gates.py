@@ -111,11 +111,14 @@ def _sympy_to_braket_param(
     val: Expr | float,
 ) -> "FreeParameterExpression | float":
     from braket.circuits import FreeParameterExpression
-    from sympy import Expr
+    from sympy import Expr, Symbol
 
     if isinstance(val, Expr):
         if val.free_symbols:
-            return FreeParameterExpression(val)
+            normalized_symbols = {
+                symbol: Symbol(str(symbol)) for symbol in val.free_symbols
+            }
+            return FreeParameterExpression(val.xreplace(normalized_symbols))
         else:
             try:
                 return float(val.evalf())  # pyright: ignore[reportArgumentType]
