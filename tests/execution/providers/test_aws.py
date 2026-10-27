@@ -2,6 +2,7 @@ import sys
 
 import numpy as np
 import pytest
+from sympy import Symbol
 
 from mpqp import (
     CNOT,
@@ -12,9 +13,11 @@ from mpqp import (
     Observable,
     QCircuit,
     Result,
+    Ry,
     X,
     run,
 )
+from mpqp.core.binding import CircuitBinding
 from mpqp.execution.providers.aws import (
     _ordered_measurement_probabilities,  # pyright: ignore[reportPrivateUsage]
 )
@@ -22,6 +25,7 @@ from mpqp.execution.providers.aws import (
     run_braket,
     submit_job_braket,
 )
+from mpqp.execution.result import BatchResult
 from mpqp.execution.runner import generate_job
 from mpqp.measures import pI, pX, pZ
 
@@ -108,8 +112,25 @@ def test_run_braket_preserves_task_id_in_result():
 
     assert isinstance(result, Result)
     assert result.job is job
-    assert result.job.id == job.id
     assert isinstance(result.job.id, str)
+    assert result.job.id
+
+
+@pytest.mark.provider("braket")
+def test_braket_circuit_binding_binds_task_ids():
+    theta = Symbol("theta")
+    binding = CircuitBinding(
+        QCircuit([Ry(theta, 0)]),
+        values=[{theta: 0.0}, {theta: np.pi}],
+    )
+    job = generate_job(binding, AWSDevice.BRAKET_LOCAL_SIMULATOR)
+
+    result = run_braket(job)
+
+    assert isinstance(result, BatchResult)
+    assert isinstance(job.id, list)
+    assert len(result.results) == 2
+    assert [execution.job.id for execution in result.results] == job.id
 
 
 @pytest.mark.provider("braket")

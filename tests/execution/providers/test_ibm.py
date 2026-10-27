@@ -8,9 +8,11 @@ from qiskit.primitives.containers import DataBin
 from qiskit.quantum_info import SparsePauliOp
 from qiskit_aer import AerSimulator
 from qiskit_ibm_runtime import EstimatorV2, SamplerV2
+from sympy import Symbol
 
-from mpqp import BatchResult, H, IBMDevice, Job, JobType, QCircuit, Result
-from mpqp.execution.providers.ibm import extract_result, submit_remote_ibm
+from mpqp import BatchResult, H, IBMDevice, Job, JobType, QCircuit, Result, Ry
+from mpqp.core.binding import CircuitBinding
+from mpqp.execution.providers.ibm import extract_result, run_ibm, submit_remote_ibm
 from mpqp.execution.runner import generate_job
 from mpqp.gates import *
 from mpqp.measures import *
@@ -24,7 +26,7 @@ def remote_ibm_execution_binds_job_id():
     job_id, ibm_job = submit_remote_ibm(job)
 
     assert job_id == ibm_job.job_id()
-    assert job.id == ibm_job.job_id()
+    assert job.id == job_id
 
     assert isinstance(job.device, IBMDevice)
     result = extract_result(ibm_job.result(), job, job.device)
@@ -35,6 +37,23 @@ def remote_ibm_execution_binds_job_id():
 
 if "--long-costly" in sys.argv:
     test_remote_ibm_execution_binds_job_id = remote_ibm_execution_binds_job_id
+
+
+@pytest.mark.provider("qiskit")
+def test_ibm_circuit_binding_binds_job_id():
+    theta = Symbol("theta")
+    binding = CircuitBinding(
+        QCircuit([Ry(theta, 0)]),
+        values=[{theta: 0.0}, {theta: np.pi}],
+    )
+    job = generate_job(binding, IBMDevice.AER_SIMULATOR)
+
+    result = run_ibm(job)
+
+    assert isinstance(result, BatchResult)
+    assert isinstance(job.id, str)
+    assert len(result.results) == 2
+    assert all(execution.job.id == job.id for execution in result.results)
 
 
 @pytest.mark.provider("qiskit")

@@ -20,6 +20,7 @@ from mpqp import (
     T,
     run,
 )
+from mpqp.measures import pX, pZ
 from mpqp.translation.qasm.qasm_to_cirq import qasm2_to_cirq_Circuit
 
 if TYPE_CHECKING:
@@ -82,13 +83,23 @@ def test_running_local_cirq(circuit: QCircuit):
 
 
 @pytest.mark.provider("cirq")
-def remote_google_ionq_execution_binds_job_id():
-    circuit = QCircuit([H(0), BasisMeasure([0], shots=1)])
+def remote_google_ionq_observable_binds_job_ids():
+    circuit = QCircuit(
+        [
+            H(0),
+            ExpectationMeasure(
+                Observable(pX + pZ),
+                shots=1,
+                optimize_measurement=True,
+            ),
+        ]
+    )
 
     result = run(circuit, GOOGLEDevice.IONQ_SIMULATOR)
 
-    assert isinstance(result.job.id, str)
-    assert result.job.id
+    assert isinstance(result.job.id, list)
+    assert len(result.job.id) == 2
+    assert all(isinstance(job_id, str) and job_id for job_id in result.job.id)
 
 
 @pytest.fixture
@@ -128,6 +139,6 @@ def test_qasm2_to_cirq_Circuit(list_cirq: list[tuple[QCircuit, str]]):
 
 
 if "--long-costly" in sys.argv:
-    test_remote_google_ionq_execution_binds_job_id = (
-        remote_google_ionq_execution_binds_job_id
+    test_remote_google_ionq_observable_binds_job_ids = (
+        remote_google_ionq_observable_binds_job_ids
     )
