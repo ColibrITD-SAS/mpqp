@@ -112,7 +112,12 @@ def _qiskit_parameter_adder(
             )
             for function in param.atoms(Function)
         }
-        evaluator = lambdify(symbols, param, modules=[functions, "math"], dummify=True)
+        evaluator = lambdify(
+            symbols,
+            param,
+            modules=[{"sqrt": lambda value: value**0.5}, functions, "math"],
+            dummify=True,
+        )
         return cast("ParameterExpression | float", evaluator(*parameters))
     return float(param)
 
