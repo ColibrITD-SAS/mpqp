@@ -23,10 +23,10 @@ from mpqp.tools.generics import MessageEnum
 # is a class (probably because Enum does weird things to the Enum class)
 if TYPE_CHECKING:
     from enum import Enum
-    from sympy import Expr
-    from numbers import Complex
-    from ..core.circuit import QCircuit
-    from ..core.binding import CircuitBinding
+
+    from mpqp.core.binding import CircuitBinding
+    from mpqp.core.circuit import QCircuit
+    from mpqp.execution.runner import ValuesDict
 
 from mpqp.core.instruction.measurement import BasisMeasure, ExpectationMeasure, Measure
 
@@ -80,6 +80,19 @@ class JobType(Enum):
     retrieve the expectation value in an optimal manner."""
 
 
+class ExecutionMode(Enum):
+    """Execution mode for remote backends.
+    It controls how jobs are submitted (single job, batch and session).
+    """
+
+    JOB = "JOB"
+    BATCH = "BATCH"
+    SESSION = "SESSION"
+
+    def __str__(self):
+        return self.value
+
+
 class Job:
     """Representation of a job, an object regrouping all the information about
     the submission of a computation/measure of a quantum circuit on a
@@ -97,6 +110,7 @@ class Job:
         device: Device (simulator, quantum computer) on which we want to execute
             the job.
         measure: Object representing the measure to perform.
+        mode: Remote execution mode (JOB(single), BATCH(batch/params) and SESSION(IBM Runtime Session)).
 
     Examples:
         >>> circuit = QCircuit(3)
@@ -121,7 +135,9 @@ class Job:
         circuit: QCircuit | CircuitBinding,
         device: AvailableDevice,
         measurement: Optional[Measure] = None,
-        values: Optional[dict[Expr | str, Complex | float]] = None,
+        values: Optional["ValuesDict"] = None,
+        *,
+        mode: ExecutionMode = ExecutionMode.JOB,
     ):
         self._status = JobStatus.INIT
 
@@ -131,12 +147,21 @@ class Job:
         """See parameter description."""
         self.device = device
         """See parameter description."""
+        self.mode = mode
+        """See parameter description."""
         self.id: Optional[str] = None
         """Contains the id of the remote job, used to retrieve the result from 
         the remote provider.  ``None`` if the job is local. It can take a little
         while before it is set to the right value (For instance, a job
         submission can require handshake protocols to conclude before
         attributing an id to the job)."""
+        self.values: Optional["ValuesDict"] = None
+        """Parameter bindings for circuits containing symbolic variables.
+
+        For local execution, parameters are typically substituted directly into the
+        circuit prior to execution. For remote execution, these bindings are stored in the
+        ``Job`` so the provider can bind them on the transpiled circuit without
+        re-transpiling the circuit each time."""
         self.status_message: Optional[str] = None
         """Optional message associated with the current job status, especially
         for execution errors."""
@@ -195,7 +220,8 @@ class Job:
         self._status = job_status
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}({self.job_type}, {repr(self.circuit)}, {self.device})"
+        # TODO: improve repr
+        return f"{type(self).__name__}({self.job_type}, {repr(self.circuit)}, {self.device}, mode={self.mode})"
 
     def __eq__(self, other):  # pyright: ignore[reportMissingParameterType]
         if not isinstance(other, Job):
@@ -212,6 +238,7 @@ class Job:
             "job_type": self.job_type,
             "circuit": self.circuit,
             "device": self.device,
+            "mode": self.mode,
             "measure": self.measure,
             "id": self.id,
             "status": self.status,
@@ -256,7 +283,7 @@ class Job:
         Uses :func:`~mpqp.local_storage.load.get_jobs_with_id`.
 
         Args:
-            job_id: Local id of the job you need.
+           job_id: Local id of the job you need.
 
         Example:
             >>> Job.load_by_local_id(1) # doctest: +ELLIPSIS

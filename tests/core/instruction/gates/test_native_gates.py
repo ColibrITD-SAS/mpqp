@@ -2,6 +2,8 @@ import numpy as np
 import pytest
 from sympy import Expr, I, pi, symbols
 
+from mpqp.core.circuit import QCircuit
+from mpqp.core.languages import Language
 from mpqp.gates import *
 from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import cos, exp, matrix_eq, sin
@@ -252,3 +254,99 @@ def test_Rk(angle_bin_pow: int, result_matrix: Matrix):
 )
 def test_CRk(angle_bin_pow: int, result_matrix: Matrix):
     assert matrix_eq(CRk(angle_bin_pow, 0, 1).to_matrix(), result_matrix)
+
+
+@pytest.fixture
+def symbolic_circuits() -> list[tuple[QCircuit, dict[str, float], float]]:
+    assumed_theta = symbols("assumed_theta", real=True)
+    return [
+        (
+            QCircuit([Ry(2 * theta + phi, 0)]),
+            {"θ": 0.2, "φ": 0.1},
+            float(np.sin(0.25) ** 2),
+        ),
+        (
+            QCircuit([Ry(theta, 0), Ry(theta, 0)]),
+            {"θ": 0.2},
+            float(np.sin(0.2) ** 2),
+        ),
+        (
+            QCircuit([Ry(pi / 2, 0), Ry(theta, 0)]),
+            {"θ": 0.2},
+            float(np.sin((np.pi / 2 + 0.2) / 2) ** 2),
+        ),
+        (QCircuit([Ry(pi / 2, 0)]), {}, 0.5),
+        (
+            QCircuit([Ry(sin(theta), 0), Ry(theta, 0)]),
+            {"θ": 0.2},
+            float(np.sin((np.sin(0.2) + 0.2) / 2) ** 2),
+        ),
+        (
+            QCircuit([Ry(assumed_theta, 0)]),
+            {"assumed_theta": 0.2},
+            float(np.sin(0.1) ** 2),
+        ),
+    ]
+
+
+@pytest.mark.provider("qiskit")
+def test_qiskit_symbolic_expressions(
+    symbolic_circuits: list[tuple[QCircuit, dict[str, float], float]],
+):
+    from qiskit.quantum_info import Statevector
+
+    for circuit, values, expected_probability in symbolic_circuits:
+        translated = circuit.to_other_language(Language.QISKIT)
+        assert {parameter.name for parameter in translated.parameters} == set(values)
+        assert len(translated.parameters) == len(values)
+        bound = translated.assign_parameters(
+            {parameter: values[parameter.name] for parameter in translated.parameters}
+        )
+        assert Statevector(bound).probabilities()[1] == pytest.approx(
+            expected_probability
+        )
+        assert len(translated.parameters) == len(values)
+
+
+@pytest.mark.provider("braket")
+def test_braket_symbolic_expressions(
+    symbolic_circuits: list[tuple[QCircuit, dict[str, float], float]],
+):
+    from braket.devices import LocalSimulator
+
+    simulator = LocalSimulator()
+    for circuit, values, expected_probability in symbolic_circuits:
+        translated = circuit.to_other_language(Language.BRAKET)
+        assert {str(parameter) for parameter in translated.parameters} == set(values)
+        assert len(translated.parameters) == len(values)
+        bound = translated.make_bound_circuit(
+            values  # pyright: ignore[reportArgumentType]
+        )
+        result = simulator.run(
+            bound.probability(), shots=0  # pyright: ignore[reportAttributeAccessIssue]
+        ).result()
+        assert result.values[0][  # pyright: ignore[reportAttributeAccessIssue]
+            1
+        ] == pytest.approx(expected_probability)
+        assert len(translated.parameters) == len(values)
+
+
+@pytest.mark.provider("cirq")
+def test_cirq_symbolic_expressions(
+    symbolic_circuits: list[tuple[QCircuit, dict[str, float], float]],
+):
+    import cirq
+
+    simulator = cirq.Simulator(dtype=np.complex128)
+    for circuit, values, expected_probability in symbolic_circuits:
+        translated = circuit.to_other_language(Language.CIRQ)
+        assert cirq.parameter_names(translated) == set(values)
+        bound = cirq.resolve_parameters(
+            translated, values  # pyright: ignore[reportArgumentType]
+        )
+        assert not cirq.is_parameterized(bound)
+        result = simulator.simulate(bound)
+        assert abs(result.final_state_vector[1]) ** 2 == pytest.approx(
+            expected_probability
+        )
+        assert cirq.parameter_names(translated) == set(values)

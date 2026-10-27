@@ -60,13 +60,13 @@ def __translate_binding_circuits(
 
             else:
                 if isinstance(device, AWSDevice):
-                    result.update(
-                        {
-                            id(circuit): (
-                                circuit + QCircuit(cb.noises)
-                            ).to_other_device(device)
-                        }
-                    )
+                    if cb.noises:
+                        translated_circuit = (
+                            circuit + QCircuit(cb.noises)
+                        ).to_other_device(device)
+                    else:
+                        translated_circuit = circuit.transpiled_for_device(device)
+                    result.update({id(circuit): translated_circuit})
                 elif isinstance(device, IBMDevice):
                     if cb.is_noisy:
                         from mpqp.execution.providers.ibm import (
@@ -88,11 +88,15 @@ def __translate_binding_circuits(
                             backend_sim=backend_sim,
                         )
                     else:
-                        translated_circuit = circuit.to_other_device(
-                            device,
-                            skip_pre_measure=skip_pre_measure,
-                            backend_sim=backend_sim,
-                        )
+                        if device not in circuit.transpiled_circuit:
+                            circuit.transpiled_circuit[device] = (
+                                circuit.to_other_device(
+                                    device,
+                                    skip_pre_measure=skip_pre_measure,
+                                    backend_sim=backend_sim,
+                                )
+                            )
+                        translated_circuit = circuit.transpiled_circuit[device]
                     result.update({id(circuit): translated_circuit})
                 else:
                     raise NotImplementedError

@@ -372,7 +372,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
             circuit_id = id(circuit)
             translated_circuit = translated_circuits.get(circuit_id)
             if translated_circuit is None:
-                if not isinstance(circuit.transpiled_circuit, braket_Circuit):
+                if device not in circuit.transpiled_circuit:
                     translated_circuit = (
                         circuit + QCircuit(binding.noises)
                     ).to_other_device(device=device)
@@ -382,7 +382,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                     )
 
                     translated_circuit = apply_noise_to_braket_circuit(
-                        circuit.transpiled_circuit,
+                        circuit.transpiled_circuit[device],
                         noises=binding.noises if binding.noises is not None else [],
                         nb_qubits=circuit.nb_qubits,
                     )

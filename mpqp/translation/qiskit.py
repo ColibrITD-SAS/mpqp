@@ -282,8 +282,8 @@ if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
                 q_obs.append(
                     [
                         (
-                            obs.pre_transpiled
-                            if obs.pre_transpiled is not None
+                            obs.pre_transpiled[device]
+                            if device in obs.pre_transpiled
                             else obs.to_other_language(Language.QISKIT)
                         )
                         for obs in measure.observables
