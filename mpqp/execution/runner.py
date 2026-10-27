@@ -48,6 +48,7 @@ from mpqp.execution.providers.azure import run_azure, submit_job_azure
 from mpqp.execution.providers.google import run_google
 from mpqp.execution.providers.ibm import run_ibm, submit_remote_ibm
 from mpqp.execution.providers.providers_params import (
+    BraketParams,
     ProviderParams,
     QiskitParams,
     QuantinuumParams,
@@ -437,7 +438,14 @@ def _run_single(
     elif isinstance(device, ATOSDevice):
         return run_atos(job)
     elif isinstance(device, AWSDevice):
-        return run_braket(job, provider_params)
+        if provider_params is not None and not isinstance(
+            provider_params, BraketParams
+        ):
+            raise TypeError(
+                "`provider_params` must be a `BraketParams` instance, "
+                f"not `{type(provider_params).__name__}`."
+            )
+        result = run_braket(job, provider_params)
     elif isinstance(device, GOOGLEDevice):
         return run_google(job)
     elif isinstance(device, AZUREDevice):
@@ -518,7 +526,14 @@ def _run_circuit_binding(
         raise NotImplementedError(f"Device {device} not handled")
         result = run_atos(jobs)  # TODO
     elif isinstance(device, AWSDevice):
-        result = run_braket(job)
+        if provider_params is not None and not isinstance(
+            provider_params, BraketParams
+        ):
+            raise TypeError(
+                "`provider_params` must be a `BraketParams` instance, "
+                f"not `{type(provider_params).__name__}`."
+            )
+        result = run_braket(job, provider_params)
     elif isinstance(device, GOOGLEDevice):
         raise NotImplementedError(f"Device {device} not handled")
         result = run_google(jobs)  # TODO
@@ -762,6 +777,13 @@ def submit(
     elif isinstance(device, ATOSDevice):
         job_id, _ = submit_QLM(job)
     elif isinstance(device, AWSDevice):
+        if provider_params is not None and not isinstance(
+            provider_params, BraketParams
+        ):
+            raise TypeError(
+                "`provider_params` must be a `BraketParams` instance, "
+                f"not `{type(provider_params).__name__}`."
+            )
         job_id, _ = submit_job_braket(job, provider_params)
     elif isinstance(device, AZUREDevice):
         job_id, _ = submit_job_azure(job)
