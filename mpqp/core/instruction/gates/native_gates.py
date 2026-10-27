@@ -82,7 +82,7 @@ def _qiskit_parameter_adder(
         The memoized parameter
     """
     from qiskit.circuit import Parameter as ParameterConstructor
-    from sympy import Expr, Function, default_sort_key, lambdify
+    from sympy import Expr, Function, Symbol, default_sort_key, lambdify
 
     if isinstance(param, Expr):
         if not param.free_symbols:
@@ -105,6 +105,9 @@ def _qiskit_parameter_adder(
                 created = cast("Parameter", ParameterConstructor(name))
                 qiskit_parameters.add(created)
                 parameters.append(created)
+
+        if isinstance(param, Symbol):
+            return parameters[0]
 
         functions = {
             function.func.__name__: partial(
