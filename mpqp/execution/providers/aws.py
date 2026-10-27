@@ -279,7 +279,9 @@ def run_pseudo_circuit_binding(job: Job) -> BatchResult:
             shots=0,
             inputs=braket_inputs,  # pyright: ignore[reportArgumentType]
         )
+
         job_ids.append(task.id)
+        job.id = job_ids[0] if len(job_ids) == 1 else list(job_ids)
 
         local_job = Job(job.job_type, c, job.device, m, v)
         local_job.id = task.id
@@ -291,7 +293,6 @@ def run_pseudo_circuit_binding(job: Job) -> BatchResult:
             state_vector = StateVector(vector, nb_qubits=local_job.circuit.nb_qubits)
             results.append(Result(local_job, state_vector, 0, 0))
 
-    job.id = job_ids[0] if len(job_ids) == 1 else job_ids
     job.status = JobStatus.DONE
     return BatchResult(results)
 
@@ -332,10 +333,14 @@ def run_circuit_binding(job: Job) -> BatchResult:
         from braket.circuits import Circuit as braket_Circuit
 
         assert isinstance(braket_circuit, braket_Circuit)
+    job.status = JobStatus.RUNNING
+
     task = device.run(braket_circuit, shots=None, inputs=None)
+    job.id = task.id
+
     task_result = task.result()
     nbr_shots = circuitBinding.shots if circuitBinding.shots is not None else 0
-    job.id = task.id
+
     job.status = JobStatus.DONE
 
     if TYPE_CHECKING:
