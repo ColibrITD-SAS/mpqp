@@ -78,7 +78,6 @@ if TYPE_CHECKING:
     from qiskit.circuit import QuantumCircuit
     from qiskit_aer import AerSimulator
     from sympy import Basic, Expr
-    from mpqp.execution.job import JobType
 
     from mpqp.execution.devices import (
         ATOSDevice,
@@ -88,6 +87,7 @@ if TYPE_CHECKING:
         IBMDevice,
         QUANTINUUMDevice,
     )
+    from mpqp.execution.job import JobType
     from mpqp.execution.simulated_devices import StaticIBMSimulatedDevice
 
 
@@ -558,6 +558,7 @@ class QCircuit:
                     inst.c_targets = None
 
             self.add(inst)
+        self.noises.extend(other.noises)
 
     def to_dict(self) -> dict[str, int | str | list[str] | float | None]:
         """
@@ -1080,6 +1081,9 @@ class QCircuit:
             ["measurements", "_nb_cbits"], deep_copy=deep_copy
         )
 
+        if self.measurements:
+            new_circuit.transpiled_circuit.clear()
+
         return new_circuit
 
     def with_measurement(self, deep_copy: bool = True) -> list[Instruction]:
@@ -1344,6 +1348,7 @@ class QCircuit:
         device: ATOSDevice,
         skip_pre_measure: bool = False,
         native_gate_set: bool = False,
+        backend_sim: Optional["AerSimulator"] = None,
     ) -> myQLM_Circuit: ...
 
     @overload
@@ -1352,6 +1357,7 @@ class QCircuit:
         device: AWSDevice,
         skip_pre_measure: bool = False,
         native_gate_set: bool = False,
+        backend_sim: Optional["AerSimulator"] = None,
     ) -> braket_Circuit: ...
 
     @overload
@@ -1360,6 +1366,7 @@ class QCircuit:
         device: GOOGLEDevice,
         skip_pre_measure: bool = False,
         native_gate_set: bool = False,
+        backend_sim: Optional["AerSimulator"] = None,
     ) -> cirq_Circuit: ...
 
     @overload
@@ -1368,6 +1375,7 @@ class QCircuit:
         device: QUANTINUUMDevice,
         skip_pre_measure: bool = False,
         native_gate_set: bool = False,
+        backend_sim: Optional["AerSimulator"] = None,
     ) -> tket_Circuit: ...
 
     @overload
@@ -1406,9 +1414,10 @@ class QCircuit:
 
         Args:
             device: representing the target device.
-            skip_pre_measure: If true, the ``pre_measure`` circuit will not be
+            skip_pre_measure: If ``True``, the ``pre_measure`` circuit will not be
                 added to the output.
-            native_gate_set: If true, checks if every gates in the circuits are natively supported by the device.
+            native_gate_set: If ``True``, checks if every gates in the circuits are natively supported by the device.
+                For IBM's Stabilizer simulators this variable is defaulted to ``True`` since they only support a limited set of gates. For other devices, it is defaulted to ``False``.
             backend_sim: Simulator backend for Qiskit devices.
 
         Returns:
@@ -1909,7 +1918,7 @@ class QCircuit:
     @property
     def is_noisy(self) -> bool:
         """
-        Returns True if the circuit has any noise instructions, False otherwise.
+        Returns `True` if the circuit has any noise instructions, `False` otherwise.
         """
         return len(self.noises) > 0
 

@@ -1,15 +1,16 @@
 import pytest
 from sympy import Symbol
 
+from mpqp.core.binding import BindingMode, CircuitBinding
 from mpqp.core.circuit import QCircuit
-from mpqp.core.binding import CircuitBinding, BindingMode
+from mpqp.core.instruction.measurement import BasisMeasure
 from mpqp.core.instruction.measurement.expectation_value import (
     ExpectationMeasure,
     Observable,
 )
+from mpqp.core.instruction.measurement.pauli_string import pX, pZ
 from mpqp.execution.devices import AWSDevice
 from mpqp.gates import *
-from mpqp.core.instruction.measurement.pauli_string import pX, pZ
 
 t = Symbol("t")
 r = Symbol("r")
@@ -149,7 +150,49 @@ def test_groups_parameter_sets_for_one_circuit():
 
     assert len(program_set) == 1
     assert program_set.total_executables == 2
-    assert len(program_set[0].input_sets) == 2
+    assert len(program_set[0].input_sets) == 2  # type: ignore
+    assert len(contexts) == 1
+    assert len(contexts[0]) == 2
+
+
+@pytest.mark.provider("braket")
+def test_preserves_repeated_bare_circuit_executions():
+    circuit = QCircuit([H(0)])
+    measure = BasisMeasure(shots=100)
+    binding = CircuitBinding([circuit, circuit], measurements=measure)
+
+    program_set, contexts = binding.to_other_device(AWSDevice.BRAKET_LOCAL_SIMULATOR)
+
+    assert len(program_set) == 2
+    assert program_set.total_executables == 2
+    assert [len(entry_contexts) for entry_contexts in contexts] == [1, 1]
+
+
+@pytest.mark.provider("braket")
+def test_preserves_repeated_parameterized_executions():
+    measure = BasisMeasure(shots=100)
+    values = {"t": 1.0, "r": 0.0}
+    binding = CircuitBinding([c1, c1], values=values, measurements=measure)
+
+    program_set, contexts = binding.to_other_device(AWSDevice.BRAKET_LOCAL_SIMULATOR)
+
+    assert len(program_set) == 1
+    assert program_set.total_executables == 2
+    assert program_set[0].input_sets == [values, values]  # type: ignore
+    assert len(contexts) == 1
+    assert len(contexts[0]) == 2
+
+
+@pytest.mark.provider("braket")
+def test_preserves_repeated_observable_executions():
+    measure = ExpectationMeasure(Observable(pZ), optimize_measurement=False, shots=100)
+    binding = CircuitBinding([c1, c1], measurements=measure)
+
+    program_set, contexts = binding.to_other_device(AWSDevice.BRAKET_LOCAL_SIMULATOR)
+
+    assert len(program_set) == 1
+    assert program_set.total_executables == 2
+    assert len(program_set[0].observables) == 2  # type: ignore
     assert len(contexts) == 1
     assert len(contexts[0]) == 2
 
@@ -171,8 +214,8 @@ def test_groups_simple_observables_and_parameter_sets_for_one_circuit():
 
     assert len(program_set) == 1
     assert program_set.total_executables == 4
-    assert len(program_set[0].input_sets) == 2
-    assert len(program_set[0].observables) == 2
+    assert len(program_set[0].input_sets) == 2  # type: ignore
+    assert len(program_set[0].observables) == 2  # type: ignore
     assert len(contexts[0]) == 4
 
 

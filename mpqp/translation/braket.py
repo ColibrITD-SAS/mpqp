@@ -1,8 +1,6 @@
 from typing import (
     TYPE_CHECKING,
     Any,
-    Literal,
-    overload,
 )
 from warnings import warn
 
@@ -20,8 +18,8 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
     from braket.circuits import Observable as BraketObservable
     from braket.program_sets import CircuitBinding as BraketBinding
 
-    from mpqp.core.circuit import QCircuit
     from mpqp.core.binding import BindingParameters
+    from mpqp.core.circuit import QCircuit
     from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
     from mpqp.core.instruction.measurement.measure import Measure
 
@@ -29,7 +27,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
         from braket.program_sets import ProgramSet
 
         from mpqp.core.binding import CircuitBinding
-        from mpqp.execution.devices import AvailableDevice
+        from mpqp.execution.devices import AWSDevice
 
     def braket_to_mpqp(qcircuit: "braket_Circuit") -> "QCircuit":
 
@@ -218,403 +216,8 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
             )
         return braket_circuit
 
-    @overload
-    def _cb_to_programset_pauli_grouping(
-        binding: "CircuitBinding", device: "AvailableDevice", depth: Literal[0]
-    ) -> "tuple[ProgramSet, list[tuple[Any]]]": ...
-    @overload
-    def _cb_to_programset_pauli_grouping(
-        binding: "CircuitBinding", device: "AvailableDevice", depth: Literal[1, 2]
-    ) -> "CircuitBinding": ...
-    @overload
-    def _cb_to_programset_pauli_grouping(
-        binding: "CircuitBinding", device: "AvailableDevice", depth: Literal[0, 1, 2]
-    ) -> "CircuitBinding | tuple[ProgramSet, list[tuple[Any]]]": ...
-    def _cb_to_programset_pauli_grouping(
-        binding: "CircuitBinding",
-        device: "AvailableDevice",
-        depth: Literal[0, 1, 2] = 0,
-    ) -> "tuple[ProgramSet, list[tuple[Any]]] | CircuitBinding":
-        """Translate a binding to a Braket program set using Pauli grouping.
-
-        Nested bindings are translated recursively and retain their translated
-        circuits, observables and variables until the root binding assembles
-        the final program set.
-
-        Args:
-            binding: Circuit binding to translate.
-            device: AWS device targeted by the translated circuits.
-            depth: Nesting depth of ``binding``. Zero denotes the root binding.
-
-        Returns:
-            At the root, the Braket ``ProgramSet`` and the context required to
-            rebuild MPQP results. At a nested depth, the binding populated with
-            its translated provider data.
-
-        Raises:
-            ValueError: If both a nested binding and its parent define values
-                or observables for the same execution axis.
-        """
-        from braket.program_sets import ProgramSet
-        from braket.circuits import Circuit as braket_Circuit
-        from mpqp.core import Language, QCircuit
-        from mpqp.core.binding import CircuitBinding, BindingMode
-
-        # translate inner circuits to braket and CB's elements to Braket
-        translated: list[CircuitBinding | braket_Circuit] = []
-        for c in binding.circuits:
-            if isinstance(c, QCircuit):
-                translated.append(c.to_other_language(Language.BRAKET))
-            else:
-                translation = _cb_to_programset_pauli_grouping(c, device, depth + 1)  # type: ignore
-
-                if isinstance(translation, list):
-                    translated.extend(translation)
-                else:
-                    translated.append(translation)
-
-        # translate var
-        var = []
-        if binding.value:
-            from copy import deepcopy
-
-            var = deepcopy(binding.value)
-            converted = []
-            for variables in var:
-                current = {}
-                for key in variables.keys():
-                    val = variables[key]  # pyright: ignore[reportArgumentType]
-                    current.update({str(key): [val]})
-                converted.append(current)
-            var = converted
-
-        from braket.program_sets import CircuitBinding as BraketBinding
-
-        obs = []
-        if binding.measurements:
-
-            for m in binding.measurements:
-                from mpqp.core.instruction import ExpectationMeasure
-
-                if isinstance(m, ExpectationMeasure):
-                    if any([o.is_matrix_set() for o in m.observables]):
-                        # This is because of braket's programSet limitations
-                        warn(
-                            "To translate observables from CircuitBindings to braket we need to translate the matrix to pauli string. This process might impact performances on big matrices."
-                        )
-                    from mpqp.tools.pauli_grouping import (
-                        find_qubitwise_rotations,
-                        pauli_monomial_eigenvalues,
-                    )
-
-                    grouping = m.get_pauli_grouping()
-                    transpiled_pre_measures = [
-                        QCircuit(find_qubitwise_rotations(group)).to_other_language(
-                            Language.BRAKET
-                        )
-                        for group in grouping
-                    ]
-                    eigenvalues = [
-                        {
-                            monom.name: pauli_monomial_eigenvalues(monom)
-                            for monom in group
-                        }
-                        for group in grouping
-                    ]
-                    obs.append(
-                        (
-                            m.observables,
-                            eigenvalues,
-                            transpiled_pre_measures,
-                            grouping,
-                        )
-                    )
-                else:
-                    obs.append(m.to_other_language(Language.BRAKET))
-
-        if depth != 0:  # If the circuitBinding is embedded store the translated data.
-            binding._translated_circuits = translated  # pyright: ignore[reportAttributeAccessIssue, reportPrivateUsage]
-            binding._translated_observables = (  # pyright: ignore[reportPrivateUsage, reportAttributeAccessIssue]
-                obs
-            )
-            binding._translated_variables = (  # pyright: ignore[reportPrivateUsage, reportAttributeAccessIssue]
-                var
-            )
-            return binding
-
-        executable_list = []
-        context = []  # this list holds information to sort the results afterwards
-        # This list helps differentiate exp_values later because braket creates 1 job per pauli MONOMIALS so we will need to group them afterwards.
-
-        # i is used only if the binding mode is zip
-        if len(translated) == 1 and (
-            not isinstance(translated[0], CircuitBinding)
-            or len(translated[0].circuits) == 1
-        ):
-            # if i == -1 then we're in the case of a single circuit in the binding.
-            # Otherwise it'll iterate of the translated circuit (and bindings) and apply the values and obs accordingly
-            i = -1
-        else:
-            i = 0
-        if binding.mode == BindingMode.ZIP:
-            if not var and not obs:
-                executables = [(None, None)] * (1 if i == -1 else len(translated))
-            else:
-                executables = list(
-                    zip(
-                        var or [None] * len(obs),
-                        obs or [None] * len(var),
-                    )
-                )
-        else:
-            from itertools import product
-
-            executables = list(product(var or [None], obs or [None]))
-
-        for values, observable in executables:
-            if binding.mode == BindingMode.PRODUCT:
-                for t in translated:
-                    if isinstance(t, CircuitBinding):
-                        if (
-                            t._translated_observables  # pyright: ignore[reportPrivateUsage]
-                            and observable
-                        ):
-                            raise ValueError(
-                                "Cannot declare an observable both inside a CircuitBinding and outside"
-                            )
-                        if (
-                            t._translated_variables  # pyright: ignore[reportPrivateUsage]
-                            and values
-                        ):
-                            raise ValueError(
-                                "Cannot declare variables both inside a CircuitBinding and outside"
-                            )
-                        from itertools import product
-
-                        inside_executables = list(
-                            product(
-                                t._translated_observables  # pyright: ignore[reportPrivateUsage]
-                                or [observable],
-                                t._translated_variables  # pyright: ignore[reportPrivateUsage]
-                                or [values],
-                            )
-                        )
-
-                        for inside_observable, inside_val in inside_executables:
-                            for circuitindex, c in enumerate(
-                                t._translated_circuits  # pyright: ignore[reportPrivateUsage,reportArgumentType]
-                            ):
-                                if TYPE_CHECKING:
-                                    assert isinstance(c, braket_Circuit)
-                                mpqp_circuit = t.circuits[circuitindex]
-                                (
-                                    observables,
-                                    eigenvalues,
-                                    transpiled_pre_measures,
-                                    grouping,
-                                ) = inside_observable  # pyright: ignore[reportGeneralTypeIssues]
-                                for index in range(len(grouping)):
-                                    executable_list.append(
-                                        BraketBinding(
-                                            c + transpiled_pre_measures[index],
-                                            input_sets=inside_val,
-                                        )
-                                        if inside_val
-                                        else c + transpiled_pre_measures[index]
-                                    )
-
-                                    context.append(
-                                        (
-                                            mpqp_circuit,
-                                            observables,
-                                            inside_val,
-                                            eigenvalues[index],
-                                            grouping[index],
-                                        )
-                                    )
-
-                    else:
-                        if observable:
-                            (
-                                observables,
-                                eigenvalues,
-                                transpiled_pre_measures,
-                                grouping,
-                            ) = observable  # pyright: ignore[reportGeneralTypeIssues]
-
-                            mpqp_circuit = binding.circuits[translated.index(t)]
-                            for index in range(len(grouping)):
-                                if values:
-                                    executable_list.append(
-                                        BraketBinding(
-                                            t + transpiled_pre_measures[index],
-                                            input_sets=values,
-                                        )
-                                    )
-                                else:
-                                    executable_list.append(
-                                        t + transpiled_pre_measures[index]
-                                    )
-                                context.append(
-                                    (
-                                        mpqp_circuit,
-                                        observables,
-                                        values,
-                                        eigenvalues[index],
-                                        grouping[index],
-                                    )
-                                )
-                        else:
-                            mpqp_circuit = binding.circuits[translated.index(t)]
-                            if values:
-                                executable_list.append(
-                                    BraketBinding(
-                                        t,
-                                        input_sets=values,
-                                    )
-                                )
-                            else:
-                                executable_list.append(t)
-                            context.append(
-                                (
-                                    mpqp_circuit,
-                                    values,
-                                )
-                            )
-            else:
-                if isinstance(
-                    translated[i], CircuitBinding
-                ):  # ZIP to Binding ==> distribute upper binding to embedded binding
-                    if (
-                        translated[
-                            i
-                        ]._translated_observables  # pyright: ignore[reportAttributeAccessIssue,reportPrivateUsage]
-                        and observable
-                    ):
-                        raise ValueError(
-                            "Cannot declare observables both inside a CircuitBinding and outside"
-                        )
-
-                    if (
-                        translated[
-                            i
-                        ]._translated_variables  # pyright: ignore[reportAttributeAccessIssue,reportPrivateUsage]
-                        and values
-                    ):
-                        raise ValueError(
-                            "Cannot declare variables both inside a CircuitBinding and outside"
-                        )
-
-                    from itertools import product
-
-                    inside_executables = list(
-                        product(
-                            translated[
-                                i
-                            ]._translated_observables  # pyright: ignore[reportAttributeAccessIssue,reportPrivateUsage]
-                            or [observable],
-                            translated[
-                                i
-                            ]._translated_variables  # pyright: ignore[reportAttributeAccessIssue,reportPrivateUsage]
-                            or [values],
-                        )
-                    )
-
-                    if i == -1:
-                        binding = translated[i]  # pyright: ignore[reportAssignmentType]
-                        if TYPE_CHECKING:
-                            assert isinstance(binding, CircuitBinding)
-                            assert (
-                                binding._translated_circuits  # pyright: ignore[reportPrivateUsage]
-                            )
-                        for circuitindex, c in enumerate(
-                            binding._translated_circuits  # pyright: ignore[reportPrivateUsage]
-                        ):
-                            mpqp_circuit = binding.circuits[circuitindex]
-
-                            for inside_observable, inside_val in inside_executables:
-                                if TYPE_CHECKING:
-                                    assert isinstance(c, braket_Circuit)
-                                (
-                                    observables,
-                                    eigenvalues,
-                                    transpiled_pre_measures,
-                                    grouping,
-                                ) = inside_observable  # pyright: ignore[reportGeneralTypeIssues]
-                                for index in range(len(grouping)):
-                                    executable_list.append(
-                                        BraketBinding(
-                                            translated[
-                                                i
-                                            ]._translated_circuits[  # pyright: ignore
-                                                0
-                                            ],
-                                            input_sets=inside_val,
-                                        )
-                                    )
-                                    context.append(
-                                        (
-                                            mpqp_circuit,
-                                            observables,
-                                            inside_val,
-                                            eigenvalues[index],
-                                            grouping[index],
-                                        )
-                                    )
-                            else:
-                                for inside_observable, inside_val in inside_executables:
-                                    if TYPE_CHECKING:
-                                        assert isinstance(c, braket_Circuit)
-                                    mpqp_circuit = binding.circuits[translated.index(c)]
-                                    (
-                                        observables,
-                                        eigenvalues,
-                                        transpiled_pre_measures,
-                                        grouping,
-                                    ) = inside_observable  # pyright: ignore[reportGeneralTypeIssues]
-                                    for index in range(len(grouping)):
-                                        executable_list.append(
-                                            BraketBinding(
-                                                c + transpiled_pre_measures[index],
-                                                input_sets=inside_val,
-                                            )
-                                        )
-
-                                        context.append(
-                                            (
-                                                mpqp_circuit,
-                                                observables,
-                                                inside_val,
-                                                eigenvalues[index],
-                                                grouping[index],
-                                            )
-                                        )
-                else:
-                    if i == -1:
-                        executable_list.append(
-                            BraketBinding(
-                                translated[0],  # pyright: ignore
-                                input_sets=values,
-                                observables=observable,
-                            )
-                        )
-                    else:
-                        executable_list.append(
-                            BraketBinding(
-                                translated[i],  # pyright: ignore
-                                input_sets=values,
-                                observables=observable,
-                            )
-                        )
-                        i += 1
-
-        from braket.program_sets import ProgramSet
-
-        ps = ProgramSet(executable_list, binding.shots)
-        return ps, context
-
     def _grouped_cb_to_programset(
-        binding: "CircuitBinding", device: "AvailableDevice"
+        binding: "CircuitBinding", device: "AWSDevice"
     ) -> "tuple[ProgramSet, list[list[tuple[QCircuit, Measure | None, BindingParameters | None, int, int, int | None]]]]":
         """Translate a binding while sharing one Braket program per circuit.
 
@@ -642,8 +245,8 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
         # This means that this function creates and handle crazy big datatypes to be able to group up bindings so that we have the best possible result.
         # It uses a LOT of ints to track different infos (observable's spans, result indexes or various ids of measurements and parameters).
         # I did my best to document the whole process but the code is still fairly confusing.
-        from numbers import Real
         from collections import OrderedDict
+        from numbers import Real
 
         from braket.circuits.observables import Sum
         from braket.program_sets import ProgramSet
@@ -697,7 +300,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                 if not isinstance(value, Real):
                     raise TypeError(
                         "Braket circuit parameters must be real numbers, "
-                        f"but parameter {key!s} has value {value!r}."
+                        f"but parameter {key} has value {value}."
                     )
                 converted[str(key)] = float(value)
             return converted
@@ -763,16 +366,26 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
         # in the provider-circuit identity.
         circuit_groups: "OrderedDict[Any, Any]" = OrderedDict()
         translated_circuits: dict[int, braket_Circuit] = {}
+
         result_index = 0
         for circuit, values, measure in binding.unroll():
             circuit_id = id(circuit)
             translated_circuit = translated_circuits.get(circuit_id)
             if translated_circuit is None:
                 if device not in circuit.transpiled_circuit:
-                    circuit.transpiled_circuit[device] = circuit.to_other_device(
-                        device=device
+                    translated_circuit = (
+                        circuit + QCircuit(binding.noises)
+                    ).to_other_device(device=device)
+                else:
+                    from mpqp.execution.providers.aws import (
+                        apply_noise_to_braket_circuit,
                     )
-                translated_circuit = circuit.transpiled_circuit[device]
+
+                    translated_circuit = apply_noise_to_braket_circuit(
+                        circuit.transpiled_circuit[device],
+                        noises=binding.noises if binding.noises is not None else [],
+                        nb_qubits=circuit.nb_qubits,
+                    )
                 if TYPE_CHECKING:
                     assert isinstance(translated_circuit, braket_Circuit)
                 translated_circuits[circuit_id] = translated_circuit
@@ -784,7 +397,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                 provider_circuit = translated_circuit
                 if isinstance(measure, BasisMeasure):
                     provider_circuit = provider_circuit + QCircuit(
-                        [measure]
+                        [measure], nb_qubits=circuit.nb_qubits
                     ).to_other_language(Language.BRAKET)
                 group_data = (circuit, provider_circuit, OrderedDict())
                 circuit_groups[group_key] = group_data
@@ -942,11 +555,25 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                     partitions.append(simple_partition)
 
                 for partition in partitions:
+                    partition_has_observables = any(
+                        translation_info[info_index][1] is not None
+                        for info_index in partition
+                    )
                     input_sets: list[dict[str, float]] = []
                     for parameter_group in parameter_groups:
                         parameter_values = parameter_group[0]  # MPQP parameter mapping.
                         if parameter_values is not None:
-                            input_sets.append(braket_values(parameter_values))
+                            converted_values = braket_values(parameter_values)
+                            # Without an observable axis, each item in the
+                            # partition is a distinct execution. Keep repeated
+                            # parameter rows so Braket performs every run,
+                            # including byte-for-byte identical ones.
+                            repeat_count = (
+                                1 if partition_has_observables else len(partition)
+                            )
+                            input_sets.extend(
+                                converted_values.copy() for _ in range(repeat_count)
+                            )
                     provider_observable_list: list[BraketObservable] = []
                     for info_index in partition:
                         provider_observable = translation_info[info_index][
@@ -965,17 +592,6 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                             provider_observables = single_provider_observable
                     if not provider_observable_list:
                         provider_observables = None
-
-                    if input_sets or provider_observables is not None:
-                        entries.append(
-                            BraketBinding(
-                                provider_circuit,
-                                input_sets=input_sets or None,
-                                observables=provider_observables,
-                            )
-                        )
-                    else:
-                        entries.append(provider_circuit)
 
                     contexts: list[
                         tuple[
@@ -1004,12 +620,28 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                                     info[4],  # Observable index in the measurement.
                                 )
                             )
-                    entry_contexts.append(contexts)
+
+                    if input_sets or provider_observables is not None:
+                        entries.append(
+                            BraketBinding(
+                                provider_circuit,
+                                input_sets=input_sets or None,
+                                observables=provider_observables,
+                            )
+                        )
+                        entry_contexts.append(contexts)
+                    else:
+                        # A bare circuit has no Braket binding axis on which to
+                        # encode multiplicity. Add it once per logical
+                        # occurrence instead of collapsing identical runs.
+                        for context in contexts:
+                            entries.append(provider_circuit)
+                            entry_contexts.append([context])
 
         return ProgramSet(entries, binding.shots), entry_contexts
 
     def circuitbinding_to_programset(
-        binding: "CircuitBinding", device: "AvailableDevice"
+        binding: "CircuitBinding", device: "AWSDevice"
     ) -> "tuple[ProgramSet, list[Any]]":
         """Convert an MPQP circuit binding to an AWS Braket ``ProgramSet``.
 

@@ -248,6 +248,7 @@ def run_cirq_observable(
         errors = {}
         expectation_values = {}
         for obs in job.measure.observables:
+
             if job.device not in obs.pre_transpiled:
                 cirq_obs = obs.to_other_language(
                     language=Language.CIRQ, circuit=circuit
@@ -255,7 +256,6 @@ def run_cirq_observable(
                 obs.pre_transpiled[job.device] = cirq_obs
             else:
                 cirq_obs = obs.pre_transpiled[job.device]
-
                 if TYPE_CHECKING:
                     assert type(cirq_obs) in (CirqPauliSum, CirqPauliString)
             job.status = JobStatus.RUNNING
@@ -410,7 +410,11 @@ def run_google_remote(job: Job) -> Result:
     import cirq_ionq as ionq
     from cirq.circuits.circuit import Circuit as CirqCircuit
 
+    if TYPE_CHECKING:
+        assert isinstance(job.circuit, QCircuit)
+
     job_CirqCircuit = job.circuit.transpiled_for_device(job.device)
+
     if TYPE_CHECKING:
         assert isinstance(job_CirqCircuit, CirqCircuit)
 
@@ -424,7 +428,8 @@ def run_google_remote(job: Job) -> Result:
                 assert isinstance(job.measure, BasisMeasure)
 
             return extract_result_SAMPLE(
-                service.run(circuit=job_CirqCircuit, repetitions=job.measure.shots), job
+                service.run(circuit=job_CirqCircuit, repetitions=job.measure.shots),
+                job,
             )
         elif job.job_type == JobType.OBSERVABLE:
             return run_cirq_observable_remote(job, job_CirqCircuit, service)
@@ -461,10 +466,14 @@ def run_local(job: Job) -> Result:
     from cirq.circuits.circuit import Circuit as CirqCircuit
     from cirq.sim.sparse_simulator import Simulator
 
+    if TYPE_CHECKING:
+        assert isinstance(job.circuit, QCircuit)
+
     if job.device.is_processor():
         return run_local_processor(job)
 
     cirq_circuit = job.circuit.transpiled_for_device(job.device)
+
     if TYPE_CHECKING:
         assert isinstance(cirq_circuit, CirqCircuit)
 
@@ -523,8 +532,11 @@ def run_local_processor(job: Job) -> Result:
         calibrations={calibration.timestamp // 1000: calibration},
     )
     simulator = SimulatedLocalEngine([sim_processor])
+    if TYPE_CHECKING:
+        assert isinstance(job.circuit, QCircuit)
 
     cirq_circuit = job.circuit.transpiled_for_device(job.device)
+
     if TYPE_CHECKING:
         assert isinstance(cirq_circuit, CirqCircuit)
 

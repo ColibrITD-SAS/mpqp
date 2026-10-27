@@ -54,6 +54,8 @@ def submit_job_azure(job: Job) -> tuple[str, "AzureQuantumJob"]:
     """
     from qiskit import QuantumCircuit
 
+    if TYPE_CHECKING:
+        assert isinstance(job.circuit, QCircuit)
     qiskit_circuit = job.circuit.transpiled_for_device(job.device)
     if TYPE_CHECKING:
         assert isinstance(qiskit_circuit, QuantumCircuit)
@@ -95,7 +97,7 @@ def extract_result(
 
     from mpqp.execution.providers.ibm import extract_result as extract_result_ibm
 
-    return extract_result_ibm(result, job, device)
+    return extract_result_ibm(result, job, device)  # pyright: ignore[reportReturnType]
 
 
 def get_result_from_azure_job_id(job_id: str) -> Result:

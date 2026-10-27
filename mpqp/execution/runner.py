@@ -25,7 +25,6 @@ from typing import TYPE_CHECKING, Iterable, Optional, Sequence, overload
 
 import numpy as np
 
-from mpqp.core.binding import CircuitBinding
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.breakpoint import Breakpoint
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
@@ -61,6 +60,8 @@ from mpqp.tools.generics import OneOrMany, find_index, flatten
 
 if TYPE_CHECKING:
     from sympy import Expr
+
+    from mpqp.core.binding import CircuitBinding
 
 
 def adjust_measure(
@@ -233,6 +234,8 @@ def generate_job(
     Returns:
         The Job containing information about the execution of the circuit.
     """
+    from ..core.binding import CircuitBinding
+
     if values is not None:
         if isinstance(circuit, CircuitBinding):
             raise ValueError("values must be specified in CircuitBinding")
@@ -290,6 +293,7 @@ def _run_diagonal_observables(
     adapted_circuit.add(BasisMeasure(exp_measure.targets, shots=exp_measure.shots))
 
     result = _run_single(adapted_circuit, device, values, False)
+
     return _compute_result_diagonal_observables(result, exp_measure, observable_job)
 
 
@@ -312,6 +316,8 @@ def _compute_result_diagonal_observables(
     """
 
     probas = result.probabilities
+    observable_job.id = result.job.id
+    observable_job.status = JobStatus.DONE
 
     error = 0 if exp_measure.shots == 0 else None
     if exp_measure.nb_observables == 1:
@@ -329,7 +335,6 @@ def _compute_result_diagonal_observables(
             # 3M-TODO: replace this dot product with copy, apparently more optim
             exp_values[obs.label] = float(probas.dot(obs.diagonal_elements))
             errors[obs.label] = error
-
         result = Result(
             observable_job,
             exp_values,
@@ -650,20 +655,10 @@ def run(
 
     if isinstance(device, Iterable):
         results: list[Result] = []
-        for dev in flatten(device):
-
-            if isinstance(circuit, QCircuit):
-                results.append(
-                    _run_single(
-                        namer(circuit, 1),
-                        dev,
-                        values,
-                        display_breakpoints,
-                        provider_params,
-                    )
-                )
-            elif isinstance(circuit, Iterable):
-                for i, circ in enumerate(flatten(circuit)):
+        devices = flatten(device)
+        if isinstance(circuit, (QCircuit, Iterable)):
+            for i, circ in enumerate(flatten(circuit)):
+                for dev in devices:
                     results.append(
                         _run_single(
                             namer(circ, i + 1),
@@ -673,7 +668,8 @@ def run(
                             provider_params,
                         )
                     )
-            else:
+        else:
+            for dev in devices:
                 if values is not None:
                     raise ValueError("values must be specified in CircuitBinding")
                 result = _run_circuit_binding(

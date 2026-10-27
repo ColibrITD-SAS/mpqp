@@ -3,9 +3,9 @@ from __future__ import annotations
 import pytest
 
 from mpqp import (
+    CNOT,
     AWSDevice,
     BasisMeasure,
-    CNOT,
     ExpectationMeasure,
     H,
     IBMDevice,
