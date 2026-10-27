@@ -94,7 +94,11 @@ def _qiskit_parameter_adder(
             name = str(symbol)
             matches = [item for item in qiskit_parameters if item.name == name]
             if len(matches) > 1:
-                raise ReferenceError(f"Several Qiskit parameters are named `{name}`.")
+                raise ReferenceError(
+                    "Somehow two parameter got the same name, this shouldn't be "
+                    "possible. For help on this error please contact the authors of"
+                    " this library"
+                )
             if matches:
                 parameters.append(matches[0])
             else:
