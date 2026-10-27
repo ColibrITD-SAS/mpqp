@@ -43,6 +43,7 @@ def noise():
     return Depolarizing(0.3, [0])
 
 
+@pytest.mark.provider("braket")
 def test_depolarizing_braket_export(noise: NoiseModel):
     from braket.circuits.noises import Depolarizing as BraketDepolarizing
 
@@ -52,6 +53,7 @@ def test_depolarizing_braket_export(noise: NoiseModel):
     assert braket_noise.qubit_count == 1
 
 
+@pytest.mark.provider("myqlm")
 def test_depolarizing_qlm_export(noise: NoiseModel):
     from qat.quops.quantum_channels import QuantumChannelKraus
 

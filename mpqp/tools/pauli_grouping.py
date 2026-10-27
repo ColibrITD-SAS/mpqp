@@ -1,3 +1,6 @@
+from __future__ import annotations
+from typing import Optional
+
 import numpy as np
 import numpy.typing as npt
 
@@ -8,15 +11,23 @@ from mpqp.core.instruction.measurement.pauli_string import (
 )
 
 
-def find_qubitwise_rotations(group: list[PauliStringMonomial]) -> list[Instruction]:
+def find_qubitwise_rotations(
+    group: list[PauliStringMonomial], targets: Optional[list[int]] = None
+) -> list[Instruction]:
     """Returns the single qubit rotations to handle multi observables in case of
     QWC grouping. This function is used in conjunction with the observables
     grouping, it rotates each qubits into the shared eigenbasis of the elements
     of the group.
 
+    Args:
+        group: The grouped up pauli monomials from which we find the common eigenbasis
+        targets: Optional list of targets to give context where the instructions should be placed on the circuit.
+
     Returns:
         A list of single qubit instructions.
     """
+    if targets is None:
+        targets = list(range(group[0].nb_qubits))
     result = []
     for i, atoms in enumerate(group[0].atoms):
         if atoms.label == "I":
@@ -25,11 +36,11 @@ def find_qubitwise_rotations(group: list[PauliStringMonomial]) -> list[Instructi
                 all_identity &= monomial.atoms[i].label == "I"
                 if not all_identity:
                     for base in monomial.atoms[i].get_basis_change():
-                        result.append(base(i))
+                        result.append(base(targets[i]))
                     break
             continue
         for base in atoms.get_basis_change():
-            result.append(base(i))
+            result.append(base(targets[i]))
     return result
 
 
@@ -82,7 +93,7 @@ def pauli_monomial_eigenvalues(monom: PauliStringMonomial) -> npt.NDArray[np.flo
     result = np.array([1], dtype=np.float64)
     for atom in monom.atoms:
         result = np.kron(result, atom.eigen_values)
-    return result
+    return result  # pyright: ignore[reportReturnType]
 
 
 def full_commutation_pauli_grouping_ibm_clique(monomials: list[PauliStringMonomial]):

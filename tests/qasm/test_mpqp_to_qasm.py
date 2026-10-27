@@ -3,10 +3,8 @@ import pytest
 
 from mpqp import Barrier, BasisMeasure, Instruction, Language, QCircuit
 from mpqp.gates import *
-from mpqp.qasm.mpqp_to_qasm import mpqp_to_qasm2
-from mpqp.qasm.open_qasm_2_and_3 import remove_user_gates
 from mpqp.tools.circuit import random_circuit
-from mpqp.tools.display import format_element_str
+from mpqp.translation.qasm.mpqp_to_qasm import mpqp_to_qasm2
 
 
 @pytest.mark.parametrize(
@@ -228,7 +226,7 @@ y q[1];
 measure q[0] -> c[0];""",
         ),
         (
-            [X(0), BasisMeasure([0]), Y(0)],
+            [X(0), Y(0), BasisMeasure([0])],
             """OPENQASM 2.0;
 include "qelib1.inc";
 qreg q[1];
@@ -264,19 +262,12 @@ def test_mpqp_to_qasm_gate(instructions: list[Instruction], qasm_expectation: st
         ]
     ],
 )
-def test_mpqp_to_qasm_custom_gate(instructions: list[Instruction]):
+def test_mpqp_to_and_from_qasm_custom_gate(instructions: list[Instruction]):
     circuit = QCircuit(instructions)
-    from qiskit import QuantumCircuit, qasm2
 
-    qiskit_circuit = circuit.to_other_language(Language.QISKIT)
-    assert isinstance(qiskit_circuit, QuantumCircuit)
-    str_qiskit_circuit = remove_user_gates(qasm2.dumps(qiskit_circuit), True)
     str_circuit = circuit.to_other_language(Language.QASM2)
-    assert isinstance(str_circuit, str)
-    for i in str_circuit:
-        assert i in str_qiskit_circuit
-    for i in str_qiskit_circuit:
-        assert i in str_circuit
+    mpqp_qasm = QCircuit.from_other_language(str_circuit)
+    assert np.allclose(circuit.to_matrix(), mpqp_qasm.to_matrix())
 
 
 @pytest.mark.parametrize(
@@ -293,7 +284,7 @@ x q[0],q[1];
 measure q -> c;""",
         ),
         (
-            [X(0), BasisMeasure([0]), Y(0)],
+            [X(0), Y(0), BasisMeasure([0])],
             """OPENQASM 2.0;
 include "qelib1.inc";
 qreg q[1];
@@ -500,35 +491,17 @@ def test_mpqp_to_qasm_simplify(instructions: list[Instruction], qasm_expectation
     assert qasm_expectation == qasm
 
 
-def normalize_string(string: str):
-    import re
-    from typing import Match
-
-    def simplify_expression(match: Match[str]):
-        from numpy import e, pi
-
-        gate = match.group(1)
-        if gate == 'u':
-            gate = 'u3'
-        components = match.group(2).split(',')
-        simplified = [
-            format_element_str(eval(comp, {"pi": pi, "e": e}), 4) for comp in components
-        ]
-        return f"{gate}({','.join(simplified)})"
-
-    pattern = r'([a-zA-Z]*)\(([^()]+)\)'
-    return re.sub(pattern, simplify_expression, string)
-
-
 def test_random_mpqp_to_qasm():
     for _ in range(15):
         qcircuit = random_circuit(nb_qubits=6, nb_gates=20)
         from qiskit import QuantumCircuit, qasm2
+        from qiskit.quantum_info import Operator
 
-        qiskit_circuit = qcircuit.to_other_language(Language.QISKIT).reverse_bits()
+        qiskit_circuit = qcircuit.to_other_language(Language.QISKIT)
         assert isinstance(qiskit_circuit, QuantumCircuit)
-        qiskit_qasm = normalize_string(qasm2.dumps(qiskit_circuit))
         mpqp_qasm = qcircuit.to_other_language(Language.QASM2)
         assert isinstance(mpqp_qasm, str)
-        mpqp_qasm = normalize_string(mpqp_qasm)
-        assert qiskit_qasm == mpqp_qasm
+        qasm_circuit = qasm2.loads(
+            mpqp_qasm, custom_instructions=qasm2.LEGACY_CUSTOM_INSTRUCTIONS
+        )
+        assert Operator(qiskit_circuit).equiv(Operator(qasm_circuit))

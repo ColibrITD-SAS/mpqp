@@ -10,8 +10,10 @@ from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.gates.gate import Gate, SingleQubitGate
 from mpqp.core.instruction.gates.native_gates import (
     NATIVE_GATES,
+    PRX,
     TOF,
     CRk,
+    OneQubitNoParamGate,
     P,
     Rk,
     RotationGate,
@@ -33,16 +35,17 @@ from mpqp.noise.noise_model import (
 from mpqp.tools.maths import closest_unitary
 
 if TYPE_CHECKING:
-    from qiskit import QuantumCircuit
-    from qiskit.circuit.quantumcircuitdata import CircuitInstruction
+    from qiskit._accelerate.circuit import CircuitInstruction
+    from qiskit.circuit import QuantumCircuit
 
 
 def random_circuit(
     gate_classes: Optional[Sequence[type[Gate]]] = None,
     nb_qubits: int = 5,
     nb_gates: Optional[int] = None,
+    use_all_qubits: bool = False,
     seed: Optional[int] = None,
-):
+) -> QCircuit:
     """This function creates a QCircuit with a specified number of qubits and gates.
     The gates are chosen randomly from the provided list of native gate classes.
 
@@ -86,6 +89,14 @@ def random_circuit(
     qcircuit = QCircuit(nb_qubits)
     for _ in range(nb_gates):
         qcircuit.add(random_gate(gate_classes, nb_qubits, rng))
+
+    if use_all_qubits:  # used in case we want to test braket
+        gates = np.array(
+            [g for g in NATIVE_GATES if issubclass(g, OneQubitNoParamGate)]
+        )
+
+        for i in range(nb_qubits):
+            qcircuit.add(rng.choice(gates)(i))
     return qcircuit
 
 
@@ -106,12 +117,13 @@ def statevector_from_random_circuit(
         The statevector with the specified number of qubits
 
     Examples:
-        >>> print(statevector_from_random_circuit(2, seed=123)) # doctest: +NORMALIZE_WHITESPACE
-        [0.70710678+0.j  0. -0.j  0.26893257-0.65396886j  0. -0.j ]
+        >>> expected = np.array([0.4364437 + 0.13832902j, 0, 0.21760065 + 0.861993j, 0])
+        >>> np.allclose(statevector_from_random_circuit(2, seed=123), expected)
+        True
     """
     from mpqp.execution import IBMDevice, Result, run
 
-    mpqp_circ = random_circuit(None, nb_qubits, None, seed)
+    mpqp_circ = random_circuit(None, nb_qubits, None, seed=seed)
     res = run(mpqp_circ, IBMDevice.AER_SIMULATOR_STATEVECTOR)
     if TYPE_CHECKING:
         assert isinstance(res, Result)
@@ -164,7 +176,6 @@ def random_gate(
 
     gate_class = rng.choice(np.array(gate_classes))
     target = rng.choice(qubits).item()
-
     if issubclass(gate_class, SingleQubitGate):
         if issubclass(gate_class, ParametrizedGate):
             if issubclass(gate_class, U):
@@ -175,7 +186,13 @@ def random_gate(
                     target,
                 )
             elif issubclass(gate_class, Rk):
-                return Rk(rng.integers(1, 10), target)
+                return Rk(int(rng.integers(1, 10)), target)
+            elif issubclass(gate_class, PRX):
+                return gate_class(
+                    np.round(rng.uniform(0, 2 * np.pi), 5),
+                    np.round(rng.uniform(0, 2 * np.pi), 5),
+                    target,
+                )
             elif issubclass(gate_class, RotationGate):
                 if TYPE_CHECKING:
                     assert issubclass(gate_class, (Rx, Ry, Rz, P))
@@ -190,7 +207,7 @@ def random_gate(
             if TYPE_CHECKING:
                 assert issubclass(gate_class, CRk)
             return gate_class(
-                rng.integers(1, 10),
+                int(rng.integers(1, 10)),
                 control,
                 target,
             )
@@ -294,7 +311,9 @@ def compute_expected_matrix(qcircuit: QCircuit):
 
 
 def replace_custom_gate(
-    custom_unitary: "CircuitInstruction", nb_qubits: int  # type: ignore[reportInvalidTypeForm]
+    custom_unitary: "CircuitInstruction | QuantumCircuit",
+    nb_qubits: int,
+    targets: list[int],
 ) -> "tuple[QuantumCircuit, float]":
     """Decompose and replace the (custom) qiskit unitary given in parameter by a
     qiskit `QuantumCircuit` composed of ``U`` and ``CX`` gates.
@@ -316,20 +335,34 @@ def replace_custom_gate(
         correct the statevector if need be.
     """
     from qiskit import QuantumCircuit, transpile
+    from qiskit.circuit.library import UnitaryGate
     from qiskit.exceptions import QiskitError
 
-    transpilation_circuit = QuantumCircuit(nb_qubits)
-    transpilation_circuit.append(custom_unitary)
+    if not isinstance(custom_unitary, QuantumCircuit):
+        transpilation_circuit = QuantumCircuit(nb_qubits)
+        transpilation_circuit.append(custom_unitary)
+        matrix = custom_unitary.matrix
+    else:
+        transpilation_circuit = custom_unitary
+        matrix = custom_unitary.data[0].matrix
     try:
-        transpiled = transpile(transpilation_circuit, basis_gates=['u', 'cx'])
+        transpiled = transpile(
+            transpilation_circuit, basis_gates=['u3', 'cx'], optimization_level=0
+        )
     except QiskitError as e:
         # if the error is arising from TwoQubitWeylDecomposition, we replace the
         # matrix by the closest unitary
         if "TwoQubitWeylDecomposition" in str(e):
-            custom_unitary.operation.params[0] = closest_unitary(
-                custom_unitary.operation.params[0]
+            custom_closest_unitary = UnitaryGate(closest_unitary(matrix))
+            transpilation_circuit = QuantumCircuit(nb_qubits)
+            transpilation_circuit.unitary(
+                custom_closest_unitary, list(reversed(targets))
             )
-            transpiled = transpile(transpilation_circuit, basis_gates=['u', 'cx'])
+            transpiled = transpile(
+                transpilation_circuit,
+                basis_gates=['u1', 'u2', 'u3', 'cx'],
+                optimization_level=0,
+            )
         else:
             raise e
     return transpiled, transpiled.global_phase

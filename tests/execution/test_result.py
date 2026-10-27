@@ -9,7 +9,7 @@ from mpqp import (
     ATOSDevice,
     AWSDevice,
     BasisMeasure,
-    BatchResult,
+    CircuitBinding,
     ExpectationMeasure,
     GOOGLEDevice,
     H,
@@ -18,12 +18,35 @@ from mpqp import (
     JobType,
     Observable,
     QCircuit,
+    QUANTINUUMDevice,
     Result,
     Rx,
     Sample,
     StateVector,
     run,
 )
+from mpqp.execution.devices import AvailableDevice
+
+
+@pytest.mark.parametrize("expectation", [False, True])
+def test_single_binding_result_preserves_measurement(expectation: bool):
+    measure = (
+        ExpectationMeasure(Observable(np.diag([1.0, -1.0])))
+        if expectation
+        else BasisMeasure([0], shots=16)
+    )
+    binding = CircuitBinding(QCircuit(1), measurements=measure)
+    job = Job(binding.job_type, binding, IBMDevice.AER_SIMULATOR)
+    data = 1.0 if expectation else [Sample(1, index=0, count=16)]
+
+    result = Result(job, data, shots=0 if expectation else 16)
+
+    assert binding.measurements is not None
+    assert result.job.measure is binding.measurements[0]
+    if expectation:
+        assert result.expectation_values == 1.0
+    else:
+        assert result.counts == [16, 0]
 
 
 @pytest.mark.parametrize(
@@ -126,33 +149,192 @@ def test_result_str(result: Result, expected_string: str):
     assert str(result) == expected_string
 
 
-state_vector_devices = [
-    IBMDevice.AER_SIMULATOR_STATEVECTOR,
-    GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
-    ATOSDevice.MYQLM_CLINALG,
-    ATOSDevice.MYQLM_PYLINALG,
-    AWSDevice.BRAKET_LOCAL_SIMULATOR,
+state_vector_devices_qiskit: list[AvailableDevice] = [
+    device
+    for device in IBMDevice
+    if not device.is_remote() and device.supports_state_vector()
 ]
 
-sampling_devices = [
-    GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
-    IBMDevice.AER_SIMULATOR,
-    ATOSDevice.MYQLM_CLINALG,
-    ATOSDevice.MYQLM_PYLINALG,
-    AWSDevice.BRAKET_LOCAL_SIMULATOR,
+state_vector_devices_cirq: list[AvailableDevice] = [
+    device
+    for device in GOOGLEDevice
+    if not device.is_remote() and device.supports_state_vector()
+]
+
+state_vector_devices_braket: list[AvailableDevice] = [
+    device
+    for device in AWSDevice
+    if not device.is_remote() and device.supports_state_vector()
+]
+
+state_vector_devices_myqlm: list[AvailableDevice] = [
+    device
+    for device in ATOSDevice
+    if not device.is_remote() and device.supports_state_vector()
+]
+
+state_vector_devices_quantinuum: list[AvailableDevice] = [
+    device
+    for device in QUANTINUUMDevice
+    if not device.is_remote() and device.supports_state_vector()
+]
+
+sampling_devices_qiskit: list[AvailableDevice] = [
+    device
+    for device in IBMDevice
+    if not device.is_remote() and device.supports_samples()
+]
+
+sampling_devices_cirq: list[AvailableDevice] = [
+    device
+    for device in GOOGLEDevice
+    if not device.is_remote() and device.supports_samples()
+]
+
+sampling_devices_braket: list[AvailableDevice] = [
+    device
+    for device in AWSDevice
+    if not device.is_remote() and device.supports_samples()
+]
+
+sampling_devices_myqlm: list[AvailableDevice] = [
+    device
+    for device in ATOSDevice
+    if not device.is_remote() and device.supports_samples()
+]
+
+sampling_devices_quantinuum: list[AvailableDevice] = [
+    device
+    for device in QUANTINUUMDevice
+    if not device.is_remote() and device.supports_samples()
+]
+
+observable_sampling_devices_qiskit: list[AvailableDevice] = [
+    device
+    for device in IBMDevice
+    if not device.is_remote()
+    and device.supports_samples()
+    and device.supports_observable()
+]
+
+observable_sampling_devices_cirq: list[AvailableDevice] = [
+    device
+    for device in GOOGLEDevice
+    if not device.is_remote()
+    and device.supports_samples()
+    and device.supports_observable()
+]
+
+observable_sampling_devices_braket: list[AvailableDevice] = [
+    device
+    for device in AWSDevice
+    if not device.is_remote()
+    and device.supports_samples()
+    and device.supports_observable()
+]
+
+observable_sampling_devices_myqlm: list[AvailableDevice] = [
+    device
+    for device in ATOSDevice
+    if not device.is_remote()
+    and device.supports_samples()
+    and device.supports_observable()
+]
+
+observable_sampling_devices_quantinuum: list[AvailableDevice] = [
+    device
+    for device in QUANTINUUMDevice
+    if not device.is_remote()
+    and device.supports_samples()
+    and device.supports_observable()
 ]
 
 
-def test_sample_nb_shot_handle():
+@pytest.mark.provider("qiskit")
+@pytest.mark.parametrize("device", sampling_devices_qiskit)
+def test_sample_nb_shot_handle_qiskit(device: AvailableDevice):
+    if device in {
+        IBMDevice.AER_SIMULATOR_STABILIZER,
+        IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER,
+    }:
+        with pytest.warns(UserWarning, match=rf"For {device}"):
+            exec_sample_nb_shot_handle(device)
+    else:
+        exec_sample_nb_shot_handle(device)
+
+
+@pytest.mark.provider("braket")
+@pytest.mark.parametrize("device", sampling_devices_braket)
+def test_sample_nb_shot_handle_braket(device: AvailableDevice):
+    exec_sample_nb_shot_handle(device)
+
+
+@pytest.mark.provider("cirq")
+@pytest.mark.parametrize("device", sampling_devices_cirq)
+def test_sample_nb_shot_handle_cirq(device: AvailableDevice):
+    exec_sample_nb_shot_handle(device)
+
+
+@pytest.mark.provider("myqlm")
+@pytest.mark.parametrize("device", sampling_devices_myqlm)
+def test_sample_nb_shot_handle_myqlm(device: AvailableDevice):
+    exec_sample_nb_shot_handle(device)
+
+
+@pytest.mark.provider("quantinuum")
+@pytest.mark.parametrize("device", sampling_devices_quantinuum)
+def test_sample_and_observable_nb_shot_handle_quantinuum(device: AvailableDevice):
+    exec_sample_nb_shot_handle(device)
+
+
+def exec_sample_nb_shot_handle(device: AvailableDevice):
     circuit = QCircuit([H(0), CNOT(0, 1), BasisMeasure(shots=1024)])
-    batch = run(circuit, sampling_devices)
-    assert isinstance(batch, BatchResult)
-    for result in batch:
-        assert result.error != 0.0
-        assert result.shots == 1024
+    result = run(circuit, device)
+    assert result.error != 0.0
+    assert result.shots == 1024
+    assert len(result.probabilities) != 0
+    assert len(result.counts) != 0
+    assert len(result.samples) != 0
 
 
-def test_state_vector_nb_shot_handle():
+@pytest.mark.provider("qiskit")
+@pytest.mark.parametrize("device", observable_sampling_devices_qiskit)
+def test_observable_nb_shot_handle_qiskit(device: AvailableDevice):
+    if device in {
+        IBMDevice.AER_SIMULATOR_STABILIZER,
+        IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER,
+    }:
+        with pytest.warns(UserWarning, match=rf"For {device}"):
+            exec_observable_nb_shot_handle(device)
+    else:
+        exec_observable_nb_shot_handle(device)
+
+
+@pytest.mark.provider("braket")
+@pytest.mark.parametrize("device", observable_sampling_devices_braket)
+def test_observable_nb_shot_handle_braket(device: AvailableDevice):
+    exec_observable_nb_shot_handle(device)
+
+
+@pytest.mark.provider("cirq")
+@pytest.mark.parametrize("device", observable_sampling_devices_cirq)
+def test_observable_nb_shot_handle_cirq(device: AvailableDevice):
+    exec_observable_nb_shot_handle(device)
+
+
+@pytest.mark.provider("myqlm")
+@pytest.mark.parametrize("device", observable_sampling_devices_myqlm)
+def test_observable_nb_shot_handle_myqlm(device: AvailableDevice):
+    exec_observable_nb_shot_handle(device)
+
+
+@pytest.mark.provider("quantinuum")
+@pytest.mark.parametrize("device", observable_sampling_devices_quantinuum)
+def test_observable_and_observable_nb_shot_handle_quantinuum(device: AvailableDevice):
+    exec_observable_nb_shot_handle(device)
+
+
+def exec_observable_nb_shot_handle(device: AvailableDevice):
     circuit = QCircuit(
         [
             H(0),
@@ -172,8 +354,53 @@ def test_state_vector_nb_shot_handle():
             ),
         ]
     )
-    batch = run(circuit, sampling_devices)
-    assert isinstance(batch, BatchResult)
-    for result in batch:
-        assert result.error != 0.0
-        assert result.shots == 1024
+    result = run(circuit, device)
+    assert result.error != 0.0
+    assert result.shots == 1024
+    assert isinstance(result.expectation_values, float)
+
+
+@pytest.mark.provider("qiskit")
+@pytest.mark.parametrize("device", state_vector_devices_qiskit)
+def test_state_vector_nb_shot_handle_qiskit(device: AvailableDevice):
+    exec_statevector_handle(device)
+
+
+@pytest.mark.provider("braket")
+@pytest.mark.parametrize("device", state_vector_devices_braket)
+def test_state_vector_nb_shot_handle_braket(device: AvailableDevice):
+    exec_statevector_handle(device)
+
+
+@pytest.mark.provider("cirq")
+@pytest.mark.parametrize("device", state_vector_devices_cirq)
+def test_state_vector_nb_shot_handle_cirq(device: AvailableDevice):
+    exec_statevector_handle(device)
+
+
+@pytest.mark.provider("myqlm")
+@pytest.mark.parametrize("device", state_vector_devices_myqlm)
+def test_state_vector_nb_shot_handle_myqlm(device: AvailableDevice):
+    exec_statevector_handle(device)
+
+
+@pytest.mark.provider("quantinuum")
+@pytest.mark.parametrize("device", state_vector_devices_quantinuum)
+def test_state_vector_nb_shot_handle_quantinuum(device: AvailableDevice):
+    exec_statevector_handle(device)
+
+
+def exec_statevector_handle(device: AvailableDevice):
+    circuit = QCircuit([H(0), CNOT(0, 1), BasisMeasure(shots=0)])
+    result = run(circuit, device)
+    assert len(result.amplitudes) != 0
+    assert len(result.probabilities) != 0
+    assert len(result.state_vector.vector) != 0
+    assert result.shots == 0
+
+
+def test_result_does_not_mutate_its_job_circuit_binding():  # 4c
+    binding = CircuitBinding(QCircuit(1), measurements=BasisMeasure([0], shots=10))
+    job = Job(JobType.SAMPLE, binding, IBMDevice.AER_SIMULATOR)
+    Result(job, [Sample(1, index=0, count=10)], shots=10)
+    assert job.circuit is binding

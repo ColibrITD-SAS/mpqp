@@ -49,12 +49,10 @@ def ensure_local_storage(func: Callable[..., T]) -> Callable[..., T]:
 
         db_version = get_database_version()
         if db_version != DATABASE_VERSION:
-            raise RuntimeError(
-                f"""\
+            raise RuntimeError(f"""\
 Database version {db_version} is outdated. Current supported version: {DATABASE_VERSION}.
 Automated migration is not yet supported, please contact library authors to get\
- help for the migration."""
-            )
+ help for the migration.""")
 
         return func(*args, **kwargs)
 
@@ -90,8 +88,7 @@ def setup_local_storage(path: Optional[str] = None):
     cursor = connection.cursor()
 
     # Create the jobs table
-    cursor.execute(
-        '''
+    cursor.execute('''
     CREATE TABLE IF NOT EXISTS jobs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         type TEXT NOT NULL,
@@ -102,12 +99,10 @@ def setup_local_storage(path: Optional[str] = None):
         status TEXT,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
-    '''
-    )
+    ''')
 
     # Create the results table
-    cursor.execute(
-        '''
+    cursor.execute('''
     CREATE TABLE IF NOT EXISTS results (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         job_id INTEGER NOT NULL,
@@ -116,17 +111,14 @@ def setup_local_storage(path: Optional[str] = None):
         shots INTEGER DEFAULT 0,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
-    '''
-    )
+    ''')
 
-    cursor.execute(
-        '''
+    cursor.execute('''
         CREATE TABLE IF NOT EXISTS version (
             id INTEGER PRIMARY KEY CHECK (id = 1),  -- Ensures only one row exists
             version VARCHAR
         )
-        '''
-    )
+        ''')
 
     cursor.execute(
         "INSERT OR IGNORE INTO version (id, version) VALUES (1, ?)", (DATABASE_VERSION,)

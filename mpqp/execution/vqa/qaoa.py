@@ -31,6 +31,7 @@ from mpqp.measures import BasisMeasure, ExpectationMeasure, Observable
 
 if TYPE_CHECKING:
     from networkx import Graph
+
     from mpqp.tools.maths import Matrix
 
 
@@ -289,7 +290,7 @@ def _gen_ith_oper(
 
     if qubits - i - 1 != 0:
         result = np.kron(result, np.eye(2 ** (qubits - i - 1)))
-    return result
+    return result  # pyright: ignore[reportReturnType]
 
 
 def _apply_unitary(circuit: QCircuit, operator: Matrix, parameter: float):

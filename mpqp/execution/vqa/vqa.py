@@ -5,11 +5,10 @@ from typing import TYPE_CHECKING, Any, Callable, Collection, Optional, TypeVar, 
 
 import numpy as np
 import numpy.typing as npt
-from scipy.optimize import OptimizeResult
-from scipy.optimize import minimize as scipy_minimize
 
 if TYPE_CHECKING:
     from sympy import Expr
+    from scipy.optimize import OptimizeResult
 
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction import ExpectationMeasure
@@ -19,7 +18,7 @@ from mpqp.execution.vqa.optimizer import Optimizer
 
 T1 = TypeVar("T1")
 T2 = TypeVar("T2")
-OptimizerInput = Union[list[float], npt.NDArray[np.float_]]
+OptimizerInput = Union[list[float], npt.NDArray[np.float64]]
 OptimizableFunc = Union[partial[float], Callable[[OptimizerInput], float]]
 OptimizerOptions = dict[str, Any]
 OptimizerCallable = Callable[
@@ -27,8 +26,8 @@ OptimizerCallable = Callable[
     tuple[float, OptimizerInput],
 ]
 OptimizerCallback = Union[
-    Callable[[OptimizeResult], None],
-    Callable[[Union[list[float], npt.NDArray[np.float_], tuple[float, ...]]], None],
+    Callable[["OptimizeResult"], None],
+    Callable[[Union[list[float], npt.NDArray[np.float64], tuple[float, ...]]], None],
 ]
 
 
@@ -97,7 +96,7 @@ def minimize(
         ...         shots=0,
         ...     ),
         ... ])
-        >>> minimize(
+        >>> minimize( # doctest: +MYQLM
         ...     circuit,
         ...     Optimizer.BFGS,
         ...     ATOSDevice.MYQLM_PYLINALG,
@@ -106,14 +105,14 @@ def minimize(
         (-0.9999999999999996, array([0., 0.]))
 
 
-        >>> def cost_func(params):
+        >>> def cost_func(params): # doctest: +MYQLM
         ...     run_res = run(
         ...         circuit,
         ...         ATOSDevice.MYQLM_PYLINALG,
         ...         {alpha: params[0], beta: params[1]}
         ...     )
         ...     return 1 - run_res.expectation_values ** 2
-        >>> minimize(
+        >>> minimize( # doctest: +MYQLM
         ...     cost_func,
         ...     Optimizer.BFGS,
         ...     nb_params=2,
@@ -347,6 +346,8 @@ def _minimize_local_func(
     Returns:
         The optimal value reached and the parameters used to reach this value.
     """
+    from scipy.optimize import minimize as scipy_minimize
+
     if init_params is None:
         if nb_params is None:
             raise ValueError(

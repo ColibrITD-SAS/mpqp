@@ -1,10 +1,15 @@
 # pyright: reportUnusedImport=false
+from mpqp.core.binding import BindingMode, CircuitBinding
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction import Instruction
 from mpqp.core.instruction.barrier import Barrier
 from mpqp.core.instruction.breakpoint import Breakpoint
 from mpqp.core.languages import Language
 
+try:
+    from ._version import __version__
+except ImportError:
+    __version__ = "0.0.0+unknown"
 from .execution import (
     BatchResult,
     Job,
@@ -23,6 +28,7 @@ from .execution.devices import (
     AZUREDevice,
     GOOGLEDevice,
     IBMDevice,
+    QUANTINUUMDevice,
 )
 from .execution.remote_handler import get_all_remote_job_ids
 from .execution.simulated_devices import IBMSimulatedDevice
@@ -33,6 +39,7 @@ from .gates import (
     CNOT,
     CP,
     CZ,
+    PRX,
     SWAP,
     TOF,
     ControlledGate,
@@ -49,8 +56,11 @@ from .gates import (
     Rk,
     Rk_dagger,
     Rx,
+    Rxx,
     Ry,
+    Ryy,
     Rz,
+    Rzz,
     S,
     S_dagger,
     T,

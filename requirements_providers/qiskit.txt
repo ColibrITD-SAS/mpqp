@@ -1,0 +1,2 @@
+qiskit-ibm-runtime==0.45.1
+qiskit-ionq==1.0.2

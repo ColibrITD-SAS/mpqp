@@ -9,11 +9,11 @@ mpqp
 
 
     circuit
+    binding
     gates
     measures
     noise
     execution
-    qasm
+    translation
     tools
     local_storage
-    environment

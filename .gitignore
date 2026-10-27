@@ -1,7 +1,11 @@
 # build artifacts
 build/
+docs/notebooks/
+docs/requirements_providers/
 docs/html/
 out/
+mpqp/_setuptools_scm_version.py
+.eggs/
 
 # python
 *.egg-info/
@@ -10,6 +14,8 @@ __pycache__/
 *.pyc
 .mypy_cache/
 .pytest_cache/
+.ipynb_checkpoints/
+venv/
 
 # IDE
 .vscode/
@@ -19,6 +25,7 @@ __pycache__/
 # private files
 .dockerenv
 .env
+venv/
 
 # results of tests
 examples/notebooks/latex_error.log

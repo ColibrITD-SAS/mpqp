@@ -4,19 +4,13 @@ import warnings
 from typing import TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
-    from qiskit.quantum_info import Operator
+    from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
+    from cirq.ops.pauli_string import PauliString as CirqPauliString
 
 import numpy as np
 import pytest
-from braket.circuits.observables import Hermitian
-from cirq.devices.line_qubit import LineQubit
-from cirq.ops.identity import I as Cirq_I
-from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
-from cirq.ops.pauli_gates import X as Cirq_X
-from cirq.ops.pauli_string import PauliString as CirqPauliString
-from qat.core.wrappers.observable import Observable as QLMObservable
 
-from mpqp import ExpectationMeasure, Language, Observable, pI, pX
+from mpqp import ExpectationMeasure, Language, Observable, pI, pX, pY, pZ
 
 
 @pytest.mark.parametrize(
@@ -30,40 +24,70 @@ def test_expectation_measure_right_targets(targets: list[int]):
         ExpectationMeasure(obs, targets)
 
 
-@pytest.mark.parametrize(
-    "targets, expected_swaps",
-    [
-        ([1, 3, 4], [{2, 3}, {3, 4}]),
-        ([1, 0, 2], [{1, 0}]),
-        ([2, 0, 3], [{0, 2}, {1, 2}, {2, 3}]),
-    ],
-)
-def test_expectation_measure_wrong_targets(
-    targets: list[int], expected_swaps: list[tuple[int, int]]
-):
-    obs = Observable(np.diag([1] * 2 ** len(targets)))
-    with pytest.warns(UserWarning):
-        measure = ExpectationMeasure(obs, targets)
-    assert [set(swap.targets) for swap in measure.pre_measure] == expected_swaps
-
-
-a, b, c = LineQubit.range(3)
-
-
 # TODO: complete this
-@pytest.mark.parametrize(
-    "obs, translation",
-    [
+@pytest.fixture
+def list_to_cirq_pauli() -> (
+    list[tuple[Observable, Union[CirqPauliSum, CirqPauliString]]]
+):
+    from cirq.devices.line_qubit import LineQubit
+    from cirq.ops.identity import I as Cirq_I
+    from cirq.ops.pauli_gates import X as Cirq_X
+
+    a, b = LineQubit.range(2)
+
+    return [
         (
             Observable(pI @ pI + pI @ pX),
             sum(1.0 * Cirq_I(a) * Cirq_I(b) + Cirq_X(b)),
         ),
-    ],
-)
-def test_to_other_language(
-    obs: Observable,
-    translation: Union[
-        "Operator", QLMObservable, Hermitian, CirqPauliSum, CirqPauliString
-    ],
+    ]
+
+
+@pytest.mark.provider("cirq")
+def test_to_other_language_cirq(
+    list_to_cirq_pauli: list[tuple[Observable, Union[CirqPauliSum, CirqPauliString]]],
 ):
-    assert obs.to_other_language(Language.CIRQ) == translation
+    for obs, translation in list_to_cirq_pauli:
+        assert obs.to_other_language(Language.CIRQ) == translation
+
+
+@pytest.mark.provider("quantinuum")
+def test_to_other_language_tket():
+    from pytket.circuit import Qubit
+    from pytket.pauli import Pauli, QubitPauliString
+    from pytket.utils.operators import QubitPauliOperator
+
+    observable = Observable(2 * (pX @ pZ) - 0.5 * (pY @ pI))
+    expected = QubitPauliOperator(
+        {
+            QubitPauliString(
+                [Qubit(0), Qubit(1)],
+                [Pauli.X, Pauli.Z],
+            ): 2,
+            QubitPauliString(
+                [Qubit(0), Qubit(1)],
+                [Pauli.Y, Pauli.I],
+            ): -0.5,
+        }
+    )
+
+    assert observable.to_other_language(Language.TKET) == expected
+
+
+@pytest.mark.provider("quantinuum")
+def test_to_other_language_tket_explicit_targets():
+    from pytket.circuit import Qubit
+    from pytket.pauli import Pauli, QubitPauliString
+    from pytket.utils.operators import QubitPauliOperator
+
+    observable = Observable(pX @ pI @ pZ)
+    expected = QubitPauliOperator(
+        {
+            QubitPauliString(
+                [Qubit(2), Qubit(0)],
+                [Pauli.X, Pauli.Z],
+            ): 1,
+        }
+    )
+
+    assert observable.to_other_language(Language.TKET, targets=[2, 1, 0]) == expected

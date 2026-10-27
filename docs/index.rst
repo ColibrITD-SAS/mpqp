@@ -34,14 +34,14 @@ on the current available SDKs:
 
    getting-started
    circuit
+   binding
    instructions
    noise
    execution
    execution-extras
    vqa
-   qasm
+   translation
    tools
-   environment
    local_storage
    changelog
    examples

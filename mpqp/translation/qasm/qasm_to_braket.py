@@ -1,0 +1,241 @@
+"""Amazon Braket made the choice to directly support a subset of OpenQASM 3.0
+for gate-based devices and simulators. In fact, Braket supports a set of data
+types, statements and pragmas (specific to Braket) for OpenQASM 3.0, sometimes
+with a different syntax.
+
+Braket Circuit parser does not support for the moment the OpenQASM 3.0 native
+operations (``U`` and ``gphase``) but allows to define custom gates using a
+combination of supported standard gates (``rx``, ``ry``, ``rz``, ``cnot``,
+``phaseshift`` for instance). Besides, the inclusion of files is not yet handled
+by Braket library meaning we use a mechanism of *hard* includes (see
+:func:`~mpqp.qasm.qasm_to_myqlm.hard-open_qasm_hard_includes`)
+directly in the OpenQASM 3.0 code, to be sure the parser and interpreter have
+all definitions in there. We also hard-include all included files in the
+OpenQASM 3.0 code inputted for conversion.
+
+.. note::
+    In the custom hard-imported file for native and standard gate redefinitions,
+    we use ``ggphase`` to define the global phase, instead of the OpenQASM 3.0
+    keyword ``gphase``, which is already used and protected by Braket.
+
+Braket ``Circuit``s are created using :func:`qasm3_to_braket_Circuit`. If
+needed, you can also generate a Braket ``Program`` from an OpenQASM 3.0 input
+string using the :func:`qasm3_to_braket_Program`. However, in this case, the
+program parser does not need to redefine the native gates, and thus only
+performing a hard import of standard gates and other included file is
+sufficient. However, note that a ``Program`` cannot be used to retrieve the
+statevector and expectation value in Braket.
+"""
+
+from __future__ import annotations
+
+import io
+import warnings
+from logging import StreamHandler, getLogger
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from braket.ir.openqasm import Program
+    from braket.circuits import Circuit
+
+from mpqp.core.instruction.gates.custom_gate import CustomGate
+from mpqp.noise import NoiseModel
+from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
+from mpqp.translation.qasm.open_qasm_2_and_3 import open_qasm_hard_includes
+
+
+def qasm3_to_braket_Program(qasm3_str: str) -> "Program":
+    r"""Converting a OpenQASM 3.0 code into a Braket Program.
+
+    Args:
+        qasm3_str: A string representing the OpenQASM 3.0 code.
+
+    Returns:
+        A Program equivalent to the QASM code in parameter.
+
+    Example:
+        >>> qasm_code = '''
+        ... OPENQASM 3.0;
+        ... qubit[2] q;
+        ... h q[0];
+        ... '''
+        >>> program = qasm3_to_braket_Program(qasm_code) # doctest: +BRAKET
+        >>> print(program) # doctest: +BRAKET
+        braketSchemaHeader=BraketSchemaHeader(name='braket.ir.openqasm.program', version='1') source='\nOPENQASM 3.0;\nqubit[2] q;\nh q[0];\n' inputs=None
+
+    """
+    from braket.ir.openqasm import Program
+
+    # PROBLEM: import and standard gates are not supported by Braket
+    # NOTE: however custom OpenQASM 3 gates declaration is supported by Braket,
+    # the idea is then to hard import the standard lib and other files into the qasm string's header before
+    # giving it to the Program.
+    after_stdgates_included = open_qasm_hard_includes(qasm3_str, set())
+
+    program = Program(source=after_stdgates_included, inputs=None)
+    return program
+
+
+def qasm3_to_braket_Circuit(qasm3_str: str) -> "Circuit":
+    """Converting a OpenQASM 3.0 code into a Braket Circuit.
+
+    Args:
+        qasm3_str: A string representing the OpenQASM 3.0 code.
+
+    Returns:
+        A Circuit equivalent to the QASM code in parameter.
+
+    Example:
+        >>> qasm_code = '''
+        ... OPENQASM 3.0;
+        ... qubit[2] q;
+        ... h q[0];
+        ... '''
+        >>> circuit = qasm3_to_braket_Circuit(qasm_code) # doctest: +BRAKET
+        >>> print(circuit) # doctest: +NORMALIZE_WHITESPACE, +BRAKET
+        T  : │  0  │
+              ┌───┐
+        q0 : ─┤ H ├─
+              └───┘
+        T  : │  0  │
+
+    """
+    # PROBLEM: import and standard gates are not supported by Braket
+    # NOTE: however custom OpenQASM 3 gates declaration is supported by Braket,
+    # SOLUTION: the idea is then to hard import the standard lib and other files into the qasm string's header before
+    # giving it to the Circuit.
+    # PROBLEM2: Braket doesn't support NATIVE freaking gates U and gphase, so the trick may not work for the moment
+    # for circuit, only for program
+    # SOLUTION: import a specific qasm file with U and gphase redefined with the supported Braket SDK gates, and by
+    # removing from this import file the already handled gates
+    from braket.circuits import Circuit
+
+    qasm3_str = qasm3_str.replace("stdgates.inc", "braket_custom_include.inc")
+
+    after_stdgates_included = open_qasm_hard_includes(qasm3_str, set())
+
+    braket_warning_message = (
+        "This program uses OpenQASM language features that may not be supported"
+        " on QPUs or on-demand simulators."
+    )
+
+    braket_logger = getLogger()
+    logger_output_stream = io.StringIO()
+    stream_handler = StreamHandler(logger_output_stream)
+    braket_logger.addHandler(stream_handler)
+
+    circuit = Circuit.from_ir(after_stdgates_included)
+
+    braket_logger.removeHandler(stream_handler)
+    log_lines = logger_output_stream.getvalue().split("\n")
+    for message in log_lines:
+        if message == braket_warning_message:
+            from mpqp.environment.var_cache import translation_warning_enabled
+
+            if translation_warning_enabled() is True:
+                warnings.warn(
+                    "\n" + braket_warning_message, UnsupportedBraketFeaturesWarning
+                )
+        else:
+            if message != "":
+                braket_logger.warning(message)
+
+    return circuit
+
+
+def braket_noise_to_mpqp(qasm3_code: str) -> tuple[list[NoiseModel], str]:
+    """
+    Parse braket's qasm3 pragmas into mpqp's Noise Models.
+
+    Args:
+        qasm3_code: The OpenQASM3 string containing the noise information.
+
+    Returns:
+        A tuple of list of MPQP Noise models and cleaned qasm3 string without noise pragmas.
+
+    Example:
+        >>> qasm_code = '''
+        ... OPENQASM 3.0;
+        ... qubit[2] q;
+        ... h q[0];
+        ... #pragma braket noise phase_damping(0.1) q[0]
+        ... '''
+        >>> noise, clean_qasm = braket_noise_to_mpqp(qasm_code) # doctest: +BRAKET
+        >>> print(noise) # doctest: +NORMALIZE_WHITESPACE, +BRAKET
+        [PhaseDamping(0.1, [0])]
+        >>> print(clean_qasm) # doctest: +NORMALIZE_WHITESPACE, +BRAKET
+        OPENQASM 3.0;
+        qubit[2] q;
+        h q[0];
+
+    """
+    from mpqp.noise import (
+        AmplitudeDamping,
+        BitFlip,
+        Depolarizing,
+        NoiseModel,
+        PhaseDamping,
+    )
+
+    noises = []
+    cleaned_lines = []
+
+    for line in qasm3_code.split("\n"):
+        if "depolarizing" in line or "two_qubit_depolarizing" in line:
+            noises.append(NoiseModel.from_other_language(line, Depolarizing))
+
+        elif "bit_flip" in line:
+            noises.append(NoiseModel.from_other_language(line, BitFlip))
+
+        elif "amplitude_damping" in line or "generalized_amplitude_damping" in line:
+            noises.append(NoiseModel.from_other_language(line, AmplitudeDamping))
+
+        elif "phase_damping" in line:
+            noises.append(NoiseModel.from_other_language(line, PhaseDamping))
+
+        elif "braket noise" in line:
+            import re
+
+            noise_model = re.search(r'noise\s+([^(]+)', line)
+            if noise_model:
+                raise NotImplementedError(
+                    f"Error: {noise_model.group(1)} is not supported."
+                )
+        else:
+            cleaned_lines.append(line)
+
+    cleaned_qasm = "\n".join(cleaned_lines)
+    return noises, cleaned_qasm
+
+
+def braket_custom_gates_to_mpqp(qasm3_code: str) -> CustomGate:
+    """
+    Parse braket's qasm3 pragmas into mpqp's Custom Gate.
+
+    Args:
+        qasm3_code: The OpenQASM3 string containing the instruction information.
+
+    Returns:
+        A MPQP Custom Gate contained in the qasm3 string.
+
+    Example:
+        >>> qasm_code = '''#pragma braket unitary([[0, 1.0], [1.0, 0]]) q[0]'''
+        >>> print(repr(braket_custom_gates_to_mpqp(qasm_code))) # doctest: +NORMALIZE_WHITESPACE, +BRAKET
+        CustomGate(array([[0., 1.], [1., 0.]]), [0])
+    """
+    import ast
+    import re
+
+    import numpy as np
+
+    if "braket unitary" in qasm3_code:
+        matrix_str = qasm3_code[qasm3_code.find('[') : qasm3_code.rfind(')')]
+        matrix_str = matrix_str.replace("im", "j")
+        matrix = np.array(ast.literal_eval(matrix_str))
+        indices = [int(i) for i in re.findall(r"q\[(\d+)\]", qasm3_code)]
+
+        return CustomGate(matrix, indices)
+    else:
+        raise NotImplementedError(
+            "Only #pragma braket unitary is supported for the moment."
+        )

@@ -28,7 +28,9 @@ def generate_tests_for_notebooks():
     def make_test_func(file: str):
         def test_func():
             notebook_path = os.path.join(NOTEBOOK_DIR, file)
-            env["PYTHONPATH"] = f"{project_root};{os.path.join(project_root, 'tests')}"
+            env["PYTHONPATH"] = os.pathsep.join(
+                [project_root, os.path.join(project_root, "tests")]
+            )
             result = subprocess.run(
                 [sys.executable, "-m", "pytest", "--nbmake", notebook_path], env=env
             )
@@ -67,7 +69,16 @@ def generate_tests_for_python_scripts():
         globals()[test_name] = make_test_func(py_file)
 
 
-if "--long-local" in sys.argv or "--long" in sys.argv:
+def is_all_providers_selected():
+    if "--providers" not in sys.argv:
+        return True
+    idx = sys.argv.index("--providers") + 1
+    if idx >= len(sys.argv):
+        return False
+    return sys.argv[idx] == "all"
+
+
+if ("--long-local" in sys.argv or "--long" in sys.argv) and is_all_providers_selected():
     env = os.environ.copy()
     project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
     venv_path = os.environ.get('VIRTUAL_ENV')

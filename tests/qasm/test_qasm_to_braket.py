@@ -1,11 +1,15 @@
+from typing import TYPE_CHECKING
+
 import pytest
-from braket.circuits import Circuit, Operator
-from braket.circuits.gates import CNot, H
 
-from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
+if TYPE_CHECKING:
+    from braket.circuits import Operator
+
 from mpqp.tools import UnsupportedBraketFeaturesWarning
+from mpqp.translation.qasm.qasm_to_braket import qasm3_to_braket_Circuit
 
 
+@pytest.mark.provider("braket")
 @pytest.mark.parametrize(
     "qasm_code, braket_operators",
     [
@@ -15,7 +19,9 @@ from mpqp.tools import UnsupportedBraketFeaturesWarning
         ),
     ],
 )
-def test_qasm3_to_braket_Circuit(qasm_code: str, braket_operators: list[Operator]):
+def test_qasm3_to_braket_Circuit(qasm_code: str, braket_operators: list["Operator"]):
+    from braket.circuits import Circuit
+
     circ = qasm3_to_braket_Circuit(qasm_code)
 
     assert isinstance(circ, Circuit)
@@ -23,9 +29,11 @@ def test_qasm3_to_braket_Circuit(qasm_code: str, braket_operators: list[Operator
         assert circ_instr.operator == expected_operator
 
 
-@pytest.mark.parametrize(
-    "qasm_code, braket_operators",
-    [
+@pytest.fixture
+def list_to_braket_operator() -> list[tuple[str, list["Operator"]]]:
+    from braket.circuits.gates import CNot, H
+
+    return [
         (
             """OPENQASM 3.0;
             include 'stdgates.inc';
@@ -39,18 +47,23 @@ def test_qasm3_to_braket_Circuit(qasm_code: str, braket_operators: list[Operator
             c[1] = measure q[1];""",
             [H(), CNot()],
         ),
-    ],
-)
-def test_qasm3_to_braket_Circuit_warning(
-    qasm_code: str, braket_operators: list[Operator]
-):
-    warning = (
-        "This program uses OpenQASM language features that may not be supported"
-        " on QPUs or on-demand simulators."
-    )
-    with pytest.warns(UnsupportedBraketFeaturesWarning, match=warning):
-        circ = qasm3_to_braket_Circuit(qasm_code)
+    ]
 
-    assert isinstance(circ, Circuit)
-    for circ_instr, expected_operator in zip(circ.instructions, braket_operators):
-        assert circ_instr.operator == expected_operator
+
+@pytest.mark.provider("braket")
+def test_qasm3_to_braket_Circuit_warning(
+    list_to_braket_operator: list[tuple[str, list["Operator"]]],
+):
+    from braket.circuits import Circuit
+
+    for qasm_code, braket_operators in list_to_braket_operator:
+        warning = (
+            "This program uses OpenQASM language features that may not be supported"
+            " on QPUs or on-demand simulators."
+        )
+        with pytest.warns(UnsupportedBraketFeaturesWarning, match=warning):
+            circ = qasm3_to_braket_Circuit(qasm_code)
+
+        assert isinstance(circ, Circuit)
+        for circ_instr, expected_operator in zip(circ.instructions, braket_operators):
+            assert circ_instr.operator == expected_operator

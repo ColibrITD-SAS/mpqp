@@ -8,7 +8,9 @@ from numpy import exp
 
 from mpqp import CNOT, H, IBMDevice, Instruction, QCircuit, Result, U, run
 from mpqp.execution.devices import IBMDevice
-from mpqp.qasm.open_qasm_2_and_3 import (
+from mpqp.tools.errors import OpenQASMTranslationWarning
+from mpqp.tools.theoretical_simulation import amplitude
+from mpqp.translation.qasm.open_qasm_2_and_3 import (
     open_qasm_2_to_3,
     open_qasm_3_to_2,
     open_qasm_file_conversion_2_to_3,
@@ -17,8 +19,7 @@ from mpqp.qasm.open_qasm_2_and_3 import (
     parse_user_gates,
     remove_user_gates,
 )
-from mpqp.qasm.qasm_to_mpqp import qasm2_parse
-from mpqp.tools.theoretical_simulation import amplitude
+from mpqp.translation.qasm.qasm_to_mpqp import qasm2_parse
 
 qasm_folder = "tests/qasm/qasm_examples/"
 
@@ -85,8 +86,7 @@ def test_circular_dependency_detection_false_positive_3_to_2():
 @pytest.mark.parametrize(
     "qasm_code",
     [
-        (
-            """OPENQASM 2.0;
+        ("""OPENQASM 2.0;
             include "qelib1.inc";
 
             gate rzz(theta) a,b {
@@ -97,10 +97,8 @@ def test_circular_dependency_detection_false_positive_3_to_2():
             qreg q[3];
             creg c[2];
             rzz(0.2) q[1], q[2];
-            measure q[2] -> c[0];"""
-        ),
-        (
-            """OPENQASM 2.0;
+            measure q[2] -> c[0];"""),
+        ("""OPENQASM 2.0;
             include "qelib1.inc";
             gate my_gate a,b {
                 h a;
@@ -109,25 +107,19 @@ def test_circular_dependency_detection_false_positive_3_to_2():
             qreg q[2];
             creg c[2];
             my_gate q[0], q[1];
-            measure q -> c;"""
-        ),
-        (
-            """OPENQASM 2.0;
+            measure q -> c;"""),
+        ("""OPENQASM 2.0;
             include "qelib1.inc";
             qreg q[3];
             cx q[0],q[1];
-            cx q[1],q[2];"""
-        ),
-        (
-            """OPENQASM 2.0;
+            cx q[1],q[2];"""),
+        ("""OPENQASM 2.0;
             include "qelib1.inc";
             qreg q[3];
             creg c[2];
             u1(0.2) q[1], q[2];
-            measure q[2] -> c[0];"""
-        ),
-        (
-            """OPENQASM 2.0;
+            measure q[2] -> c[0];"""),
+        ("""OPENQASM 2.0;
             include "qelib1.inc";
             gate rzz(theta) a,b {
                 cx a,b;
@@ -137,10 +129,8 @@ def test_circular_dependency_detection_false_positive_3_to_2():
             qreg q[3];
             creg c[2];
             rzz(0.2) q[1] , q[2];
-            measure q[2] ->  c[0];"""
-        ),
-        (
-            """OPENQASM 2.0;
+            measure q[2] ->  c[0];"""),
+        ("""OPENQASM 2.0;
             include "qelib1.inc";
 
             gate MyGate a, b {
@@ -158,12 +148,11 @@ def test_circular_dependency_detection_false_positive_3_to_2():
             creg c[3];
 
             MyGate q[0], q[1];
-            MyGate2 q[0], q[1], q[2];"""
-        ),
+            MyGate2 q[0], q[1], q[2];"""),
     ],
 )
 def test_conversion_2_and_3(qasm_code: str):
-    convert, _ = open_qasm_3_to_2(open_qasm_2_to_3(qasm_code))
+    convert = open_qasm_3_to_2(open_qasm_2_to_3(qasm_code))
     assert normalize_whitespace(convert) == normalize_whitespace(qasm_code)
 
 
@@ -277,7 +266,14 @@ def test_conversion_2_and_3(qasm_code: str):
     ],
 )
 def test_conversion_2_to_3(qasm_code: str, expected_output: str):
-    convert = open_qasm_2_to_3(qasm_code)
+    if re.search(r"\bu\s*\(", qasm_code):
+        with pytest.warns(
+            OpenQASMTranslationWarning,
+            match=r"There is a phase.*difference between U",
+        ):
+            convert = open_qasm_2_to_3(qasm_code)
+    else:
+        convert = open_qasm_2_to_3(qasm_code)
     assert normalize_whitespace(convert) == normalize_whitespace(expected_output)
 
 
@@ -369,7 +365,7 @@ def test_conversion_2_to_3(qasm_code: str, expected_output: str):
     ],
 )
 def test_conversion_3_to_2(expected_output: str, qasm_code: str):
-    convert, _ = open_qasm_3_to_2(qasm_code)
+    convert = open_qasm_3_to_2(qasm_code)
     assert normalize_whitespace(convert) == normalize_whitespace(expected_output)
 
 
@@ -901,9 +897,7 @@ def test_remove_user_gates(qasm_code: str, expected_output: str):
 def test_sample_counts_in_trust_interval(
     qasm3: str, expected: tuple[list[Instruction], float]
 ):
-    qasm_2, gphase = open_qasm_3_to_2(qasm3)
-    print(gphase)
-    print(qasm_2)
+    qasm_2 = open_qasm_3_to_2(qasm3)
 
     circuit = qasm2_parse(qasm_2)
     instructions, expected_gphase = expected
@@ -912,19 +906,12 @@ def test_sample_counts_in_trust_interval(
     err_rate_percentage = 1 - np.power(1 - err_rate, (1 / 2))
 
     expected_amplitudes = amplitude(expected_circuit) * exp(expected_gphase * 1j)
-
-    print(circuit.input_g_phase)
-    circuit.input_g_phase = gphase
-    print(circuit.input_g_phase)
     result = run(circuit, IBMDevice.AER_SIMULATOR)
     assert isinstance(result, Result)
-    print("result_amplitudes: " + str(result.amplitudes))
-    print("expected_amplitudes: " + str(expected_amplitudes))
     counts = result.amplitudes
     # check if the true value is inside the trust interval
     for i in range(len(counts)):
         trust_interval = err_rate_percentage * expected_amplitudes[i]
-        print(trust_interval)
         assert (
             counts[i] - trust_interval
             <= expected_amplitudes[i]

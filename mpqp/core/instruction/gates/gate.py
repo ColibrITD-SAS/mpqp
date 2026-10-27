@@ -7,8 +7,6 @@ from typing import Optional
 from warnings import warn
 
 import numpy as np
-import numpy.typing as npt
-from scipy.linalg import fractional_matrix_power
 
 from mpqp.core.instruction.instruction import Instruction
 from mpqp.tools.errors import NumberQubitsWarning
@@ -202,12 +200,27 @@ class Gate(Instruction, ABC):
         """
         result = {}
         for attr_name in dir(self):
+            if attr_name == "cirq_gate":
+                try:
+                    import cirq  # pyright: ignore[reportUnusedImport]
+                except ImportError:
+                    continue
+            if attr_name == "braket_gate":
+                try:
+                    import braket  # pyright: ignore[reportUnusedImport]
+                except ImportError:
+                    continue
+
+            try:
+                value = getattr(self, attr_name)
+            except NotImplementedError:
+                continue
+
             if (
                 attr_name not in {'_abc_impl'}
                 and not attr_name.startswith("__")
-                and not callable(getattr(self, attr_name))
+                and not callable(value)
             ):
-                value = getattr(self, attr_name)
                 if isinstance(value, np.ndarray):
                     value = value.tolist()
                 result[attr_name] = value
@@ -242,6 +255,8 @@ class Gate(Instruction, ABC):
 
         """
         # TODO: test
+        from scipy.linalg import fractional_matrix_power
+
         from mpqp.core.instruction.gates.custom_gate import CustomGate
 
         if exponent == 1:
@@ -249,9 +264,7 @@ class Gate(Instruction, ABC):
         if exponent == -1:
             return self.inverse()
 
-        semantics: npt.NDArray[np.complex128] = fractional_matrix_power(
-            self.to_matrix(), exponent
-        )
+        semantics = fractional_matrix_power(self.to_matrix(), exponent)
 
         return CustomGate(
             matrix=semantics / np.linalg.norm(semantics, ord=2),
@@ -304,7 +317,11 @@ Naive attribution will be used (targets start at 0 and of the right length)""",
         l1 = "g1" if self.label is None else self.label
         l2 = "g2" if self.label is None else self.label
 
-        return CustomGate(matrix=gd, targets=targets, label=f"{l1}⊗{l2}")
+        return CustomGate(
+            matrix=gd,  # pyright: ignore[reportArgumentType]
+            targets=targets,
+            label=f"{l1}⊗{l2}",
+        )
 
     def _mandatory_label(self, postfix: str = ""):
         return "g" + postfix if self.label is None else self.label

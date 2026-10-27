@@ -18,6 +18,7 @@ return the corresponding job id and :class:`~mpqp.execution.job.Job` object.
 
 from __future__ import annotations
 
+from itertools import pairwise
 from numbers import Complex
 from textwrap import indent
 from typing import TYPE_CHECKING, Iterable, Optional, Sequence, overload
@@ -38,6 +39,7 @@ from mpqp.execution.devices import (
     AZUREDevice,
     GOOGLEDevice,
     IBMDevice,
+    QUANTINUUMDevice,
 )
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.providers.atos import run_atos, submit_QLM
@@ -45,6 +47,12 @@ from mpqp.execution.providers.aws import run_braket, submit_job_braket
 from mpqp.execution.providers.azure import run_azure, submit_job_azure
 from mpqp.execution.providers.google import run_google
 from mpqp.execution.providers.ibm import run_ibm, submit_remote_ibm
+from mpqp.execution.providers.providers_params import (
+    ProviderParams,
+    QiskitParams,
+    QuantinuumParams,
+)
+from mpqp.execution.providers.quantinuum import run_quantinuum, submit_job_nexus
 from mpqp.execution.result import BatchResult, Result
 from mpqp.tools.display import state_vector_ket_shape
 from mpqp.tools.errors import DeviceJobIncompatibleError, RemoteExecutionError
@@ -53,60 +61,161 @@ from mpqp.tools.generics import OneOrMany, find_index, flatten
 if TYPE_CHECKING:
     from sympy import Expr
 
+    from mpqp.core.binding import CircuitBinding
 
-def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
-    """We allow the measure to not span the entire circuit, but providers
-    usually do not support this behavior. To make this work, we tweak the measure
-    this function to match the expected behavior.
 
-    In order to do this, we add identity measures on the qubits not targeted by
-    the measure. In addition to this, some swaps are automatically added so the
-    the qubits measured are ordered and contiguous (though this is done in
-    :func:`generate_job`)
+def adjust_measure(
+    measure: ExpectationMeasure,
+    circuit: QCircuit,
+) -> ExpectationMeasure:
+    """A measure can be incomplete and not span the entire circuit, but providers
+    usually do not support this behavior. The function therefore adjusts each
+    observable to span the circuit's full qubit register.
+
+    In order to do this, we place identity operators on the qubits not targeted
+    by the measure. If the targets are not ordered, each observable is first
+    reordered so that its local qubit order matches the sorted target order.
+    Pauli observables are directly embedded on their target qubits, while matrix
+    observables are padded with identity matrices when the targets are ordered
+    and contiguous, and are otherwise embedded through their pauli decomposition.
 
     Args:
         measure: The expectation measure, potentially incomplete.
-        circuit: The circuit to which will be added the potential swaps allowing
-            the user to get the expectation value of the qubits in an arbitrary
-            order (this part is not handled by this function).
+        nb_qubits: The number of qubits in the circuit.
 
     Returns:
-        The measure padded with identities before and after.
+        A measure targeting all circuit qubits, with observables embedded into
+        the full register.
+
+    Raises:
+        ValueError: If the number of target qubits does not match the number
+            of qubits represented by an observable.
+
     """
     # TODO: use this only for specific provider
 
-    if measure.targets == list(range(circuit.nb_qubits)):
+    nb_qubits = circuit.nb_qubits
+    targets = list(measure.targets)
+
+    observables = measure.observables
+
+    if any(observable.nb_qubits != len(targets) for observable in observables):
+        raise ValueError(
+            f"Each observable must act on {len(targets)} qubits to match the "
+            "measurement targets."
+        )
+
+    if targets == list(range(nb_qubits)):
         return measure
 
-    tweaked_observables = []
-    n_before = measure.rearranged_targets[0]
-    n_after = circuit.nb_qubits - measure.rearranged_targets[-1] - 1
-    for obs in measure.observables:
-        if obs._pauli_string is not None:  # pyright: ignore[reportPrivateUsage]
-            from mpqp.measures import pI
+    targets_are_ordered = all(
+        first_target < second_target
+        for first_target, second_target in pairwise(targets)
+    )
 
-            pauli = pI(n_before - 1) @ obs.pauli_string @ pI(n_after - 1)
-            tweaked_observables.append(Observable(pauli))
+    if not targets_are_ordered:
+        ordered_targets = sorted(targets)
+
+        pauli_permutation = [ordered_targets.index(target) for target in targets]
+        # Reorder observables to match the sorted target order
+        reordered_observables: list[Observable] = []
+
+        for observable in observables:
+            if (
+                observable._matrix is None  # pyright: ignore[reportPrivateUsage]
+                or measure.optimize_measurement
+            ):
+                reordered_observables.append(
+                    Observable(
+                        observable.pauli_string.rearrange(pauli_permutation),
+                        label=observable.label,
+                    )
+                )
+            else:
+                from mpqp.tools.maths import rearrange_matrix
+
+                reordered_observables.append(
+                    Observable(
+                        rearrange_matrix(observable.matrix, targets),
+                        label=observable.label,
+                    )
+                )
+
+        targets = ordered_targets
+        observables = reordered_observables
+
+    targets_are_contiguous = bool(targets) and targets == list(
+        range(targets[0], targets[-1] + 1)
+    )
+    # Extend observables to cover the circuit's full qubit register
+    adjusted_observables: list[Observable] = []
+
+    from mpqp.core.instruction.measurement.pauli_string import (
+        PauliString,
+        PauliStringMonomial,
+        pI,
+    )
+
+    for observable in observables:
+        if (
+            observable._pauli_string is None  # pyright: ignore[reportPrivateUsage]
+            and targets_are_contiguous
+        ):
+            nb_qubits_before = targets[0]
+            nb_qubits_after = nb_qubits - targets[-1] - 1
+
+            full_matrix = observable.matrix
+
+            if nb_qubits_before > 0:
+                identity_before = np.eye(2**nb_qubits_before)
+                full_matrix = np.kron(identity_before, full_matrix)
+
+            if nb_qubits_after > 0:
+                identity_after = np.eye(2**nb_qubits_after)
+                full_matrix = np.kron(full_matrix, identity_after)
+
+            adjusted_observables.append(
+                Observable(
+                    full_matrix,  # pyright: ignore[reportArgumentType]
+                    label=observable.label,
+                )
+            )
         else:
-            Id_before = np.eye(2**n_before)
-            Id_after = np.eye(2**n_after)
-            tweaked_observables.append(
-                Observable(np.kron(np.kron(Id_before, obs.matrix), Id_after))
+            embedded_pauli_string = PauliString()
+
+            for monomial in observable.pauli_string.monomials:
+                embedded_atoms = [pI] * nb_qubits
+
+                for local_idx, target in enumerate(targets):
+                    embedded_atoms[target] = monomial.atoms[local_idx]
+
+                embedded_pauli_string += PauliStringMonomial(
+                    monomial.coef,
+                    embedded_atoms,
+                )
+
+            adjusted_observables.append(
+                Observable(
+                    embedded_pauli_string.simplify(),
+                    label=observable.label,
+                )
             )
 
-    tweaked_measure = ExpectationMeasure(
-        tweaked_observables,
-        list(range(circuit.nb_qubits)),
+    adjusted_measure = ExpectationMeasure(
+        adjusted_observables,
+        list(range(nb_qubits)),
         measure.shots,
         measure.commuting_type,
         measure.grouping_method,
+        label=measure.label,
         optimize_measurement=measure.optimize_measurement,
+        optim_diagonal=measure.optim_diagonal,
     )
-    return tweaked_measure
+    return adjusted_measure
 
 
 def generate_job(
-    circuit: QCircuit,
+    circuit: QCircuit | CircuitBinding,
     device: AvailableDevice,
     values: "Optional[dict[Expr | str, Complex]]" = None,
 ) -> Job:
@@ -125,8 +234,16 @@ def generate_job(
     Returns:
         The Job containing information about the execution of the circuit.
     """
+    from ..core.binding import CircuitBinding
+
     if values is not None:
-        circuit = circuit.subs(values, True)
+        if isinstance(circuit, CircuitBinding):
+            raise ValueError("values must be specified in CircuitBinding")
+        circuit = circuit.subs(values)
+
+    if isinstance(circuit, CircuitBinding):
+        job = Job(circuit.job_type, circuit, device)
+        return job
 
     m_list = circuit.measurements
     nb_meas = len(m_list)
@@ -142,11 +259,11 @@ def generate_job(
                 job = Job(JobType.SAMPLE, circuit, device)
         elif isinstance(measurement, ExpectationMeasure):
             m = adjust_measure(measurement, circuit)
-            c = circuit.without_measurements()
-            c.add(m)
+            circuit = circuit.without_measurements(deep_copy=False)
+            circuit.add(m)
             job = Job(
                 JobType.OBSERVABLE,
-                c,
+                circuit,
                 device,
             )
         else:
@@ -170,35 +287,59 @@ def _run_diagonal_observables(
     values: "Optional[dict[Expr | str, Complex]]" = None,
 ) -> Result:
 
-    adapted_circuit = circuit.without_measurements()
+    adapted_circuit = circuit.without_measurements(deep_copy=False)
     adapted_circuit.add(BasisMeasure(exp_measure.targets, shots=exp_measure.shots))
 
     result = _run_single(adapted_circuit, device, values, False)
+
+    return _compute_result_diagonal_observables(result, exp_measure, observable_job)
+
+
+def _compute_result_diagonal_observables(
+    result: Result,
+    exp_measure: ExpectationMeasure,
+    observable_job: Job,
+) -> Result:
+    """Compute diagonal-observable expectation values from sample probabilities.
+
+    Args:
+        result: Sampling result containing the computational-basis
+            probabilities.
+        exp_measure: Diagonal expectation measurement to evaluate.
+        observable_job: Original observable job attached to the returned result.
+
+    Returns:
+        A result containing either one expectation value or a mapping from
+        observable labels to expectation values.
+    """
+
     probas = result.probabilities
+    observable_job.id = result.job.id
+    observable_job.status = JobStatus.DONE
 
     error = 0 if exp_measure.shots == 0 else None
     if exp_measure.nb_observables == 1:
         exp_value = float(probas.dot(exp_measure.observables[0].diagonal_elements))
-        return Result(
+        result = Result(
             observable_job,
             exp_value,
             error,
             exp_measure.shots,
         )
-
-    exp_values = dict()
-    errors = dict()
-    for obs in exp_measure.observables:
-        # 3M-TODO: replace this dot product with cupy, apparently more optim
-        exp_values[obs.label] = float(probas.dot(obs.diagonal_elements))
-        errors[obs.label] = error
-
-    return Result(
-        observable_job,
-        exp_values,
-        errors,
-        exp_measure.shots,
-    )
+    else:
+        exp_values = dict()
+        errors = dict()
+        for obs in exp_measure.observables:
+            # 3M-TODO: replace this dot product with copy, apparently more optim
+            exp_values[obs.label] = float(probas.dot(obs.diagonal_elements))
+            errors[obs.label] = error
+        result = Result(
+            observable_job,
+            exp_values,
+            errors,
+            exp_measure.shots,
+        )
+    return result
 
 
 def _run_single(
@@ -206,7 +347,7 @@ def _run_single(
     device: AvailableDevice,
     values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
-    provider_options: Optional[dict] = None,
+    provider_params: Optional[ProviderParams] = None,
 ) -> Result:
     """Runs the circuit on the ``backend``. If the circuit depends on variables,
     the ``values`` given in parameters are used to do the substitution.
@@ -218,12 +359,13 @@ def _run_single(
         display_breakpoints: If ``False``, breakpoints will be disabled. Each
             breakpoint adds an execution of the circuit(s), so you may use this
             option for performance if need be.
+        provider_params: Provider's specific parameters, mainly for remote runs.
 
     Returns:
         The Result containing information about the measurement required.
 
     Raises:
-        DeviceJobIncompatibleError: if a non noisy simulator is given in
+        DeviceJobIncompatibleError: if a non-noisy simulator is given in
             parameter and the circuit contains noise
         NotImplementedError: If the device is not handled for noisy simulation
             or other submissions.
@@ -241,7 +383,6 @@ def _run_single(
          Error: None
 
     """
-    provider_options = provider_options or {}
 
     from mpqp.execution.simulated_devices import (
         SimulatedDevice,
@@ -258,7 +399,22 @@ def _run_single(
         measure = circuit.measurements[0]
         if isinstance(measure, ExpectationMeasure):
             if measure.optim_diagonal and measure.only_diagonal_observables():
-                return _run_diagonal_observables(circuit, measure, device, job, values)
+                if (measure.shots == 0 and not device.supports_state_vector()) or (
+                    measure.shots != 0 and not device.supports_samples()
+                ):
+                    from warnings import warn
+
+                    required_job_type = (
+                        JobType.STATE_VECTOR if measure.shots == 0 else JobType.SAMPLE
+                    )
+                    warn(
+                        f"Cannot optimize diagonal observables on {device}: "
+                        f"a {required_job_type.name} job is required but not supported."
+                    )
+                else:
+                    return _run_diagonal_observables(
+                        circuit, measure, device, job, values
+                    )
 
     if len(circuit.noises) != 0:
         if not device.is_noisy_simulator():
@@ -271,55 +427,151 @@ def _run_single(
             raise NotImplementedError(f"Noisy simulations not supported on {device}.")
 
     if isinstance(device, (IBMDevice, StaticIBMSimulatedDevice)):
-        return run_ibm(job)
+        if provider_params is not None and not isinstance(
+            provider_params, QiskitParams
+        ):
+            raise ValueError(
+                f"provider_params should be QiskitParam not {type(provider_params)}"
+            )
+        result = run_ibm(job, provider_params)
     elif isinstance(device, ATOSDevice):
         return run_atos(job)
     elif isinstance(device, AWSDevice):
-        return run_braket(job, **provider_options)
+        return run_braket(job, provider_params)
     elif isinstance(device, GOOGLEDevice):
         return run_google(job)
     elif isinstance(device, AZUREDevice):
         return run_azure(job)
+    elif isinstance(device, QUANTINUUMDevice):
+        if provider_params is not None and not isinstance(
+            provider_params, QuantinuumParams
+        ):
+            raise TypeError(
+                "`provider_params` must be a `QuantinuumParams` instance, "
+                f"not `{type(provider_params).__name__}`."
+            )
+        return run_quantinuum(job, provider_params)
     else:
         raise NotImplementedError(f"Device {device} not handled")
+
+    if TYPE_CHECKING:
+        assert isinstance(result, Result)
+    return result
+
+
+def _run_circuit_binding(
+    circuit_binding: CircuitBinding,
+    device: AvailableDevice,
+    display_breakpoints: bool = True,
+    provider_params: Optional[ProviderParams] = None,
+) -> BatchResult:
+    """Execute every expansion of a circuit binding on one device.
+
+    Args:
+        circuit_binding: Lazy collection of circuits, parameter values and
+            measurements to execute.
+        device: Device on which all binding executions are run.
+        display_breakpoints: Whether breakpoints should be displayed. Breakpoint
+            display for bindings is currently not implemented.
+
+    Returns:
+        A batch containing one result per resolved binding execution.
+
+    Raises:
+        DeviceJobIncompatibleError: If a noisy binding targets a device that
+            cannot simulate noise.
+        NotImplementedError: If circuit bindings are unsupported by the
+            selected provider.
+    """
+    from mpqp.execution.simulated_devices import (
+        SimulatedDevice,
+        StaticIBMSimulatedDevice,
+    )
+
+    if display_breakpoints:
+        pass
+        # TODO: implement display breakpoints for CircuitBinding
+        # raise ValueError(
+        #    "display_breakpoints is not supported with CircuitBinding"
+        # )
+
+    if circuit_binding.is_noisy:
+        if not device.is_noisy_simulator():
+            raise DeviceJobIncompatibleError(
+                f"Device {device} cannot simulate circuits containing NoiseModels."
+            )
+        elif not isinstance(
+            device,
+            (ATOSDevice, AWSDevice, IBMDevice, GOOGLEDevice, SimulatedDevice),
+        ):
+            raise NotImplementedError(f"Noisy simulations not supported on {device}.")
+
+    job = generate_job(circuit_binding, device)
+
+    if isinstance(device, (IBMDevice, StaticIBMSimulatedDevice)):
+        if not (provider_params is None or isinstance(provider_params, QiskitParams)):
+            raise ValueError(
+                f"IBM runs only handles QiskitParams got: {type(provider_params)}"
+            )
+        result = run_ibm(job, qiskit_params=provider_params)
+    elif isinstance(device, ATOSDevice):
+        raise NotImplementedError(f"Device {device} not handled")
+        result = run_atos(jobs)  # TODO
+    elif isinstance(device, AWSDevice):
+        result = run_braket(job)
+    elif isinstance(device, GOOGLEDevice):
+        raise NotImplementedError(f"Device {device} not handled")
+        result = run_google(jobs)  # TODO
+    elif isinstance(device, AZUREDevice):
+        raise NotImplementedError(f"Device {device} not handled")
+        result = run_azure(jobs)  # TODO
+    else:
+        raise NotImplementedError(f"Device {device} not handled")
+
+    # for i, (exp_measure, job) in run_diagonal_observables.items():
+    #    result.results[i] = _compute_result_diagonal_observables(
+    #        result[i], exp_measure, job
+    #    )
+
+    return result if isinstance(result, BatchResult) else BatchResult([result])
+
+
+@overload
+def run(
+    circuit: CircuitBinding | OneOrMany[QCircuit],
+    device: Sequence[AvailableDevice],
+    values: "Optional[dict[Expr | str, Complex]]" = None,
+    display_breakpoints: bool = True,
+    provider_params: Optional[ProviderParams] = None,
+) -> BatchResult: ...
+
+
+@overload
+def run(
+    circuit: CircuitBinding,
+    device: OneOrMany[AvailableDevice],
+    values: "Optional[dict[Expr | str, Complex]]" = None,
+    display_breakpoints: bool = True,
+    provider_params: Optional[ProviderParams] = None,
+) -> BatchResult: ...
 
 
 @overload
 def run(
     circuit: OneOrMany[QCircuit],
-    device: Sequence[AvailableDevice],
-    values: "Optional[dict[Expr | str, Complex]]" = None,
-    display_breakpoints: bool = True,
-    provider_options: Optional[dict] = None,
-) -> BatchResult: ...
-
-
-@overload
-def run(
-    circuit: Sequence[QCircuit],
-    device: OneOrMany[AvailableDevice],
-    values: "Optional[dict[Expr | str, Complex]]" = None,
-    display_breakpoints: bool = True,
-    provider_options: Optional[dict] = None,
-) -> BatchResult: ...
-
-
-@overload
-def run(
-    circuit: QCircuit,
     device: AvailableDevice,
     values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
-    provider_options: Optional[dict] = None,
+    provider_params: Optional[ProviderParams] = None,
 ) -> Result: ...
 
 
 def run(
-    circuit: OneOrMany[QCircuit],
+    circuit: OneOrMany[QCircuit] | CircuitBinding,
     device: OneOrMany[AvailableDevice],
     values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
-    provider_options: Optional[dict] = None,
+    provider_params: Optional[ProviderParams] = None,
 ) -> Result | BatchResult:
     """Runs the circuit on the backend, or list of backend, provided in
     parameter.
@@ -335,6 +587,7 @@ def run(
         display_breakpoints: If ``False``, breakpoints will be disabled. Each
             breakpoint adds an execution of the circuit(s), so you may use this
             option for performance if need be.
+        provider_params: Provider's specific parameters, mainly for remote runs
 
     Returns:
         The Result containing information about the measurement required.
@@ -344,19 +597,19 @@ def run(
         ...     [X(0), CNOT(0, 1), BasisMeasure([0, 1], shots=1000)],
         ...     label="X CNOT circuit",
         ... )
-        >>> result = run(c, IBMDevice.AER_SIMULATOR)
-        >>> print(result)
+        >>> result = run(c, IBMDevice.AER_SIMULATOR) # doctest: +QISKIT
+        >>> print(result) # doctest: +QISKIT
         Result: X CNOT circuit, IBMDevice, AER_SIMULATOR
           Counts: [0, 0, 0, 1000]
           Probabilities: [0, 0, 0, 1]
           Samples:
             State: 11, Index: 3, Count: 1000, Probability: 1
           Error: None
-        >>> batch_result = run(
+        >>> batch_result = run(  # doctest: +MYQLM, +BRAKET
         ...     c,
         ...     [ATOSDevice.MYQLM_PYLINALG, AWSDevice.BRAKET_LOCAL_SIMULATOR]
         ... )
-        >>> print(batch_result)
+        >>> print(batch_result) # doctest: +MYQLM, +BRAKET
         BatchResult: 2 results
             Result: X CNOT circuit, ATOSDevice, MYQLM_PYLINALG
               Counts: [0, 0, 0, 1000]
@@ -374,8 +627,8 @@ def run(
         ...     [X(0), X(1), BasisMeasure([0, 1], shots=1000)],
         ...     label="X circuit",
         ... )
-        >>> result = run([c,c2], IBMDevice.AER_SIMULATOR)
-        >>> print(result)
+        >>> result = run([c,c2], IBMDevice.AER_SIMULATOR) # doctest: +QISKIT
+        >>> print(result) # doctest: +QISKIT
         BatchResult: 2 results
             Result: X CNOT circuit, IBMDevice, AER_SIMULATOR
               Counts: [0, 0, 0, 1000]
@@ -389,6 +642,9 @@ def run(
               Samples:
                 State: 11, Index: 3, Count: 1000, Probability: 1
               Error: None
+        >>> ibm_instance = "crn:v1:****:public:quantum-computing:us-east:a/****"
+        >>> qp = QiskitParams(instance=ibm_instance) # doctest: +SKIP
+        >>> run(c2, IBMDevice.IBM_FEZ, provider_params=qp) # doctest: +SKIP
 
     """
 
@@ -396,31 +652,61 @@ def run(
         circ.label = f"circuit {i}" if circ.label is None else circ.label
         return circ
 
-    if isinstance(circuit, Iterable) or isinstance(device, Iterable):
-        return BatchResult(
-            [
-                _run_single(
-                    namer(circ, i + 1),
-                    dev,
-                    values,
-                    display_breakpoints,
-                    provider_options,
+    if isinstance(device, Iterable):
+        results: list[Result] = []
+        devices = flatten(device)
+        if isinstance(circuit, (QCircuit, Iterable)):
+            for i, circ in enumerate(flatten(circuit)):
+                for dev in devices:
+                    results.append(
+                        _run_single(
+                            namer(circ, i + 1),
+                            dev,
+                            values,
+                            display_breakpoints,
+                            provider_params,
+                        )
+                    )
+        else:
+            for dev in devices:
+                if values is not None:
+                    raise ValueError("values must be specified in CircuitBinding")
+                result = _run_circuit_binding(
+                    circuit, dev, display_breakpoints, provider_params
                 )
-                for i, circ in enumerate(flatten(circuit))
-                for dev in flatten(device)
-            ]
-        )
+                results.extend(result.results)
+        return BatchResult(results)
     else:
-        return _run_single(
-            circuit, device, values, display_breakpoints, provider_options
-        )
+        if isinstance(circuit, QCircuit):
+            return _run_single(
+                circuit, device, values, display_breakpoints, provider_params
+            )
+        elif isinstance(circuit, Iterable):
+            results: list[Result] = []
+            for i, circ in enumerate(flatten(circuit)):
+                results.append(
+                    _run_single(
+                        namer(circ, i + 1),
+                        device,
+                        values,
+                        display_breakpoints,
+                        provider_params,
+                    )
+                )
+            return BatchResult(results)
+        else:
+            if values is not None:
+                raise ValueError("values must be specified in CircuitBinding")
+            return _run_circuit_binding(
+                circuit, device, display_breakpoints, provider_params
+            )
 
 
 def submit(
     circuit: QCircuit,
     device: AvailableDevice,
     values: Optional[dict[Expr | str, Complex]] = None,
-    provider_options: Optional[dict] = None,
+    provider_params: Optional[ProviderParams] = None,
 ) -> tuple[str, Job]:
     """Submit the job related to the circuit on the remote backend provided in
     parameter. The submission returns a ``job_id`` that can be used to retrieve
@@ -438,6 +724,7 @@ def submit(
         circuit: QCircuit to be run.
         device: Remote device to which the circuit will be submitted.
         values: Values to substitute for symbolic variables. Defaults to ``{}``.
+        provider_params: Provider's specific parameters for remote submissions
 
     Returns:
         The job id provided by the remote device after submission of the job.
@@ -453,7 +740,6 @@ def submit(
     Note:
         Unlike :func:`run`, you can only submit on one device at a time.
     """
-    provider_options = provider_options or {}
 
     if values is None:
         values = {}
@@ -466,13 +752,28 @@ def submit(
     job.status = JobStatus.INIT
 
     if isinstance(device, IBMDevice):
-        job_id, _ = submit_remote_ibm(job)
+        if provider_params is not None and not isinstance(
+            provider_params, QiskitParams
+        ):
+            raise ValueError(
+                f"provider_params should be QiskitParam not {type(provider_params)}"
+            )
+        job_id, _ = submit_remote_ibm(job, provider_params)
     elif isinstance(device, ATOSDevice):
         job_id, _ = submit_QLM(job)
     elif isinstance(device, AWSDevice):
-        job_id, _ = submit_job_braket(job, **provider_options)
+        job_id, _ = submit_job_braket(job, provider_params)
     elif isinstance(device, AZUREDevice):
         job_id, _ = submit_job_azure(job)
+    elif isinstance(device, QUANTINUUMDevice):
+        if provider_params is not None and not isinstance(
+            provider_params, QuantinuumParams
+        ):
+            raise TypeError(
+                "`provider_params` must be a `QuantinuumParams` instance, "
+                f"not `{type(provider_params).__name__}`."
+            )
+        job_id, _ = submit_job_nexus(job, provider_params)
     else:
         raise NotImplementedError(f"Device {device} not handled")
 

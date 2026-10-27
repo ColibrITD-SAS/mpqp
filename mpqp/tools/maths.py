@@ -6,11 +6,10 @@ from __future__ import annotations
 import math
 from functools import reduce
 from numbers import Complex, Real
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Union, cast
 
 import numpy as np
 import numpy.typing as npt
-from scipy.linalg import inv, sqrtm
 
 if TYPE_CHECKING:
     from sympy import Expr
@@ -46,17 +45,33 @@ def normalize(v: npt.NDArray[np.complex128]) -> npt.NDArray[np.complex128]:
     return v if norm == 0 else v / norm
 
 
-def matrix_eq(lhs: Matrix, rhs: Matrix, atol: float = atol, rtol: float = rtol) -> bool:
-    r"""Checks whether two matrix (including vectors) are element-wise equal, within a tolerance.
+def matrix_eq(
+    lhs: Matrix,
+    rhs: Matrix,
+    atol: float = atol,
+    rtol: float = rtol,
+    fuzzy: bool = False,
+) -> bool:
+    r"""Checks whether two matrix (including vectors) are element-wise equal,
+    within a tolerance.
 
     For respectively each elements `a` and `b` of both inputs, we check this
     specific condition: `|a - b| \leq (atol + rtol * |b|)`.
+
+    A fuzzy option can be enabled to check if the matrices have a chance to be
+    equal by considering that if a coefficient of the difference between the two
+    matrix is symbolic then it could 0. Note that this is quite naive and that
+    to be more complete we could derive equations from the equality and ensure
+    that the equations have at least one solution, but this would take too much
+    time so we stick with the naive approach.
 
     Args:
         lhs: Left-hand side matrix of the equality.
         rhs: Right-hand side matrix of the equality.
         atol: The absolute tolerance parameter.
         rtol: The relative tolerance parameter.
+        fuzzy: If ``True``, symbolic difference is considered as nullable (see
+            above for more detail).
 
     Returns:
         ``True`` if the two matrix are equal (according to the definition above).
@@ -67,7 +82,7 @@ def matrix_eq(lhs: Matrix, rhs: Matrix, atol: float = atol, rtol: float = rtol) 
             if abs(elt[0] - elt[1]) > (atol + rtol * abs(elt[1])):
                 return False
         except TypeError:
-            if elt[0] != elt[1]:
+            if not fuzzy and elt[0] != elt[1]:
                 return False
 
     return True
@@ -106,11 +121,13 @@ def is_hermitian(matrix: Matrix) -> bool:
     )
 
 
-def is_unitary(matrix: Matrix) -> bool:
+def is_unitary(matrix: Matrix, fuzzy: bool = False) -> bool:
     """Checks whether the matrix in parameter is unitary.
 
     Args:
         matrix: Matrix for which we want to know if it is unitary.
+        fuzzy: Whether the check used in the matrix equality should be fuzzy or
+            not.
 
     Returns:
         ``True`` if the matrix in parameter is Unitary.
@@ -123,9 +140,7 @@ def is_unitary(matrix: Matrix) -> bool:
 
     """
     return matrix_eq(
-        np.eye(len(matrix), dtype=np.complex128),
-        matrix.transpose().conjugate().dot(matrix),
-        atol=1e-5,
+        np.eye(len(matrix)), matrix.T.conj().dot(matrix), atol=1e-5, fuzzy=fuzzy
     )
 
 
@@ -160,12 +175,13 @@ def is_diagonal(matrix: npt.NDArray[Any]) -> bool:
     return not np.any(test[:, 1:])
 
 
-def closest_unitary(matrix: Matrix) -> Matrix:
+def closest_unitary(matrix: Matrix, check_unitary: bool = False) -> Matrix:
     """Calculate the unitary matrix that is closest with respect to the operator
     norm distance to the general matrix in parameter.
 
     Args:
         matrix: Matrix for which we want to determine the closest unitary matrix.
+        check_unitary: If True, we check whether the input matrix is unitary, and return it if so.
 
     Returns:
         The closest unitary matrix.
@@ -181,6 +197,8 @@ def closest_unitary(matrix: Matrix) -> Matrix:
         True
 
     """
+    if check_unitary and is_unitary(matrix):
+        return matrix
     from scipy.linalg import svd
 
     V, _, Wh = svd(matrix)
@@ -280,6 +298,8 @@ def rand_orthogonal_matrix(
          [0.61751 , 0.71739 , 0.32254]]
 
     """
+    from scipy.linalg import inv, sqrtm
+
     rng = np.random.default_rng(seed)
 
     m = rng.random((size, size))
@@ -300,16 +320,16 @@ def rand_clifford_matrix(
 
     Examples:
         >>> pprint(rand_clifford_matrix(2))
-        [[-0.5 , 0.5  , 0.5j , -0.5j],
-         [-0.5j, -0.5j, 0.5  , 0.5  ],
-         [-0.5j, -0.5j, -0.5 , -0.5 ],
-         [-0.5 , 0.5  , -0.5j, 0.5j ]]
+        [[0.5 , -0.5j, -0.5 , -0.5j],
+         [0.5j, 0.5  , 0.5j , -0.5 ],
+         [0.5j, -0.5 , -0.5j, -0.5 ],
+         [0.5 , 0.5j , 0.5  , -0.5j]]
 
         >>> pprint(rand_clifford_matrix(2, seed=123))
-        [[0.70711j, 0        , -0.70711j, 0        ],
-         [0       , -0.70711j, 0        , -0.70711j],
-         [0       , 0.70711j , 0        , -0.70711j],
-         [0.70711j, 0        , 0.70711j , 0        ]]
+        [[0.70711  , 0       , 0.70711 , 0        ],
+         [0        , -0.70711, 0       , -0.70711 ],
+         [-0.70711j, 0       , 0.70711j, 0        ],
+         [0        , 0.70711j, 0       , -0.70711j]]
 
     """
     from qiskit.quantum_info import random_clifford
@@ -373,6 +393,11 @@ def rand_product_local_unitaries(
         nb_qubits: Number of qubits on which the product of unitaries will act.
         seed: Seed used to initialize the random number generation.
 
+        seed: Used for the random number generation. If unspecified, a new
+            generator will be used. If a ``Generator`` is provided, it will be
+            used to generate any random number needed. Finally if an ``int`` is
+            provided, it will be used to initialize a new generator.
+
     Returns:
         A tensor product of random unitary matrices.
 
@@ -392,14 +417,21 @@ def rand_product_local_unitaries(
     """
     rng = np.random.default_rng(seed)
 
-    return reduce(np.kron, [rand_unitary_2x2_matrix(rng) for _ in range(nb_qubits)])
+    return reduce(
+        np.kron, [rand_unitary_2x2_matrix(rng) for _ in range(nb_qubits)]
+    )  # pyright: ignore[reportReturnType]
 
 
-def rand_unitary_matrix(size: int) -> Matrix:
+def rand_unitary_matrix(size: int, seed: Optional[int] = None) -> Matrix:
     """Generate a random Unitary matrix sampled from the group U(N), calling the associated `scipy` function.
 
     Args:
         size: Size (number of columns) of the square matrix to generate.
+
+        seed: Used for the random number generation. If unspecified, a new
+            generator will be used. If a ``Generator`` is provided, it will be
+            used to generate any random number needed. Finally if an ``int`` is
+            provided, it will be used to initialize a new generator.
 
     Returns:
         A random unitary matrix with complex coefficients.
@@ -412,7 +444,10 @@ def rand_unitary_matrix(size: int) -> Matrix:
     """
     from scipy.stats import unitary_group
 
-    return np.asarray(unitary_group.rvs(size), dtype=np.complex128)
+    return np.asarray(
+        unitary_group.rvs(size, random_state=np.random.default_rng(seed)),
+        dtype=np.complex128,
+    )
 
 
 def rand_hermitian_matrix(
@@ -460,3 +495,164 @@ def is_power_of_two(n: int) -> bool:
 
     """
     return n >= 1 and (n & (n - 1)) == 0
+
+
+def rearrange_matrix(m: Matrix, targets: list[int], do_copy: bool = True) -> Matrix:
+    """Reorder the rows and columns of a matrix according to the gate targets.
+    The resulting matrix corresponds to the targets in sorted order.
+
+    For example, for a three-qubit gate with ``targets=[3, 2, 1]``, the first
+    local qubit is associated with qubit 3, the second with qubit 2, and the third
+    with qubit 1. Reordering the matrix to correspond to ``[1, 2, 3]`` exchanges
+    the roles of qubits 1 and 3, similarly to a SWAP between their positions in
+    the matrix.
+
+    Note: This function does not move a gate within the circuit. It only adjusts
+        its matrix representation according to the target order.
+
+    Args:
+        m: The matrix for which we want to reorder the targets.
+        targets: The targets
+        do_copy: If ``True``, rearrange a copy without modifying the original
+            matrix. If ``False``, rearrange the original matrix in place.
+
+    Returns:
+        The matrix rearranged to correspond to the sorted target order.
+
+    Example:
+    >>> matrix = np.diag([1,2,3,4])
+    >>> pprint(matrix)
+    [[1, 0, 0, 0],
+     [0, 2, 0, 0],
+     [0, 0, 3, 0],
+     [0, 0, 0, 4]]
+    >>> pprint(rearrange_matrix(matrix, [1,0]))
+    [[1, 0, 0, 0],
+     [0, 3, 0, 0],
+     [0, 0, 2, 0],
+     [0, 0, 0, 4]]
+    >>> I = np.eye(2)
+    >>> X = np.array([[0,1], [1,0]])
+    >>> matrix = np.kron(I, X)
+    >>> pprint(matrix)
+    [[0, 1, 0, 0],
+     [1, 0, 0, 0],
+     [0, 0, 0, 1],
+     [0, 0, 1, 0]]
+    >>> pprint(rearrange_matrix(matrix, [1,0]))
+    [[0, 0, 1, 0],
+     [0, 0, 0, 1],
+     [1, 0, 0, 0],
+     [0, 1, 0, 0]]
+    """
+
+    l = len(targets)
+    shuffled = sorted(targets)
+    permutation = [targets.index(target) for target in shuffled]
+    axes = permutation + [l + index for index in permutation]
+
+    if do_copy:
+        m = m.copy()
+
+    rearranged_matrix = np.array(
+        m.reshape([2] * (2 * l)).transpose(axes).reshape(m.shape),
+        copy=True,
+    )
+
+    m[...] = rearranged_matrix
+    return m
+
+
+def symbolic_product(*factors: Expr | complex) -> Expr | complex:
+    """Multiplies numeric or symbolic factors while preserving their
+    arithmetic type.
+
+    If at least one factor is a SymPy expression, all factors are converted to
+    SymPy objects before the multiplication. Otherwise, the multiplication is
+    performed using Python complex numbers.
+
+    Args:
+        factors: Numeric or symbolic factors to multiply.
+
+    Returns:
+        The product as a SymPy expression if any factor is symbolic, or as a
+        Python complex number otherwise.
+
+    Examples:
+        >>> symbolic_product(2, 3j)
+        6j
+        >>> x = symbols("x")
+        >>> symbolic_product(2, x)
+        2*x
+
+    """
+    from sympy import Expr, prod, sympify
+
+    if any(isinstance(factor, Expr) for factor in factors):
+        return cast(Expr, prod(sympify(factor) for factor in factors))
+
+    result = 1 + 0j
+    for factor in factors:
+        result *= cast(complex, factor)
+    return result
+
+
+def symbolic_divide(dividend: Expr | float, divisor: Expr | float) -> Expr | float:
+    """Divides numeric or symbolic values while preserving their arithmetic
+    type.
+
+    If either operand is a SymPy expression, both operands are converted to
+    SymPy objects before the division. Otherwise, regular Python division is
+    used.
+
+    Args:
+        dividend: Value to divide.
+        divisor: Value by which the ``dividend`` is divided.
+
+    Returns:
+        The quotient as a SymPy expression if either operand is symbolic, or as
+        a floating-point number otherwise.
+
+    Examples:
+        >>> symbolic_divide(3.0, 2.0)
+        1.5
+        >>> x = symbols("x")
+        >>> symbolic_divide(x, 2)
+        x/2
+
+    """
+    from sympy import Expr, sympify
+
+    if isinstance(dividend, Expr) or isinstance(divisor, Expr):
+        return sympify(dividend) / sympify(divisor)
+
+    return dividend / divisor
+
+
+def rotation_denominator(k: Expr | float) -> Expr | float:
+    """Computes the denominator of the angle of an :class:`Rk` gate.
+
+    The denominator is defined as :math:`2^{k-1}`. A symbolic ``k`` produces a
+    SymPy expression, while a numeric ``k`` produces a floating-point number.
+
+    Args:
+        k: Numeric or symbolic index of the rotation gate.
+
+    Returns:
+        The value :math:`2^{k-1}` with the same symbolic or numeric nature as
+        ``k``.
+
+    Examples:
+        >>> rotation_denominator(4)
+        8.0
+        >>> k = symbols("k")
+        >>> rotation_denominator(k)
+        2**(k - 1)
+
+    """
+    from sympy import Expr, Integer
+
+    if isinstance(k, Expr):
+        return Integer(2) ** (k - Integer(1))
+
+    return 2.0 ** (k - 1.0)

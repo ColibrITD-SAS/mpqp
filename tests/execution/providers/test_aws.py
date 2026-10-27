@@ -4,6 +4,7 @@ import pytest
 from mpqp import CNOT, AWSDevice, H, QCircuit, run
 
 
+@pytest.mark.provider("braket")
 @pytest.mark.parametrize(
     "circuit",
     [

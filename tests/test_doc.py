@@ -3,7 +3,7 @@ import importlib
 import os
 import sys
 import warnings
-from doctest import SKIP, DocTest, DocTestFinder, DocTestRunner
+from doctest import SKIP, DocTest, DocTestFinder, DocTestRunner, register_optionflag
 from functools import partial
 from pathlib import Path
 from types import TracebackType
@@ -12,10 +12,16 @@ from typing import Any, Optional, Type
 import pytest
 from anytree import Node
 from dotenv import dotenv_values, set_key, unset_key
+from matplotlib import pyplot as plt
 from numpy.random import default_rng
 from sympy import symbols
 
 from mpqp import *
+from mpqp.core.instruction.gates.gate_decomposition import (
+    resolve_composed_gate,
+    resolve_gate,
+    resolve_instructions,
+)
 from mpqp.core.instruction.measurement import PauliString, pauli_string
 from mpqp.environment.env_manager import (
     _create_config_if_needed,  # pyright: ignore[reportPrivateUsage]
@@ -75,31 +81,6 @@ from mpqp.local_storage.save import insert_jobs, insert_results
 from mpqp.local_storage.setup import setup_local_storage
 from mpqp.measures import PauliString, pI, pX, pY, pZ
 from mpqp.noise.noise_model import _plural_marker  # pyright: ignore[reportPrivateUsage]
-from mpqp.qasm import (
-    qasm2_to_cirq_Circuit,
-    qasm2_to_myqlm_Circuit,
-    qasm2_to_Qiskit_Circuit,
-    qasm3_to_braket_Program,
-)
-from mpqp.qasm.mpqp_to_qasm import mpqp_to_qasm2
-from mpqp.qasm.myqlm_to_mpqp import from_myqlm_to_mpqp
-from mpqp.qasm.open_qasm_2_and_3 import (
-    convert_instruction_3_to_2,
-    open_qasm_2_to_3,
-    open_qasm_3_to_2,
-    open_qasm_file_conversion_2_to_3,
-    open_qasm_file_conversion_3_to_2,
-    open_qasm_hard_includes,
-    parse_user_gates,
-    remove_include_and_comment,
-    remove_user_gates,
-)
-from mpqp.qasm.qasm_to_braket import (
-    braket_custom_gates_to_mpqp,
-    braket_noise_to_mpqp,
-    qasm3_to_braket_Circuit,
-)
-from mpqp.qasm.qasm_to_mpqp import qasm2_parse
 from mpqp.tools.circuit import (
     random_circuit,
     random_gate,
@@ -133,10 +114,42 @@ from mpqp.tools.maths import (
     rand_product_local_unitaries,
     rand_unitary_2x2_matrix,
     rand_unitary_matrix,
+    rearrange_matrix,
+    rotation_denominator,
+    symbolic_divide,
+    symbolic_product,
 )
 from mpqp.tools.operators import *
 from mpqp.tools.pauli_grouping import CommutingTypes, pauli_grouping_greedy
 from mpqp.tools.unitary_decomposition import quantum_shannon_decomposition
+from mpqp.translation import *
+from mpqp.translation.braket import *
+from mpqp.translation.qasm import (
+    qasm2_to_cirq_Circuit,
+    qasm2_to_myqlm_Circuit,
+    qasm2_to_Qiskit_Circuit,
+    qasm3_to_braket_Program,
+)
+from mpqp.translation.qasm.mpqp_to_qasm import mpqp_to_qasm2
+from mpqp.translation.qasm.myqlm_to_mpqp import from_myqlm_to_mpqp
+from mpqp.translation.qasm.open_qasm_2_and_3 import (
+    convert_instruction_3_to_2,
+    open_qasm_2_to_3,
+    open_qasm_3_to_2,
+    open_qasm_file_conversion_2_to_3,
+    open_qasm_file_conversion_3_to_2,
+    open_qasm_hard_includes,
+    parse_user_gates,
+    remove_include_and_comment,
+    remove_user_gates,
+)
+from mpqp.translation.qasm.qasm_to_braket import (
+    braket_custom_gates_to_mpqp,
+    braket_noise_to_mpqp,
+    qasm3_to_braket_Circuit,
+)
+from mpqp.translation.qasm.qasm_to_mpqp import qasm2_parse
+from mpqp.translation.qiskit import *
 
 theta, k = symbols("θ k")
 obs = Observable(np.array([[0, 1], [1, 0]]))
@@ -223,7 +236,7 @@ class DBRunner:
 test_globals = globals().copy()
 test_globals.update(locals())
 
-to_pass = ["connection", "noise_methods", "remote_handle"]
+file_to_pass = ["connection", "noise_methods", "remote_handle"]
 files_needing_db = ["local_storage", "result", "job"]
 unsafe_files = ["env"] + files_needing_db
 
@@ -231,14 +244,52 @@ unsafe_files = ["env"] + files_needing_db
 finder = DocTestFinder()
 runner = DocTestRunner()
 
+PROVIDER_MYQLM = register_optionflag("MYQLM")
+PROVIDER_QISKIT = register_optionflag("QISKIT")
+PROVIDER_BRAKET = register_optionflag("BRAKET")
+PROVIDER_CIRQ = register_optionflag("CIRQ")
+PROVIDER_QUANTINUUM = register_optionflag("QUANTINUUM")
+register_optionflag("FUNC_NEED_MYQLM")
+register_optionflag("FUNC_NEED_QISKIT")
+register_optionflag("FUNC_NEED_BRAKET")
+register_optionflag("FUNC_NEED_CIRQ")
+register_optionflag("FUNC_NEED_QUANTINUUM")
+
+PROVIDER_FLAGS = {
+    "myqlm": PROVIDER_MYQLM,
+    "qiskit": PROVIDER_QISKIT,
+    "braket": PROVIDER_BRAKET,
+    "cirq": PROVIDER_CIRQ,
+    "quantinuum": PROVIDER_QUANTINUUM,
+}
+
 
 def stable_random(*args: Any, **kwargs: Any):
     user_seed = args[0] if len(args) != 0 else None
     return default_rng(user_seed or 351)
 
 
-def run_doctest(root: str, filename: str, monkeypatch: pytest.MonkeyPatch):
+def run_doctest(
+    root: str,
+    filename: str,
+    monkeypatch: pytest.MonkeyPatch,
+    request: pytest.FixtureRequest,
+):
+    active_providers = request.config.getoption("--providers")
+    if isinstance(active_providers, str):
+        active_providers = [active_providers]
+    elif not isinstance(active_providers, list):
+        active_providers = ["all"]
+
+    skip_provider_flags: dict[str, int] = {}
+
+    for name, flag in PROVIDER_FLAGS.items():
+        if not active_providers or name not in active_providers:
+            skip_provider_flags[name] = flag
+
     monkeypatch.setattr('numpy.random.default_rng', stable_random)
+    monkeypatch.setattr(plt, "show", lambda *args, **kwargs: None)
+
     warnings.filterwarnings("ignore", category=UnsupportedBraketFeaturesWarning)
     warnings.filterwarnings("ignore", category=OpenQASMTranslationWarning)
     warnings.filterwarnings(
@@ -259,12 +310,26 @@ def run_doctest(root: str, filename: str, monkeypatch: pytest.MonkeyPatch):
             test.docstring
             and "3M-TODO" not in test.docstring
             and "6M-TODO" not in test.docstring
+            # TODO: Check for +FUNC_NEED_ flags
+            and all(
+                f"# doctest: +FUNC_NEED_{keyword.upper()}" not in test.docstring
+                for keyword in skip_provider_flags.keys()
+            )
         ):
+            for example in test.examples:
+                flags = example.options
+                for flag in PROVIDER_FLAGS.values():
+                    if flag in flags and flag in skip_provider_flags.values():
+                        example.options[SKIP] = True
+
             if safe_needed:
                 with EnvRunner():
                     if any(name in root + filename for name in files_needing_db):
-                        with DBRunner(test.name):
-                            assert runner.run(test).failed == 0
+                        if (
+                            "--long-local" in sys.argv or "--long" in sys.argv
+                        ) and "all" in active_providers:
+                            with DBRunner(test.name):
+                                assert runner.run(test).failed == 0
                     else:
                         assert runner.run(test).failed == 0
             else:
@@ -274,7 +339,9 @@ def run_doctest(root: str, filename: str, monkeypatch: pytest.MonkeyPatch):
 folder_path = "mpqp"
 for root, _, files in os.walk(folder_path):
     for filename in files:
-        if all(str not in filename for str in to_pass) and filename.endswith(".py"):
+        if all(str not in filename for str in file_to_pass) and filename.endswith(
+            ".py"
+        ):
             t_function_name = "test_doc_" + "mpqp".join(
                 (root + "_" + filename).split("mpqp")
             ).replace("\\", "_").replace("/", "_").replace(".py", "")

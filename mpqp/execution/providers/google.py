@@ -77,7 +77,7 @@ def apply_noise_to_cirq_circuit(
             if isinstance(op.gate, (MeasurementGate, IdentityGate)):
                 continue
 
-            for noise in reversed(noises):
+            for noise in noises:
                 noise_dimension = (
                     noise.dimension if isinstance(noise, DimensionalNoiseModel) else 1
                 )
@@ -249,12 +249,12 @@ def run_cirq_observable(
         expectation_values = {}
         for obs in job.measure.observables:
 
-            if obs.pre_transpile is None:
+            if obs.pre_transpiled is None:
                 cirq_obs = obs.to_other_language(
                     language=Language.CIRQ, circuit=circuit
                 )
             else:
-                cirq_obs = obs.pre_transpile
+                cirq_obs = obs.pre_transpiled
                 if TYPE_CHECKING:
                     assert type(cirq_obs) in (CirqPauliSum, CirqPauliString)
             job.status = JobStatus.RUNNING
@@ -289,7 +289,7 @@ def run_cirq_observable(
             else:
                 results = measure_observables(
                     circuit,
-                    observables=(  # pyright: ignore[reportArgumentType]
+                    observables=(
                         [cirq_obs]
                         if isinstance(cirq_obs, CirqPauliString)
                         else cirq_obs
@@ -409,6 +409,9 @@ def run_google_remote(job: Job) -> Result:
     import cirq_ionq as ionq
     from cirq.circuits.circuit import Circuit as CirqCircuit
 
+    if TYPE_CHECKING:
+        assert isinstance(job.circuit, QCircuit)
+
     if job.circuit.transpiled_circuit is None:
         job_CirqCircuit = job.circuit.to_other_device(job.device)
     else:
@@ -427,7 +430,8 @@ def run_google_remote(job: Job) -> Result:
                 assert isinstance(job.measure, BasisMeasure)
 
             return extract_result_SAMPLE(
-                service.run(circuit=job_CirqCircuit, repetitions=job.measure.shots), job
+                service.run(circuit=job_CirqCircuit, repetitions=job.measure.shots),
+                job,
             )
         elif job.job_type == JobType.OBSERVABLE:
             return run_cirq_observable_remote(job, job_CirqCircuit, service)
@@ -463,6 +467,9 @@ def run_local(job: Job) -> Result:
 
     from cirq.circuits.circuit import Circuit as CirqCircuit
     from cirq.sim.sparse_simulator import Simulator
+
+    if TYPE_CHECKING:
+        assert isinstance(job.circuit, QCircuit)
 
     if job.device.is_processor():
         return run_local_processor(job)
@@ -530,6 +537,8 @@ def run_local_processor(job: Job) -> Result:
         calibrations={calibration.timestamp // 1000: calibration},
     )
     simulator = SimulatedLocalEngine([sim_processor])
+    if TYPE_CHECKING:
+        assert isinstance(job.circuit, QCircuit)
 
     if job.circuit.transpiled_circuit is None:
         cirq_circuit = job.circuit.to_other_device(job.device)
@@ -610,5 +619,6 @@ def extract_result_STATE_VECTOR(
     Returns:
         The formatted result.
     """
-    state_vector = StateVector(result.final_state_vector, job.circuit.nb_qubits)
-    return Result(job, state_vector, 0, 0)
+    return Result(
+        job, StateVector(result.final_state_vector, job.circuit.nb_qubits), 0, 0, False
+    )

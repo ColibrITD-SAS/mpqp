@@ -297,7 +297,9 @@ def clean_number_repr(number: Union[complex, np.complex128], round: int = 7):
     return f"{str(real_part)}{str(imag_part)}"
 
 
-def clean_matrix(matrix: Matrix, round: int = 5, align: bool = True):
+def clean_matrix(
+    matrix: Matrix, round: int = 5, align: bool = True, max_display_size: int = 0
+):
     """Cleans and formats elements of a 2D matrix. This function rounds the
     parts of the numbers in the matrix and formats them as integers if
     appropriate. It returns a string representation of the cleaned matrix.
@@ -306,23 +308,49 @@ def clean_matrix(matrix: Matrix, round: int = 5, align: bool = True):
         matrix: An 2d array containing numeric elements.
         round: The number of decimal places to round the real and imaginary parts.
         align: Whether to align the elements for a cleaner output.
+        max_display_size: If greater that 0, the displayed matrix will show
+            ellipsis for indexes other the given size.
 
     Returns:
         A string representation of the cleaned matrix.
 
     Examples:
-        >>> print(clean_matrix(np.array([[1.234567895546, 2.3456789645645, 3.45678945645],
-        ... [1+5j, 0+1j, 5.],
-        ... [1.223123425+0.95113462364j, 2.0, 3.0]])))
+        >>> print(clean_matrix(np.array([
+        ...     [              1.234567895546, 2.3456789645645, 3.45678945645],
+        ...     [                      1 + 5j,          0 + 1j,           5.0],
+        ...     [1.223123425 + 0.95113462364j,             2.0,           3.0],
+        ... ])))
         [[1.23457         , 2.34568, 3.45679],
          [1+5j            , 1j     , 5      ],
          [1.22312+0.95113j, 2      , 3      ]]
 
     """
+    y_ellipsis = False
+    x_ellipsis = False
+    truncated_matrix = np.array(matrix)
+
+    if max_display_size > 0:
+        if truncated_matrix.shape[0] > max_display_size:
+            truncated_matrix = truncated_matrix[:max_display_size, :]
+            y_ellipsis = True
+        if truncated_matrix.shape[1] > max_display_size:
+            truncated_matrix = truncated_matrix[:, :max_display_size]
+            x_ellipsis = True
 
     formatted_matrix = [
-        [format_element_str(element, round) for element in row] for row in matrix
+        [format_element_str(element, round) for element in row]
+        for row in truncated_matrix
     ]
+    if y_ellipsis:
+        for line in formatted_matrix:
+            line.append(" ")
+        formatted_matrix[0][-1] = "…"
+    if x_ellipsis:
+        # width of vertical ellipsis "︙" seems inconsistent between mono fonts
+        formatted_matrix.append([" "] * len(formatted_matrix[0]))
+        formatted_matrix[-1][0] = "…"
+    if y_ellipsis and x_ellipsis:
+        formatted_matrix[-1][-1] = "⋱"
     if align:
         max_lengths = [
             max(len(row[i]) for row in formatted_matrix)

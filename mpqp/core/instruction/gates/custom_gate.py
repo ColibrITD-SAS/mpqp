@@ -6,13 +6,16 @@ and executed transparently."""
 
 from __future__ import annotations
 
+from copy import copy
+from numbers import Complex
 from typing import TYPE_CHECKING, Optional, Union
 
 from mpqp.tools import Matrix
 
 if TYPE_CHECKING:
-    from qiskit.circuit import Parameter
+    from qiskit._accelerate.circuit import Parameter
     from mpqp.core.circuit import QCircuit
+    from sympy import Basic, Expr
 
 from mpqp.core.instruction.gates.gate import Gate
 from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
@@ -72,6 +75,15 @@ class CustomGate(Gate):
         # TODO: move this to `to_canonical_matrix` and check for the usages
         return self.definition.matrix
 
+    @property
+    def free_symbols(self) -> "set[Basic]":
+        from sympy import Expr
+
+        return set.union(
+            set(),
+            *[e.free_symbols for e in self.matrix.flatten() if isinstance(e, Expr)],
+        )
+
     def to_matrix(self, desired_gate_size: int = 0):
         return self.matrix
 
@@ -115,12 +127,11 @@ class CustomGate(Gate):
                 from qiskit import QuantumCircuit
 
                 dummy_circuit = QuantumCircuit(self.nb_qubits)
-                for param in qiskit_parameters:
-                    # Rx is just a random choice so to have the parameter in the
-                    # list of inputs
-                    dummy_circuit.rx(param, 0)
-                return dummy_circuit.to_gate(label="CustomGate")
-            return UnitaryGate(self.matrix)
+                dummy_circuit.id(0)
+                return dummy_circuit.to_gate(
+                    label=f"CustomGate({', '.join([str(s) for s in gate_symbols])})"
+                )
+            return UnitaryGate(self.matrix, label=self.label, check_input=False)
         elif language == Language.BRAKET:
             from sympy import Expr
 
@@ -145,8 +156,13 @@ class CustomGate(Gate):
 
                 return BraketInstruction(
                     operator=BraketUnitary(self.definition.matrix),
-                    target=list(range(self.nb_qubits)),
+                    target=self.targets,
                 )
+        elif language == Language.CIRQ:
+            from cirq import MatrixGate
+
+            return MatrixGate(matrix=self.matrix, name=self.label, unitary_check=False)
+
         elif language == Language.QASM2:
             from qiskit import QuantumCircuit, qasm2
 
@@ -157,16 +173,17 @@ class CustomGate(Gate):
             qiskit_circ = QuantumCircuit(nb_qubits)
             instr = self.to_other_language(Language.QISKIT)
             if TYPE_CHECKING:
-                from qiskit.quantum_info.operators import Operator as QiskitOperator
+                from qiskit.circuit.library import UnitaryGate
 
-                assert isinstance(instr, QiskitOperator)
+                assert isinstance(instr, UnitaryGate)
+
             qiskit_circ.unitary(
                 instr,
-                list(reversed(self.targets)),  # dang qiskit qubits order
+                list(reversed(self.targets)),
                 self.label,
             )
 
-            circuit, gphase = replace_custom_gate(qiskit_circ.data[0], nb_qubits)
+            circuit, gphase = replace_custom_gate(qiskit_circ, nb_qubits, self.targets)
 
             qasm_str = qasm2.dumps(circuit)
             qasm_lines = qasm_str.splitlines()
@@ -198,6 +215,7 @@ class CustomGate(Gate):
             >>> U = np.array([[0,1], [1,0]])
             >>> gate = CustomGate(U, [0])
             >>> print(gate.decompose()) # doctest: +NORMALIZE_WHITESPACE
+            global phase: π/2
                ┌─────────┐┌───────┐┌──────────┐
             q: ┤ Rz(π/2) ├┤ Ry(π) ├┤ Rz(-π/2) ├
                └─────────┘└───────┘└──────────┘
@@ -205,4 +223,28 @@ class CustomGate(Gate):
         """
         from mpqp.tools.unitary_decomposition import quantum_shannon_decomposition
 
-        return quantum_shannon_decomposition(self.matrix)
+        # non ordered targets
+        if any(
+            self.targets[i + 1] < self.targets[i] for i in range(len(self.targets) - 1)
+        ):
+            import warnings
+            from copy import deepcopy
+
+            from mpqp.tools import rearrange_matrix
+
+            warnings.warn(
+                "In order to decompose a CustomGate with non ordered targets, the matrix gets copied and ordered according to the targets provided."
+            )
+            targets = deepcopy(self.targets)
+            targets.sort()
+
+            return quantum_shannon_decomposition(
+                rearrange_matrix(self.matrix, self.targets, do_copy=True), targets
+            )
+
+        return quantum_shannon_decomposition(self.matrix, self.targets)
+
+    def subs(self, values: "dict[Expr | str, Complex]") -> CustomGate:
+        res = copy(self)
+        res.definition = res.definition.subs(values)
+        return res

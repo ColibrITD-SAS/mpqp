@@ -23,15 +23,25 @@ from mpqp.tools.generics import MessageEnum
 # is a class (probably because Enum does weird things to the Enum class)
 if TYPE_CHECKING:
     from enum import Enum
+    from sympy import Expr
+    from numbers import Complex
+    from ..core.circuit import QCircuit
+    from ..core.binding import CircuitBinding
 
 from mpqp.core.instruction.measurement import BasisMeasure, ExpectationMeasure, Measure
 
-from ..core.circuit import QCircuit
 from ..tools.errors import IBMRemoteExecutionError, QLMRemoteExecutionError
 from .connection.azure_connection import get_jobs_by_id
 from .connection.ibm_connection import get_QiskitRuntimeService
 from .connection.qlm_connection import get_QLMaaSConnection
-from .devices import ATOSDevice, AvailableDevice, AWSDevice, AZUREDevice, IBMDevice
+from .devices import (
+    ATOSDevice,
+    AvailableDevice,
+    AWSDevice,
+    AZUREDevice,
+    IBMDevice,
+    QUANTINUUMDevice,
+)
 
 
 class JobStatus(MessageEnum):
@@ -108,8 +118,10 @@ class Job:
     def __init__(
         self,
         job_type: JobType,
-        circuit: QCircuit,
+        circuit: QCircuit | CircuitBinding,
         device: AvailableDevice,
+        measurement: Optional[Measure] = None,
+        values: Optional[dict[Expr | str, Complex | float]] = None,
     ):
         self._status = JobStatus.INIT
 
@@ -125,13 +137,26 @@ class Job:
         while before it is set to the right value (For instance, a job
         submission can require handshake protocols to conclude before
         attributing an id to the job)."""
+        self.status_message: Optional[str] = None
+        """Optional message associated with the current job status, especially
+        for execution errors."""
+
+        self._measurement = measurement
+        """Store the measurement of a circuit, used mostly for ``CircuitBinding`` execution."""
+
+        self.values = values
+        """Store parameters in case the original circuit was parametrized."""
 
     @property
     def measure(self) -> Optional[Measure]:
         """Returns the first measurement from the circuit's measurements."""
+        from ..core.binding import CircuitBinding
+
+        if isinstance(self.circuit, CircuitBinding):
+            return self._measurement
 
         return (
-            None
+            self._measurement
             if len(self.circuit.measurements) == 0
             else self.circuit.measurements[0]
         )
@@ -157,6 +182,8 @@ class Job:
                     self._status = get_aws_job_status(self.id)
                 elif isinstance(self.device, AZUREDevice):
                     self._status = get_azure_job_status(self.id)
+                elif isinstance(self.device, QUANTINUUMDevice):
+                    self._status = get_quantinuum_job_status(self.id)
                 else:
                     raise NotImplementedError(
                         f"Cannot update job status for the device {self.device} yet"
@@ -188,6 +215,7 @@ class Job:
             "measure": self.measure,
             "id": self.id,
             "status": self.status,
+            "status_message": self.status_message,
         }
 
     @staticmethod
@@ -199,12 +227,22 @@ class Job:
         Example:
             >>> for job in Job.load_all(): # doctest: +ELLIPSIS
             ...     print(job)
-            Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR)
             Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
             Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR)
+            Job(JobType.SAMPLE, QCircuit(...), AWSDevice.BRAKET_LOCAL_SIMULATOR)
+            Job(JobType.SAMPLE, QCircuit(...), ATOSDevice.MYQLM_CLINALG)
             Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
+            Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR)
+            Job(JobType.SAMPLE, QCircuit(...), AWSDevice.BRAKET_LOCAL_SIMULATOR)
+            Job(JobType.SAMPLE, QCircuit(...), ATOSDevice.MYQLM_CLINALG)
+            Job(JobType.STATE_VECTOR, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
             Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR)
+            Job(JobType.STATE_VECTOR, QCircuit(...), AWSDevice.BRAKET_LOCAL_SIMULATOR)
+            Job(JobType.STATE_VECTOR, QCircuit(...), ATOSDevice.MYQLM_CLINALG)
+            Job(JobType.STATE_VECTOR, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
             Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR)
+            Job(JobType.STATE_VECTOR, QCircuit(...), AWSDevice.BRAKET_LOCAL_SIMULATOR)
+            Job(JobType.STATE_VECTOR, QCircuit(...), ATOSDevice.MYQLM_CLINALG)
 
         """
         from mpqp.local_storage.load import get_all_jobs
@@ -222,7 +260,7 @@ class Job:
 
         Example:
             >>> Job.load_by_local_id(1) # doctest: +ELLIPSIS
-            Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR)
+            Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
         """
         from mpqp.local_storage.load import get_jobs_with_id
 
@@ -262,20 +300,16 @@ class Job:
         Example:
             >>> for job in Job.load_all(): # doctest: +ELLIPSIS
             ...     print(job)
-            Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR)
             Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
             Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR)
-            Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
-            Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR)
-            Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR)
+            Job(JobType.SAMPLE, QCircuit(...), AWSDevice.BRAKET_LOCAL_SIMULATOR)
+            ...
             >>> Job.delete_by_local_id(1)
             >>> for job in Job.load_all(): # doctest: +ELLIPSIS
             ...     print(job)
-            Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
             Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR)
-            Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
-            Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR)
-            Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR)
+            Job(JobType.SAMPLE, QCircuit(...), AWSDevice.BRAKET_LOCAL_SIMULATOR)
+            ...
 
         """
         from mpqp.local_storage.delete import remove_jobs_with_id
@@ -407,3 +441,29 @@ def get_azure_job_status(job_id: str) -> JobStatus:
         return JobStatus.RUNNING
     else:
         raise ValueError(f"Unexpected azure job status: {status}")
+
+
+def get_quantinuum_job_status(job_id: str) -> JobStatus:
+    """Retrieve the status of a Quantinuum Nexus job from its ID and return the
+    corresponding MPQP :class:`JobStatus`.
+
+    Args:
+        job_id: ID of the job for which the status should be retrieved.
+    """
+    import qnexus as qnx
+
+    job_ref = qnx.jobs.get(id=job_id)
+    status = qnx.jobs.status(job_ref).status.value
+
+    if status in {"SUBMITTED", "QUEUED"}:
+        return JobStatus.QUEUED
+    elif status in {"RUNNING", "RETRYING", "CANCELLING"}:
+        return JobStatus.RUNNING
+    elif status == "COMPLETED":
+        return JobStatus.DONE
+    elif status in {"CANCELLED", "TERMINATED"}:
+        return JobStatus.CANCELLED
+    elif status in {"ERROR", "DEPLETED"}:
+        return JobStatus.ERROR
+    else:
+        raise ValueError(f"Unexpected Quantinuum Nexus job status: {status}")
