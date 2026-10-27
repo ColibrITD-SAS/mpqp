@@ -356,6 +356,7 @@ def run_cirq_observable_remote(
 
     job.status = JobStatus.RUNNING
     job_ids: list[str] = []
+
     for group in grouping:
         pre_measure = QCircuit(find_qubitwise_rotations(group)).to_other_language(
             Language.CIRQ
@@ -364,6 +365,8 @@ def run_cirq_observable_remote(
             circuit=circuit + pre_measure, repetitions=job.measure.shots
         )
         job_ids.append(ionq_job.job_id())
+        job.id = job_ids[0] if len(job_ids) == 1 else list(job_ids)
+
         ionq_results = ionq_job.results()
         if len(ionq_results) != 1:
             job.status = JobStatus.ERROR
@@ -390,7 +393,7 @@ def run_cirq_observable_remote(
             assert isinstance(monoms.coef, (int, float))
             local += expectation_values[monoms.name] * monoms.coef
         result.update({f"observable_{i}": local})
-    job.id = job_ids[0] if len(job_ids) == 1 else job_ids
+
     job.status = JobStatus.DONE
     if len(result) == 1:
         return Result(job, result["observable_0"])
