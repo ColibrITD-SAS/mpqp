@@ -83,7 +83,7 @@ def adjust_measure(
 
     Args:
         measure: The expectation measure, potentially incomplete.
-        circuit: The circuit defining the full qubit register.
+        circuit: The circuit from which the measure is derived.
         expand_to_full_register: Whether observables must span the complete
             circuit register. Providers supporting local observable targets can
             disable this while still benefiting from target reordering.

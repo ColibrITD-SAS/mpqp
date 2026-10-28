@@ -59,7 +59,7 @@ class NoiseModel(ABC):
 
     Args:
         targets: Qubits affected by this noise. ``None`` applies the noise to all
-            qubits as the circuit grows; an empty list applies it to no qubits.
+            qubits as the circuit grows.
         gates: Gates affected by this noise. Defaults to all gates.
 
     Raises:
