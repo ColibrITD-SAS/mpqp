@@ -291,7 +291,7 @@ class QCircuit:
         else:
             if components._dynamic is False:  # pyright: ignore[reportPrivateUsage]
                 self._set_nb_qubits_dynamic(
-                    max(self.nb_qubits, max(components.connections()) + 1)
+                    max(self.nb_qubits, max(components.connections(), default=-1) + 1)
                 )
 
         if components._dynamic:  # pyright: ignore[reportPrivateUsage]

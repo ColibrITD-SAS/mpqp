@@ -321,6 +321,17 @@ def test_init_wrong(init_param: int | Sequence[Instruction]):
         QCircuit(init_param)
 
 
+def test_empty_noise_targets_do_not_expand_with_circuit():
+    circuit = QCircuit([BitFlip(0.5, targets=[])])
+
+    assert circuit.nb_qubits == 0
+
+    circuit.add(X(2))
+
+    assert circuit.nb_qubits == 3
+    assert circuit.noises[0].targets == []
+
+
 @pytest.mark.parametrize(
     "init_circuit, added_gates, printed_result_filename",
     [

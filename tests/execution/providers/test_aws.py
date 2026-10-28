@@ -65,10 +65,12 @@ def test_braket_binding_noise_targets(
 
 
 @pytest.mark.provider("braket")
-def test_braket_binding_empty_noise_targets():
+@pytest.mark.parametrize("cached", [False, True], ids=["uncached", "cached"])
+def test_braket_binding_empty_noise_targets(cached: bool):
     circuit = QCircuit([X(0)])
     device = AWSDevice.BRAKET_LOCAL_SIMULATOR
-    circuit.transpiled_circuit = circuit.to_other_device(device)
+    if cached:
+        circuit.transpiled_circuit = circuit.to_other_device(device)
     binding = CircuitBinding(
         circuit,
         measurements=BasisMeasure([0], shots=100),

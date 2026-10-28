@@ -58,12 +58,13 @@ class NoiseModel(ABC):
     operation will apply to all qubits.
 
     Args:
-        targets: Qubits affected by this noise. Defaults to all qubits.
+        targets: Qubits affected by this noise. ``None`` applies the noise to all
+            qubits as the circuit grows; an empty list applies it to no qubits.
         gates: Gates affected by this noise. Defaults to all gates.
 
     Raises:
-        ValueError: When the target list is empty, or the target indices are duplicated
-            or negative. When the size of the gate is higher than the number of target qubits.
+        ValueError: When the target indices are duplicated or negative. When the
+            size of the gate is higher than the number of target qubits.
     """
 
     def __init__(
