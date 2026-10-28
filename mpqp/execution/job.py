@@ -13,7 +13,7 @@ would in principle never need to instantiate one yourself.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Callable, Optional
 
 from aenum import Enum, NoAlias, auto
 
@@ -179,16 +179,17 @@ class Job:
                 for job_id in job_ids:
                     if TYPE_CHECKING:
                         assert isinstance(job_id, str)
-                    if isinstance(self.device, ATOSDevice):
-                        statuses.append(get_qlm_job_status(job_id))
-                    elif isinstance(self.device, IBMDevice):
-                        statuses.append(get_ibm_job_status(job_id))
-                    elif isinstance(self.device, AWSDevice):
-                        statuses.append(get_aws_job_status(job_id))
-                    elif isinstance(self.device, AZUREDevice):
-                        statuses.append(get_azure_job_status(job_id))
-                    elif isinstance(self.device, QUANTINUUMDevice):
-                        statuses.append(get_quantinuum_job_status(job_id))
+                    status_getter: dict[
+                        type[AvailableDevice], Callable[[str], JobStatus]
+                    ] = {
+                        ATOSDevice: get_qlm_job_status,
+                        IBMDevice: get_ibm_job_status,
+                        AWSDevice: get_aws_job_status,
+                        AZUREDevice: get_azure_job_status,
+                        QUANTINUUMDevice: get_quantinuum_job_status,
+                    }
+                    if type(self.device) in status_getter:
+                        statuses.append(status_getter[type(self.device)](job_id))
                     else:
                         raise NotImplementedError(
                             f"Cannot update job status for the device {self.device} yet"
