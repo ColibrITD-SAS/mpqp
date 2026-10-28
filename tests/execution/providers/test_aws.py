@@ -28,6 +28,57 @@ from mpqp.execution.providers.aws import (
 from mpqp.execution.result import BatchResult
 from mpqp.execution.runner import generate_job
 from mpqp.measures import pI, pX, pZ
+from mpqp.noise import BitFlip
+
+
+@pytest.mark.provider("braket")
+@pytest.mark.parametrize("cached", [False, True], ids=["uncached", "cached"])
+@pytest.mark.parametrize(
+    ("targets", "expected_probabilities"),
+    [
+        (None, [0.25, 0.25, 0.25, 0.25]),
+        ([0], [0, 0.5, 0, 0.5]),
+    ],
+    ids=["dynamic", "subset"],
+)
+def test_braket_binding_noise_targets(
+    cached: bool,
+    targets: list[int] | None,
+    expected_probabilities: list[float],
+):
+    circuit = QCircuit([X(0), X(1)])
+    device = AWSDevice.BRAKET_LOCAL_SIMULATOR
+    if cached:
+        circuit.transpiled_circuit = circuit.to_other_device(device)
+    binding = CircuitBinding(
+        circuit,
+        measurements=BasisMeasure([0, 1], shots=2048),
+        noises=[BitFlip(0.5, targets=targets)],
+    )
+
+    result = run(binding, device)
+
+    assert isinstance(result, BatchResult)
+    np.testing.assert_allclose(
+        result.results[0].probabilities, expected_probabilities, atol=0.06, rtol=0
+    )
+
+
+@pytest.mark.provider("braket")
+def test_braket_binding_empty_noise_targets():
+    circuit = QCircuit([X(0)])
+    device = AWSDevice.BRAKET_LOCAL_SIMULATOR
+    circuit.transpiled_circuit = circuit.to_other_device(device)
+    binding = CircuitBinding(
+        circuit,
+        measurements=BasisMeasure([0], shots=100),
+        noises=[BitFlip(0.5, targets=[])],
+    )
+
+    result = run(binding, device)
+
+    assert isinstance(result, BatchResult)
+    np.testing.assert_array_equal(result.results[0].probabilities, [0, 1])
 
 
 def test_ordered_measurement_probabilities_follows_observable_targets():

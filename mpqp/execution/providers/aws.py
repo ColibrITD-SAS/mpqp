@@ -163,7 +163,10 @@ def apply_noise_to_braket_circuit(
                 else None
             ),
             target_qubits=(
-                noise.targets if set(noise.targets) != set(range(nb_qubits)) else None
+                None
+                if noise._dynamic  # pyright: ignore[reportPrivateUsage]
+                or set(noise.targets) == set(range(nb_qubits))
+                else noise.targets
             ),
         )
 
