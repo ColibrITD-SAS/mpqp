@@ -4,4 +4,4 @@ amazon-braket-default-simulator==1.32.0
 boto3==1.42.53
 aws-configure==2.1.8
 awscli==1.44.87
-ipython==9.16.1
+ipython<9.17 ; python_version >= "3.11"
