@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 import warnings
 from copy import deepcopy
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from mpqp import QCircuit
 from mpqp.core.binding import CircuitBinding
@@ -27,6 +27,8 @@ from mpqp.tools.errors import (
     IBMRemoteExecutionError,
     InstructionParsingError,
 )
+from mpqp.environment.env_manager import get_env_variable
+
 
 if TYPE_CHECKING:
     from qiskit import QuantumCircuit
@@ -116,8 +118,6 @@ def compute_expectation_value(
         This function is not meant to be used directly, please use
         :func:`~mpqp.execution.runner.run` instead.
     """
-    from qiskit.primitives import PubResult
-    from qiskit.primitives.containers import DataBin
     from qiskit.quantum_info import SparsePauliOp
 
     from mpqp.execution.simulated_devices import StaticIBMSimulatedDevice
@@ -230,15 +230,45 @@ def compute_expectation_value(
         assert isinstance(job.device, (IBMDevice, StaticIBMSimulatedDevice))
         assert isinstance(estimator_result, list)
 
-    extracted_items: list[tuple[int, Result | BatchResult]] = []
+    return _extract_estimator_pubs_result(
+        estimator_result,
+        job,
+        context_jobs_to_run,
+        split_contexts=pubs is not None,
+    )
 
-    for i, contexts in enumerate(context_jobs_to_run):
+
+def _extract_estimator_pubs_result(
+    estimator_result: Any,
+    job: Job,
+    pubs_contexts: list[list[ExecutionContext]],
+    split_contexts: bool = True,
+) -> Result | BatchResult:
+    """Rebuild MPQP results from Estimator PUB results and their contexts."""
+    from qiskit.primitives import PubResult
+    from qiskit.primitives.containers import DataBin
+
+    if TYPE_CHECKING:
+        assert isinstance(job.device, (IBMDevice, StaticIBMSimulatedDevice))
+
+    if len(estimator_result) != len(pubs_contexts):
+        raise ValueError(
+            "Estimator result count does not match the submitted PUB count: "
+            f"{len(estimator_result)} != {len(pubs_contexts)}."
+        )
+
+    extracted_items: list[tuple[int, Result | BatchResult]] = []
+    for i, contexts in enumerate(pubs_contexts):
         offset = 0
         for context in contexts:
             context_job = context.job
             pub_result = estimator_result[i]
-            if pubs is not None:
-                assert isinstance(context_job.measure, ExpectationMeasure)
+            if split_contexts:
+                if not isinstance(context_job.measure, ExpectationMeasure):
+                    raise ValueError(
+                        "Estimator execution contexts must contain expectation "
+                        "measurements."
+                    )
                 count = len(context_job.measure.observables)
                 data = pub_result.data
                 pub_result = PubResult(
@@ -259,13 +289,15 @@ def compute_expectation_value(
                 )
             )
 
-    final_flat_results = []
-    # Restore occurrence order before flattening multi-observable results.
+    final_flat_results: list[Result] = []
     for _, item in sorted(extracted_items, key=lambda indexed: indexed[0]):
         if isinstance(item, BatchResult):
             final_flat_results.extend(item.results)
         else:
             final_flat_results.append(item)
+
+    if not final_flat_results:
+        raise ValueError("Cannot extract an empty Estimator result.")
     if isinstance(job.circuit, QCircuit):
         return final_flat_results[0]
     return BatchResult(final_flat_results)
@@ -770,11 +802,18 @@ def submit_remote_ibm(
     if TYPE_CHECKING:
         assert isinstance(job.device, IBMDevice)
         assert isinstance(job.circuit, QCircuit)
+    if qiskit_params is None:
+        qiskit_params = QiskitParams()
 
-    instance = qiskit_params.instance if qiskit_params is not None else None
+    instance = (
+        qiskit_params.instance
+        if qiskit_params.instance is not None
+        else get_env_variable("IBM_INSTANCE") or None
+    )
 
     backend = get_backend(job.device, instance)
     job.device = IBMDevice(backend.name)
+    runtime_options = qiskit_params.get_options()
 
     if job.circuit.transpiled_circuit is None:
         qiskit_circ = job.circuit.to_other_device(job.device)
@@ -787,7 +826,7 @@ def submit_remote_ibm(
     if job.job_type == JobType.OBSERVABLE:
         if TYPE_CHECKING:
             assert isinstance(meas, ExpectationMeasure)
-        estimator = Runtime_Estimator(mode=backend)
+        estimator = Runtime_Estimator(mode=backend, options=runtime_options)
         qiskit_observables = [
             (
                 obs.to_other_language(Language.QISKIT)
@@ -818,7 +857,7 @@ def submit_remote_ibm(
     elif job.job_type == JobType.SAMPLE:
         if TYPE_CHECKING:
             assert isinstance(meas, BasisMeasure)
-        sampler = Runtime_Sampler(mode=backend)
+        sampler = Runtime_Sampler(mode=backend, options=runtime_options)
         ibm_job = sampler.run([qiskit_circ], shots=meas.shots)
     else:
         raise NotImplementedError(
@@ -947,8 +986,8 @@ def run_remote_ibm(
     return extract_result(ibm_result, job, job.device)
 
 
-def run_qctrl_function(job: Job, qiskit_params: QiskitParams):
-    """Run a Circuit or CircuitBinding through a provided QiskitFunction."""
+def run_qctrl_function(job: Job, qiskit_params: QiskitParams) -> Result | BatchResult:
+    """Run a circuit or circuit binding through a Q-CTRL Qiskit Function."""
     if TYPE_CHECKING:
         assert qiskit_params.qctrl_function
         assert isinstance(job.device, IBMDevice)
@@ -962,13 +1001,18 @@ def run_qctrl_function(job: Job, qiskit_params: QiskitParams):
         raise ValueError(
             "Cannot run a STATEVECTOR or an ideal Observable job with a QiskitFunction"
         )
+    check_job_compatibility(job)
+
     func = qiskit_params.qctrl_function
     if func.provider != "q-ctrl":
         raise ValueError(
             "Only the q-ctrl QiskitFunctions are available through MPQP at the moment."
         )
-
     primitive = "estimator" if job.job_type == JobType.OBSERVABLE else "sampler"
+    job.status = JobStatus.RUNNING
+    jobs: list[list[ExecutionContext]] = []
+    qctrl_options = qiskit_params.get_options()
+
     if job.job_type == JobType.OBSERVABLE:
         if isinstance(job.circuit, QCircuit):
             circuit = CircuitBinding(job.circuit)
@@ -978,43 +1022,56 @@ def run_qctrl_function(job: Job, qiskit_params: QiskitParams):
         pubs = [item[0] for item in pubs_with_context]
         jobs = [item[1] for item in pubs_with_context]
 
+        options = deepcopy(qctrl_options)
+        if circuit.shots is not None:
+            options["default_shots"] = circuit.shots
+
         run = func.run(
             primitive=primitive,
             pubs=pubs,
             backend_name=job.device.value,
-        )
-        # TODO: Use this run instead of the compute_expectation_value function
-        # Sync refactoring with J so that we can have better handling of pubs.
-        return compute_expectation_value(
-            job, None, pubs=pubs, pubs_contexts=jobs, shots=circuit.shots
+            **({"options": options} if options else {}),
         )
     else:
         if isinstance(job.circuit, CircuitBinding):
             raise ValueError("WIP: cannot run a pubs with BasisMeasure inside of them.")
         nb_shots = job.measure.shots if job.measure else 0
         pubs = [(job.circuit.to_other_device(job.device),)]
-        jobs = [job]
-        job.status = JobStatus.RUNNING
+        options = deepcopy(qctrl_options)
+        options["default_shots"] = nb_shots
         run = func.run(
             primitive=primitive,
-            options={
-                "default_shots": nb_shots,
-                "job_tags": ["q-ctrl/test", "test-test_id"],
-            },
+            options=options,
             pubs=pubs,
             backend_name=job.device.value,
         )
-        if run.status() == "Error":
-            job.status = JobStatus.ERROR
-        else:
-            job.status = JobStatus.DONE
+
+    job.id = run.job_id
+    try:
         result = run.result()
-        job.id = run.job_id
+    except Exception as err:
+        job.status = JobStatus.ERROR
+        raise IBMRemoteExecutionError(
+            f"Q-CTRL function job {job.id} failed while retrieving its result."
+        ) from err
 
-    if TYPE_CHECKING:
-        from qiskit.primitives import EstimatorResult
+    status = str(run.status()).upper()
+    if status == "ERROR":
+        job.status = JobStatus.ERROR
+        raise IBMRemoteExecutionError(f"Q-CTRL function job {job.id} failed.")
+    if status in {"CANCELED", "CANCELLED"}:
+        job.status = JobStatus.CANCELLED
+        raise IBMRemoteExecutionError(f"Q-CTRL function job {job.id} was cancelled.")
+    if status != "DONE":
+        job.status = JobStatus.ERROR
+        raise IBMRemoteExecutionError(
+            f"Q-CTRL function job {job.id} returned a result in unexpected "
+            f"status {status}."
+        )
+    job.status = JobStatus.DONE
 
-        assert isinstance(result, EstimatorResult)
+    if job.job_type == JobType.OBSERVABLE:
+        return _extract_estimator_pubs_result(result, job, jobs)
     return extract_result(result, job, job.device)
 
 

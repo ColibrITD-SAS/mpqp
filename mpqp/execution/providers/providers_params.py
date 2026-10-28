@@ -1,11 +1,14 @@
 """This file regroups all provider specific parametrization needed
 to configure more precisely the run on local or remote devices."""
 
-from typing import TYPE_CHECKING, Optional
+from copy import deepcopy
+from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
     from pytket.partition import PauliPartitionStrat
-    from qiskit_ibm_catalog.serverless import RunnableQiskitFunction
+    from qiskit_ibm_catalog.serverless import (  # pyright: ignore[reportMissingImports]
+        RunnableQiskitFunction,
+    )
 
 
 class ProviderParams:
@@ -20,18 +23,91 @@ class QiskitParams(ProviderParams):
 
     Args:
         instance: IBM Quantum instance on which the job(s) should be sent.
+        options: Options passed to IBM Runtime primitives, or adapted for the
+            selected Q-CTRL function.
+        qctrl_function: Optional Q-CTRL Qiskit Function used instead of the
+            standard IBM Runtime primitives.
+
+    Example:
+        Configure tags and private execution for an IBM Runtime job:
+
+        >>> params = QiskitParams(
+        ...     options={
+        ...         "environment": {
+        ...             "private": True,
+        ...             "job_tags": ["experiment", "run-1"],
+        ...         }
+        ...     }
+        ... )
+        >>> params.options["environment"]["job_tags"]
+        ['experiment', 'run-1']
 
     """
 
     def __init__(
         self,
         instance: Optional[str] = None,
-        job_tags: Optional[str] = None,
+        options: Optional[dict[str, Any]] = None,
         qctrl_function: Optional["RunnableQiskitFunction"] = None,
     ):
         self.instance = instance
-        self.job_tags = job_tags
+        self.options = deepcopy(options) if options is not None else {}
         self.qctrl_function = qctrl_function
+
+    def get_options(self) -> dict[str, Any]:
+        """Return an isolated option dictionary for the selected execution mode.
+
+        Returns:
+            A deep copy of the Runtime options, adapted to the Q-CTRL schema
+            when a Q-CTRL function is configured.
+
+        Raises:
+            TypeError: If ``environment`` is not a dictionary.
+            ValueError: If a Runtime environment option cannot be adapted to
+                Q-CTRL.
+
+        Example:
+            Return isolated IBM Runtime options:
+
+            >>> params = QiskitParams(
+            ...     options={
+            ...         "environment": {
+            ...             "private": True,
+            ...             "job_tags": ["experiment", "run-1"],
+            ...         }
+            ...     }
+            ... )
+            >>> params.get_options()["environment"]["private"]
+            True
+        """
+        options = deepcopy(self.options)
+        if self.qctrl_function is None:
+            return options
+
+        environment = options.pop("environment", None)
+        if environment is None:
+            return options
+        if not isinstance(environment, dict):
+            raise TypeError("The environment option must be a dictionary.")
+
+        job_tags = environment.pop("job_tags", None)
+        private = environment.pop("private", False)
+        if private:
+            raise ValueError("Private execution is not supported by Q-CTRL functions.")
+        if environment:
+            unsupported = ", ".join(sorted(environment))
+            raise ValueError(
+                "The following Runtime environment options cannot be adapted for "
+                f"Q-CTRL: {unsupported}."
+            )
+        if job_tags is not None:
+            if "job_tags" in options and options["job_tags"] != job_tags:
+                raise ValueError(
+                    "Conflicting job_tags were provided at the top level and in "
+                    "environment."
+                )
+            options["job_tags"] = job_tags
+        return options
 
 
 class QuantinuumParams(ProviderParams):

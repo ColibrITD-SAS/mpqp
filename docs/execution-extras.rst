@@ -40,6 +40,11 @@ __________
 
 .. automodule:: mpqp.execution.providers.ibm
 
+Catalog functions
+_________________
+
+.. autofunction:: mpqp.tools.qiskit.get_qiskit_function
+
 Atos/Eviden
 ^^^^^^^^^^^
 
