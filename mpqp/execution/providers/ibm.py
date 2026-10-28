@@ -1071,7 +1071,7 @@ def run_qctrl_function(job: Job, qiskit_params: QiskitParams) -> Result | BatchR
 
     if job.job_type == JobType.OBSERVABLE:
         return _extract_estimator_pubs_result(result, job, jobs)
-    return extract_result(result, job, job.device)
+    return extract_result(result, job, job.device) # pyright: ignore[reportArgumentType]
 
 
 def extract_result(
