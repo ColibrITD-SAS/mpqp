@@ -90,10 +90,17 @@ def pauli_grouping_greedy(
 
 
 def pauli_monomial_eigenvalues(monom: PauliStringMonomial) -> npt.NDArray[np.float64]:
-    result = np.array([1], dtype=np.float64)
-    for atom in monom.atoms:
-        result = np.kron(result, atom.eigen_values)
-    return result  # pyright: ignore[reportReturnType]
+    """Returns the eigenvalues of a Pauli monomial as a numpy array."""
+    import numpy as np
+
+    first_half = np.array([1], dtype=np.float64)
+    n = len(monom.atoms) // 2
+    for i in range(n):
+        first_half = np.kron(first_half, monom.atoms[i].eigen_values)
+    second_half = np.array([1], dtype=np.float64)
+    for j in range(n, len(monom.atoms)):
+        second_half = np.kron(second_half, monom.atoms[j].eigen_values)
+    return np.kron(first_half, second_half)  # pyright: ignore[reportReturnType]
 
 
 def full_commutation_pauli_grouping_ibm_clique(monomials: list[PauliStringMonomial]):

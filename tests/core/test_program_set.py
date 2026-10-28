@@ -8,7 +8,7 @@ from mpqp.core.instruction.measurement.expectation_value import (
     ExpectationMeasure,
     Observable,
 )
-from mpqp.core.instruction.measurement.pauli_string import pX, pZ
+from mpqp.core.instruction.measurement.pauli_string import pI, pX, pZ
 from mpqp.execution.devices import AWSDevice
 from mpqp.gates import *
 
@@ -135,7 +135,9 @@ def test_translation_nbr_jobs(
     assert len(ps) == nbr_entries
     assert sum(len(entry_contexts) for entry_contexts in contexts) == nbr_results
     assert ps.total_executables == sum(
-        context[3] for entry_contexts in contexts for context in entry_contexts
+        context.executable_span or 0
+        for entry_contexts in contexts
+        for context in entry_contexts
     )
 
 
@@ -260,12 +262,42 @@ def test_multi_observable_measure_returns_one_result():
 
     assert len(program_set) == 2
     assert {
-        context[4] for entry_contexts in contexts for context in entry_contexts
+        context.result_index
+        for entry_contexts in contexts
+        for context in entry_contexts
     } == {0}
     assert len(result.results) == 1
     assert result.results[0].expectation_values == pytest.approx(
         {"Z": 1.0, "X-Z": -1.0}, abs=0.15
     )
+
+
+@pytest.mark.provider("braket")
+def test_pauli_grouping_shares_one_execution_between_observables():
+    from mpqp.execution.runner import run
+
+    binding = CircuitBinding(
+        QCircuit(2),
+        measurements=ExpectationMeasure(
+            [
+                Observable(pZ @ pI, label="ZI"),
+                Observable(pI @ pZ, label="IZ"),
+            ],
+            shots=100,
+            optimize_measurement=True,
+        ),
+    )
+
+    program_set, contexts = binding.to_other_device(
+        AWSDevice.BRAKET_LOCAL_SIMULATOR
+    )
+    result = run(binding, AWSDevice.BRAKET_LOCAL_SIMULATOR)
+
+    assert program_set.total_executables == 1
+    assert len(contexts) == 1
+    assert len(contexts[0]) == 1
+    assert contexts[0][0].optimized
+    assert result.results[0].expectation_values == {"ZI": 1.0, "IZ": 1.0}
 
 
 @pytest.mark.parametrize(

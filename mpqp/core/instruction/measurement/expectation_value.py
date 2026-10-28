@@ -458,8 +458,8 @@ class ExpectationMeasure(Measure):
         commuting_type: CommutingTypes = CommutingTypes.QUBITWISE,
         grouping_method: GroupingMethods = GroupingMethods.QISKIT_COLORING_GREEDY,
         label: Optional[str] = None,
-        optimize_measurement: Optional[bool] = True,
-        optim_diagonal: Optional[bool] = False,
+        optimize_measurement: bool = True,
+        optim_diagonal: bool = False,
     ):
 
         super().__init__(targets, shots, label)

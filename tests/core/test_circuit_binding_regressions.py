@@ -1,6 +1,7 @@
 from copy import deepcopy
 from importlib import import_module
 from itertools import permutations, product
+from typing import cast
 from unittest.mock import patch
 
 import numpy as np
@@ -26,7 +27,57 @@ from mpqp.core.binding import BindingMode, CircuitBinding
 from mpqp.core.instruction.measurement.measure import Measure
 from mpqp.execution.job import JobType
 from mpqp.execution.providers.providers_params import QiskitParams
-from mpqp.execution.result import BatchResult
+from mpqp.execution.result import BatchResult, Result
+
+
+def _expectation_confidence_radius(
+    observable: Observable, shots: int, alpha: float = 1e-3
+) -> float:
+    """Bound the difference between two independently sampled expectations."""
+    monomials = observable.pauli_string.monomials
+    coefficient_norm = sum(
+        abs(complex(cast(complex, monomial.coef))) for monomial in monomials
+    )
+    # Apply Hoeffding to every Pauli term in both executions, then use a union
+    # bound and the triangle inequality for the observable's weighted sum.
+    return float(
+        2
+        * coefficient_norm
+        * np.sqrt(2 * np.log(4 * max(1, len(monomials)) / alpha) / shots)
+    )
+
+
+def _assert_expectations_in_confidence_interval(first: Result, second: Result) -> None:
+    first_measure = first.job.measure
+    second_measure = second.job.measure
+    assert isinstance(first_measure, ExpectationMeasure)
+    assert isinstance(second_measure, ExpectationMeasure)
+    assert first_measure.shots == second_measure.shots
+
+    first_values = first.expectation_values
+    second_values = second.expectation_values
+    if isinstance(first_values, dict):
+        assert isinstance(second_values, dict)
+        assert first_values.keys() == second_values.keys()
+        observables_and_values = [
+            (
+                observable,
+                first_values[observable.label or f"observable_{index}"],
+                second_values[observable.label or f"observable_{index}"],
+            )
+            for index, observable in enumerate(first_measure.observables)
+        ]
+    else:
+        assert isinstance(first_values, float)
+        assert isinstance(second_values, float)
+        observables_and_values = [
+            (first_measure.observables[0], first_values, second_values)
+        ]
+
+    for observable, first_value, second_value in observables_and_values:
+        assert abs(first_value - second_value) <= _expectation_confidence_radius(
+            observable, first_measure.shots
+        )
 
 
 @pytest.mark.parametrize("lengths", list(product((1, 2), repeat=3)))
@@ -469,3 +520,56 @@ def test_interleaved_parameterized_circuits_keep_input_order():
     result = run(binding, IBMDevice.AER_SIMULATOR)
     assert len(result.results) == 3
     assert [r.expectation_values for r in result.results] == pytest.approx([1, 1, -1])
+
+
+@pytest.mark.provider("braket")
+@pytest.mark.parametrize("mode", list(BindingMode))
+def test_optimized_measurements_preserve_binding_results_order(mode: BindingMode):
+    theta = Symbol("theta")
+    shots = 100
+    if mode == BindingMode.ZIP:
+        circuits = [QCircuit([Ry(theta, 0)]), QCircuit([Ry(theta, 0), X(0)])]
+        values = [{"theta": 0.0}, {"theta": np.pi / 2}]
+    else:
+        circuits = [QCircuit([Ry(np.pi / 2, 0)]), QCircuit([X(0)])]
+        values = None
+    binding = CircuitBinding(
+        circuits,
+        values=values,
+        measurements=[
+            ExpectationMeasure(
+                Observable(pZ, label="Z"),
+                shots=shots,
+                optimize_measurement=False,
+            ),
+            ExpectationMeasure(
+                Observable(pX, label="X"),
+                shots=shots,
+                optimize_measurement=False,
+            ),
+        ],
+        mode=mode,
+    )
+    optimized_binding = deepcopy(binding)
+    for _, _, measurement in optimized_binding.unroll():
+        assert isinstance(measurement, ExpectationMeasure)
+        measurement.optimize_measurement = True
+
+    result = run(binding, AWSDevice.BRAKET_LOCAL_SIMULATOR)
+    optimized_result = run(optimized_binding, AWSDevice.BRAKET_LOCAL_SIMULATOR)
+
+    assert isinstance(result, BatchResult)
+    assert isinstance(optimized_result, BatchResult)
+    assert len(result.results) == len(optimized_result.results)
+    for execution, optimized_execution in zip(result.results, optimized_result.results):
+        assert execution.job.circuit == optimized_execution.job.circuit
+        assert execution.job.values == optimized_execution.job.values
+        assert isinstance(execution.job.measure, ExpectationMeasure)
+        assert isinstance(optimized_execution.job.measure, ExpectationMeasure)
+        assert not execution.job.measure.optimize_measurement
+        assert optimized_execution.job.measure.optimize_measurement
+        assert (
+            execution.job.measure.observables
+            == optimized_execution.job.measure.observables
+        )
+        _assert_expectations_in_confidence_interval(execution, optimized_execution)

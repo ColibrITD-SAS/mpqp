@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, cast
 
 import numpy as np
 
@@ -272,64 +272,6 @@ def run_circuit_binding(job: Job) -> BatchResult:
         if TYPE_CHECKING:
             assert circuitBinding.measurements
             assert isinstance(circuitBinding.measurements[0], ExpectationMeasure)
-        # used when pauli grouping is done
-        # TODO: clean this later
-        """if circuitBinding.measurements[0].optimize_measurement:  # Compute Grouping
-            print(circuitBinding.measurements[0].optimize_measurement)
-            length = 2**job.circuit.nb_qubits
-            sorted_values: list[float] = []
-            for i in range(length):
-                sorted_values.append(0)
-            for context in jobs:
-                # Jobs contains the whole context to both be able to compute the expectation value
-                # and to create the individual jobs
-                (
-                    circuit,
-                    observables,
-                    values,
-                    eigenvalues,
-                    grouping,
-                ) = context  # pyright: ignore[reportAssignmentType]
-
-                if TYPE_CHECKING:
-                    assert isinstance(circuit, QCircuit)
-                    assert isinstance(observables, list)
-                expectation_values = {}
-                exp_value, errors = {}, {}
-                for j in range(len(grouping)):
-                    result = task[index][0]
-                    for name, eigenvalue in eigenvalues.items():
-                        for i in range(length):
-                            binary_state = f"{bin(i)[2:].zfill(len(bin(length))- 3)}"
-                            if binary_state in result.probabilities:
-                                sorted_values[i] = result.probabilities[
-                                    binary_state
-                                ].real
-                            else:
-                                sorted_values[i] = 0
-                        expectation_value: float = np.dot(
-                            eigenvalue,
-                            np.array(sorted_values, dtype=np.float64),
-                        )
-                        expectation_values[name] = expectation_value
-
-                    if TYPE_CHECKING:
-                        assert isinstance(observables, Measure)
-                    local_job = Job(
-                        job.job_type, circuit, job.device, observables, values
-                    )
-                    for i, obs in enumerate(observables):
-                        string = obs.pauli_string
-                        local: float = 0
-                        for monoms in string.monomials:
-                            if TYPE_CHECKING:
-                                assert isinstance(monoms.coef, (int, float))
-                            local += expectation_values[monoms.name] * monoms.coef
-                        exp_value.update({f"observable_{i}": local})
-                        errors.update({f"observable_{len(errors)}": None})
-                    results.append(Result(local_job, exp_value, errors))
-                index += 1
-        else:  # 1 run per monomials"""
         observable_results: dict[
             int,
             tuple[
@@ -339,26 +281,96 @@ def run_circuit_binding(job: Job) -> BatchResult:
                 dict[int, tuple[float, float]],
             ],
         ] = {}
+        grouped_observable_results: dict[
+            int,
+            tuple[
+                QCircuit,
+                ExpectationMeasure,
+                BindingParameters | None,
+                dict[str, float],
+                set[int],
+            ],
+        ] = {}
         for execution, contexts in zip(task_result.entries, jobs):
-            if len(execution.entries) != sum(context[3] for context in contexts):
+            if any(context.optimized for context in contexts):
+                if not all(context.optimized for context in contexts):
+                    raise ValueError(
+                        "A Braket program entry cannot mix grouped and native "
+                        "observable contexts."
+                    )
+                if len(execution.entries) != len(contexts):
+                    raise ValueError(
+                        "Braket returned a different number of grouped executions "
+                        "than requested."
+                    )
+                for measured_entry, context in zip(execution.entries, contexts):
+                    measurement = context.measurement
+                    if not isinstance(measurement, ExpectationMeasure):
+                        raise TypeError(
+                            "Grouped observable context must contain an "
+                            "ExpectationMeasure."
+                        )
+                    if context.group_index is None or context.eigenvalues is None:
+                        raise ValueError(
+                            "Grouped observable context is missing its group index "
+                            "or eigenvalues."
+                        )
+
+                    result_data = grouped_observable_results.get(context.result_index)
+                    if result_data is None:
+                        result_data = (
+                            context.circuit,
+                            measurement,
+                            context.values,
+                            {},
+                            set(),
+                        )
+                        grouped_observable_results[context.result_index] = result_data
+
+                    expectation_values = result_data[3]
+                    for name, eigenvalues in context.eigenvalues.items():
+                        probabilities = np.zeros(len(eigenvalues), dtype=np.float64)
+                        for state, probability in measured_entry.probabilities.items():
+                            state_index = int(state, 2)
+                            if state_index >= len(probabilities):
+                                raise ValueError(
+                                    "Braket returned a measurement state that does "
+                                    "not match the grouped observable dimension."
+                                )
+                            probabilities[state_index] = float(probability.real)
+                        expectation_values[name] = float(
+                            np.dot(eigenvalues, probabilities)
+                        )
+                    result_data[4].add(context.group_index)
+                continue
+
+            expected_executions = 0
+            for context in contexts:
+                if context.executable_span is None:
+                    raise ValueError(
+                        "Observable execution context is missing its executable "
+                        "span."
+                    )
+                expected_executions += context.executable_span
+            if len(execution.entries) != expected_executions:
                 raise ValueError(
                     "Braket returned a different number of observable executions "
                     "than requested."
                 )
             executable_index = 0
-            for (
-                circuit,
-                measurement,
-                variables,
-                span,
-                result_index,
-                observable_index,
-            ) in contexts:
+            for context in contexts:
+                circuit = context.circuit
+                measurement = context.measurement
+                variables = context.values
+                span = context.executable_span
+                result_index = context.result_index
+                observable_index = context.observable_index
                 if not isinstance(measurement, ExpectationMeasure):
                     raise TypeError(
                         "Observable execution context must contain an "
                         "ExpectationMeasure."
                     )
+                assert span is not None
                 if observable_index is None:
                     raise ValueError(
                         "Observable execution context is missing its observable index."
@@ -425,6 +437,59 @@ def run_circuit_binding(job: Job) -> BatchResult:
                     ),
                 )
             )
+
+        for result_index, (
+            circuit,
+            measurement,
+            variables,
+            expectation_values,
+            received_groups,
+        ) in grouped_observable_results.items():
+            expected_groups = set(range(len(measurement.get_pauli_grouping())))
+            if received_groups != expected_groups:
+                raise ValueError(
+                    "Braket did not return every Pauli group from the "
+                    "ExpectationMeasure."
+                )
+
+            result_values: dict[str, float] = {}
+            error_values: dict[str, None] = {}
+            for observable_index, observable in enumerate(measurement.observables):
+                value = 0j
+                for monomial in observable.pauli_string.monomials:
+                    coefficient = complex(cast(complex, monomial.coef))
+                    value += coefficient * expectation_values[monomial.name]
+                if not np.isclose(value.imag, 0):
+                    raise ValueError(
+                        "Grouped Hermitian observable produced a complex expectation "
+                        "value."
+                    )
+                label = observable.label or f"observable_{observable_index}"
+                result_values[label] = float(value.real)
+                error_values[label] = None
+
+            local_job = Job(job.job_type, circuit, job.device, measurement, variables)
+            local_job.id = job.id
+            local_job.status = job.status
+            if measurement.nb_observables == 1:
+                grouped_result_value: float | dict[str, float] = next(
+                    iter(result_values.values())
+                )
+                grouped_error_value: None | dict[str, None] = None
+            else:
+                grouped_result_value = result_values
+                grouped_error_value = error_values
+            indexed_results.append(
+                (
+                    result_index,
+                    Result(
+                        local_job,
+                        grouped_result_value,
+                        errors=grouped_error_value,
+                        shots=nbr_shots,
+                    ),
+                )
+            )
     else:
         for res, contexts in zip(task_result.entries, jobs):
             if len(res.entries) != len(contexts):
@@ -443,19 +508,18 @@ def run_circuit_binding(job: Job) -> BatchResult:
                             bin_str=state,
                         )
                     )
-                circuit, measure, values, _, result_index, _ = context
                 local_job = Job(
                     job.job_type,
-                    circuit,
+                    context.circuit,
                     job.device,
-                    measurement=measure,
-                    values=values,
+                    measurement=context.measurement,
+                    values=context.values,
                 )
                 local_job.id = job.id
                 local_job.status = JobStatus.DONE
                 indexed_results.append(
                     (
-                        result_index,
+                        context.result_index,
                         Result(
                             local_job,
                             sample_info,

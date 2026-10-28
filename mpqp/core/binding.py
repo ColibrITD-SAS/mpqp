@@ -32,7 +32,7 @@ from __future__ import annotations
 from copy import copy
 from enum import Enum, auto
 from numbers import Complex
-from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union, overload
+from typing import TYPE_CHECKING, Optional, TypeVar, Union, overload
 
 from sympy import Expr
 
@@ -48,7 +48,7 @@ if TYPE_CHECKING:
 
     from mpqp.execution._execution_context import ExecutionContext
     from mpqp.execution.devices import AvailableDevice, AWSDevice, IBMDevice
-
+    from mpqp.translation.braket import BraketPauliGroupingContext
 
 BindingParameters = dict[Union[Expr, str], Union[Complex, float]]
 """Parameter values keyed by symbolic expressions or parameter names."""
@@ -511,10 +511,34 @@ class CircuitBinding:
         """Return an unambiguous representation of the binding."""
         return f"CircuitBinding(circuits={repr(self.circuits)}, values={repr(self.value)}, measurements={repr(self.measurements)}, mode={repr(self.mode)}, noises={repr(self.noises)}, shots={repr(self.shots)})"
 
+    @property
+    def optimize_measurement(self) -> bool:
+        """Returns True if pauli grouping optimization is enabled for all measurements in the binding,
+        False otherwise.
+
+        Note: This method is only relevant for bindings with job_type OBSERVABLE. For other job types, it will return False.
+        """
+        from mpqp import JobType
+
+        result = True
+        if self.job_type != JobType.OBSERVABLE:
+            return False
+        for circuits in self.circuits:
+            if isinstance(circuits, CircuitBinding):
+                result &= circuits.optimize_measurement
+        if self.measurements is not None:
+            for measurement in self.measurements:
+                if TYPE_CHECKING:
+                    from mpqp import ExpectationMeasure
+
+                    assert isinstance(measurement, ExpectationMeasure)
+                result &= measurement.optimize_measurement
+        return result
+
     @overload
     def to_other_device(
         self, device: AWSDevice, backend_sim: Optional[AerSimulator] = None
-    ) -> tuple[ProgramSet, list[Any]]: ...
+    ) -> tuple[ProgramSet, list[list[BraketPauliGroupingContext]]]: ...
     @overload
     def to_other_device(
         self, device: IBMDevice, backend_sim: Optional[AerSimulator] = None
@@ -524,13 +548,13 @@ class CircuitBinding:
         self, device: AvailableDevice, backend_sim: Optional[AerSimulator] = None
     ) -> (
         list[tuple[EstimatorPubLike, list[ExecutionContext]]]
-        | tuple[ProgramSet, list[Any]]
+        | tuple[ProgramSet, list[list[BraketPauliGroupingContext]]]
     ): ...
     def to_other_device(
         self, device: AvailableDevice, backend_sim: Optional[AerSimulator] = None
     ) -> (
         list[tuple[EstimatorPubLike, list[ExecutionContext]]]
-        | tuple[ProgramSet, list[Any]]
+        | tuple[ProgramSet, list[list[BraketPauliGroupingContext]]]
     ):
         """Translate a binding for the selected provider.
 
