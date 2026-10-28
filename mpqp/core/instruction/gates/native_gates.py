@@ -51,9 +51,15 @@ def _apply_qiskit_function(
     name: str, value: "ParameterExpression"
 ) -> "ParameterExpression":
     """Apply a supported symbolic function to a Qiskit expression."""
-    operation = getattr(value, name, None)
+    function_names = {
+        "asin": "arcsin",
+        "acos": "arccos",
+        "atan": "arctan",
+        "Abs": "abs",
+    }
+    operation = getattr(value, function_names.get(name, name), None)
     if not callable(operation):
-        raise ValueError(f"Qiskit parameters do not support the function {name!r}.")
+        raise ValueError(f"Qiskit parameters do not support the function `{name}`.")
     return cast("ParameterExpression", operation())
 
 
@@ -76,7 +82,7 @@ def _qiskit_parameter_adder(
         The memoized parameter
     """
     from qiskit.circuit import Parameter as ParameterConstructor
-    from sympy import Expr, Function, default_sort_key, lambdify
+    from sympy import Expr, Function, Symbol, default_sort_key, lambdify
 
     if isinstance(param, Expr):
         if not param.free_symbols:
@@ -88,7 +94,11 @@ def _qiskit_parameter_adder(
             name = str(symbol)
             matches = [item for item in qiskit_parameters if item.name == name]
             if len(matches) > 1:
-                raise ReferenceError(f"Several Qiskit parameters are named {name!r}.")
+                raise ReferenceError(
+                    "Somehow two parameter got the same name, this shouldn't be "
+                    "possible. For help on this error please contact the authors of"
+                    " this library"
+                )
             if matches:
                 parameters.append(matches[0])
             else:
@@ -96,13 +106,21 @@ def _qiskit_parameter_adder(
                 qiskit_parameters.add(created)
                 parameters.append(created)
 
+        if isinstance(param, Symbol):
+            return parameters[0]
+
         functions = {
             function.func.__name__: partial(
                 _apply_qiskit_function, function.func.__name__
             )
             for function in param.atoms(Function)
         }
-        evaluator = lambdify(symbols, param, modules=[functions, "math"], dummify=True)
+        evaluator = lambdify(
+            symbols,
+            param,
+            modules=[{"sqrt": lambda value: value**0.5}, functions, "math"],
+            dummify=True,
+        )
         return cast("ParameterExpression | float", evaluator(*parameters))
     return float(param)
 
@@ -123,7 +141,7 @@ def _sympy_to_braket_param(
             try:
                 return float(val.evalf())  # pyright: ignore[reportArgumentType]
             except Exception as e:
-                raise ValueError(f"Failed to evaluate sympy expression '{val}': {e}")
+                raise ValueError(f"Failed to evaluate sympy expression `{val}`: {e}")
     else:
         return float(val)
 
