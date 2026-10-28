@@ -47,14 +47,24 @@ def test_zip_keeps_observables_on_their_own_register():
     for _ in range(2):
         executions = binding.unroll()
         assert [c.nb_qubits for c, _, _ in executions] == [3, 4]
-        assert [m.observables[0].nb_qubits for _, _, m in executions] == [3, 4]
+        assert [
+            m.observables[  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
+                0
+            ].nb_qubits
+            for _, _, m in executions
+        ] == [
+            3,
+            4,
+        ]
     assert measurements == original
     assert all(not c.measurements for c in circuits)
 
 
 @pytest.mark.parametrize("mode", list(BindingMode))
 @pytest.mark.parametrize("nested", [False, True])
-def test_shared_measure_is_embedded_per_resolved_circuit(mode, nested):
+def test_shared_measure_is_embedded_per_resolved_circuit(
+    mode, nested  # pyright: ignore[reportMissingParameterType]
+):
     circuits = [QCircuit(3), QCircuit(4)]
     # Reordered targets also exercise adjust_measure's in-place reordering path.
     measurement = ExpectationMeasure(Observable(pZ @ pX), targets=[2, 0])
@@ -67,9 +77,15 @@ def test_shared_measure_is_embedded_per_resolved_circuit(mode, nested):
         for (circuit, _, adjusted), expected in zip(
             executions, [pX @ pI @ pZ, pX @ pI @ pZ @ pI]
         ):
-            assert adjusted.targets == list(range(circuit.nb_qubits))
+            assert (
+                adjusted.targets  # pyright: ignore[reportOptionalMemberAccess]
+                == list(range(circuit.nb_qubits))
+            )
             np.testing.assert_allclose(
-                adjusted.observables[0].matrix, Observable(expected).matrix
+                adjusted.observables[  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
+                    0
+                ].matrix,
+                Observable(expected).matrix,
             )
     assert measurement == original
 
