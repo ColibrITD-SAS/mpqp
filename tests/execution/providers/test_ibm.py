@@ -83,7 +83,7 @@ def test_qiskit_params_copy_options():
 
 
 def test_adapt_qctrl_options():
-    function = _FakeQctrlFunction(_FakeQctrlRun(object()))
+    function: Any = _FakeQctrlFunction(_FakeQctrlRun(object()))
 
     assert QiskitParams(
         qctrl_function=function,
@@ -128,7 +128,7 @@ def test_qctrl_observable_uses_function_result(monkeypatch: pytest.MonkeyPatch):
     circuit = _FakeBinding([("estimator-pub", contexts)])
     qctrl_result = object()
     expected = object()
-    function = _FakeQctrlFunction(_FakeQctrlRun(qctrl_result))
+    function: Any = _FakeQctrlFunction(_FakeQctrlRun(qctrl_result))
     params = QiskitParams(
         qctrl_function=function,
         options={"environment": {"job_tags": ["experiment"]}},
@@ -169,7 +169,7 @@ def test_qctrl_observable_uses_function_result(monkeypatch: pytest.MonkeyPatch):
 def test_qctrl_error_status_is_not_reported_as_done(
     monkeypatch: pytest.MonkeyPatch,
 ):
-    function = _FakeQctrlFunction(_FakeQctrlRun("provider error", status="ERROR"))
+    function: Any = _FakeQctrlFunction(_FakeQctrlRun("provider error", status="ERROR"))
     params = QiskitParams(qctrl_function=function)
     circuit = type(
         "FakeCircuit", (), {"to_other_device": lambda self, device: object()}

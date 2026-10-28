@@ -31,6 +31,7 @@ class QiskitParams(ProviderParams):
     Example:
         Configure tags and private execution for an IBM Runtime job:
 
+        >>> from mpqp.execution.providers.providers_params import QiskitParams
         >>> params = QiskitParams(
         ...     options={
         ...         "environment": {
@@ -69,6 +70,7 @@ class QiskitParams(ProviderParams):
         Example:
             Return isolated IBM Runtime options:
 
+            >>> from mpqp.execution.providers.providers_params import QiskitParams
             >>> params = QiskitParams(
             ...     options={
             ...         "environment": {
