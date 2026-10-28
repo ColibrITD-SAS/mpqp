@@ -60,12 +60,13 @@ class QiskitParams(ProviderParams):
 
         Returns:
             A deep copy of the Runtime options, adapted to the Q-CTRL schema
-            when a Q-CTRL function is configured.
+            when a Q-CTRL function is configured by moving every
+            ``environment`` option to the top level.
 
         Raises:
             TypeError: If ``environment`` is not a dictionary.
-            ValueError: If a Runtime environment option cannot be adapted to
-                Q-CTRL.
+            ValueError: If an option is defined with different values in
+                ``environment`` and at the top level.
 
         Example:
             Return isolated IBM Runtime options:
@@ -92,23 +93,13 @@ class QiskitParams(ProviderParams):
         if not isinstance(environment, dict):
             raise TypeError("The environment option must be a dictionary.")
 
-        job_tags = environment.pop("job_tags", None)
-        private = environment.pop("private", False)
-        if private:
-            raise ValueError("Private execution is not supported by Q-CTRL functions.")
-        if environment:
-            unsupported = ", ".join(sorted(environment))
-            raise ValueError(
-                "The following Runtime environment options cannot be adapted for "
-                f"Q-CTRL: {unsupported}."
-            )
-        if job_tags is not None:
-            if "job_tags" in options and options["job_tags"] != job_tags:
+        for name, value in environment.items():
+            if name in options and options[name] != value:
                 raise ValueError(
-                    "Conflicting job_tags were provided at the top level and in "
-                    "environment."
+                    f"Conflicting option '{name}' was provided at the top level "
+                    "and in environment."
                 )
-            options["job_tags"] = job_tags
+            options[name] = value
         return options
 
 

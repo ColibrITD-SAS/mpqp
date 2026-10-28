@@ -88,15 +88,27 @@ def test_adapt_qctrl_options():
     assert QiskitParams(
         qctrl_function=function,
         options={
-            "environment": {"job_tags": ["experiment"], "private": False},
+            "environment": {
+                "job_tags": ["experiment"],
+                "private": False,
+                "log_level": "INFO",
+            },
             "session_id": "session-id",
         },
-    ).get_options() == {"job_tags": ["experiment"], "session_id": "session-id"}
+    ).get_options() == {
+        "job_tags": ["experiment"],
+        "private": False,
+        "log_level": "INFO",
+        "session_id": "session-id",
+    }
 
-    with pytest.raises(ValueError, match="Private execution"):
+    with pytest.raises(ValueError, match="Conflicting option 'job_tags'"):
         QiskitParams(
             qctrl_function=function,
-            options={"environment": {"private": True}},
+            options={
+                "job_tags": ["top-level"],
+                "environment": {"job_tags": ["environment"]},
+            },
         ).get_options()
 
 
