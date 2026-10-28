@@ -29,7 +29,6 @@ from mpqp.tools.errors import (
 )
 from mpqp.environment.env_manager import get_env_variable
 
-
 if TYPE_CHECKING:
     from qiskit import QuantumCircuit
     from qiskit.primitives import (
