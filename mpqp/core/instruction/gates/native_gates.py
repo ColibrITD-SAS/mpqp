@@ -16,13 +16,9 @@ from __future__ import annotations
 import inspect
 import sys
 from abc import abstractmethod
+from functools import partial
 from numbers import Integral
-from typing import TYPE_CHECKING, Optional
-
-if TYPE_CHECKING:
-    from sympy import Expr
-    from qiskit._accelerate.circuit import Parameter
-    from braket.circuits import FreeParameter
+from typing import TYPE_CHECKING, Optional, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -42,16 +38,34 @@ from mpqp.tools.maths import (
     symbolic_product,
 )
 
+if TYPE_CHECKING:
+    from braket.circuits import FreeParameterExpression
+    from qiskit._accelerate.circuit import Parameter, ParameterExpression
+    from sympy import Expr
+
 # pylance doesn't handle well Expr, so a lot of "type:ignore" will happen in
 # this file :/
 
 
-# from sympy import Expr, pi
+def _apply_qiskit_function(
+    name: str, value: "ParameterExpression"
+) -> "ParameterExpression":
+    """Apply a supported symbolic function to a Qiskit expression."""
+    function_names = {
+        "asin": "arcsin",
+        "acos": "arccos",
+        "atan": "arctan",
+        "Abs": "abs",
+    }
+    operation = getattr(value, function_names.get(name, name), None)
+    if not callable(operation):
+        raise ValueError(f"Qiskit parameters do not support the function `{name}`.")
+    return cast("ParameterExpression", operation())
 
 
 def _qiskit_parameter_adder(
     param: Expr | float, qiskit_parameters: set["Parameter"]
-) -> "Parameter | float | int":
+) -> "ParameterExpression | float":
     """To avoid having several parameters in qiskit for the same value we keep
     track of them in a set. This function takes care of this, this way you can
     directly call `QiskitGate(_qiskit_parameter_adder(<param>, <q_params_set>))`
@@ -67,43 +81,67 @@ def _qiskit_parameter_adder(
     Returns:
         The memoized parameter
     """
-    from sympy import Expr
+    from qiskit.circuit import Parameter as ParameterConstructor
+    from sympy import Expr, Function, Symbol, default_sort_key, lambdify
 
     if isinstance(param, Expr):
-        name = str(param)
-        previously_set_param = list(
-            filter(lambda elt: elt.name == name, qiskit_parameters)
-        )
-        if len(previously_set_param) > 1:
-            raise ReferenceError(
-                "Somehow two parameter got the same name, this shouldn't be "
-                "possible. For help on this error please contact the authors of"
-                " this library"
+        if not param.free_symbols:
+            return float(param.evalf())  # pyright: ignore[reportArgumentType]
+
+        symbols = tuple(sorted(param.free_symbols, key=default_sort_key))
+        parameters: list["ParameterExpression"] = []
+        for symbol in symbols:
+            name = str(symbol)
+            matches = [item for item in qiskit_parameters if item.name == name]
+            if len(matches) > 1:
+                raise ReferenceError(
+                    "Somehow two parameter got the same name, this shouldn't be "
+                    "possible. For help on this error please contact the authors of"
+                    " this library"
+                )
+            if matches:
+                parameters.append(matches[0])
+            else:
+                created = cast("Parameter", ParameterConstructor(name))
+                qiskit_parameters.add(created)
+                parameters.append(created)
+
+        if isinstance(param, Symbol):
+            return parameters[0]
+
+        functions = {
+            function.func.__name__: partial(
+                _apply_qiskit_function, function.func.__name__
             )
-        elif len(previously_set_param) == 1:
-            qiskit_param = previously_set_param[0]
-        else:
-            from qiskit.circuit import Parameter
+            for function in param.atoms(Function)
+        }
+        evaluator = lambdify(
+            symbols,
+            param,
+            modules=[{"sqrt": lambda value: value**0.5}, functions, "math"],
+            dummify=True,
+        )
+        return cast("ParameterExpression | float", evaluator(*parameters))
+    return float(param)
 
-            qiskit_param = Parameter(name)
-            qiskit_parameters.add(qiskit_param)
-    else:
-        qiskit_param = param
-    return qiskit_param
 
-
-def _sympy_to_braket_param(val: Expr | float) -> "float | FreeParameter":
-    from braket.circuits import FreeParameter
-    from sympy import Expr
+def _sympy_to_braket_param(
+    val: Expr | float,
+) -> "FreeParameterExpression | float":
+    from braket.circuits import FreeParameterExpression
+    from sympy import Expr, Symbol
 
     if isinstance(val, Expr):
         if val.free_symbols:
-            return FreeParameter(str(val))  # note: Braket won't parse expressions
+            normalized_symbols = {
+                symbol: Symbol(str(symbol)) for symbol in val.free_symbols
+            }
+            return FreeParameterExpression(val.xreplace(normalized_symbols))
         else:
             try:
                 return float(val.evalf())  # pyright: ignore[reportArgumentType]
             except Exception as e:
-                raise ValueError(f"Failed to evaluate sympy expression '{val}': {e}")
+                raise ValueError(f"Failed to evaluate sympy expression `{val}`: {e}")
     else:
         return float(val)
 
