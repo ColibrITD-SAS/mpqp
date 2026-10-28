@@ -1,4 +1,6 @@
 import sys
+from typing import TYPE_CHECKING
+from unittest.mock import Mock
 
 import numpy as np
 import pytest
@@ -25,10 +27,157 @@ from mpqp.execution.providers.aws import (
     run_braket,
     submit_job_braket,
 )
+from mpqp.execution.remote_handler import get_remote_result
 from mpqp.execution.result import BatchResult
 from mpqp.execution.runner import generate_job
 from mpqp.measures import pI, pX, pZ
 from mpqp.noise import BitFlip
+
+if TYPE_CHECKING:
+    from braket.circuits import Circuit
+    from braket.ir.openqasm import Program
+
+
+@pytest.fixture
+def local_braket_remote(monkeypatch: pytest.MonkeyPatch) -> Mock:
+    from braket.circuits import Circuit
+    from braket.device_schema import GateModelParameters
+    from braket.device_schema.simulators import GateModelSimulatorDeviceParameters
+    from braket.devices import LocalSimulator
+    from braket.tasks import GateModelQuantumTaskResult
+
+    simulator = LocalSimulator()
+    remote_task = Mock()
+    remote_task.id = "arn:aws:braket:us-east-1:123456789012:quantum-task/test"
+    remote_task.state.return_value = "COMPLETED"
+
+    def run_locally(
+        circuit: "Circuit | Program",
+        shots: int,
+        inputs: None,
+    ) -> Mock:
+        task = simulator.run(circuit, shots=shots, inputs=inputs)
+        result = task.result()
+        assert isinstance(result, GateModelQuantumTaskResult)
+        if isinstance(circuit, Circuit):
+            result.task_metadata.deviceParameters = GateModelSimulatorDeviceParameters(
+                paradigmParameters=GateModelParameters(
+                    qubitCount=int(max(circuit.qubits)) + 1
+                )
+            )
+        remote_task.result.return_value = result
+        remote_task.metadata.return_value = {
+            "deviceArn": AWSDevice.BRAKET_SV1_SIMULATOR.value,
+        }
+        return remote_task
+
+    monkeypatch.setattr(
+        "mpqp.execution.providers.aws.get_braket_device",
+        Mock(return_value=Mock(run=run_locally)),
+    )
+    monkeypatch.setattr("braket.aws.AwsQuantumTask", Mock(return_value=remote_task))
+    return remote_task
+
+
+@pytest.mark.provider("braket")
+@pytest.mark.parametrize(
+    ("observables", "targets", "expected"),
+    [
+        ([Observable(2 * pX)], [2], 2.0),
+        (
+            [
+                Observable(2 * pX + 3 * pZ),
+                Observable(-pX),
+                Observable(0 * pX),
+                Observable(pX.to_matrix()),
+            ],
+            [2],
+            {
+                "observable_0": 2,
+                "observable_1": -1,
+                "observable_2": 0,
+                "observable_3": 1,
+            },
+        ),
+        ([Observable(2 * (pX @ pZ))], [2, 0], -2.0),
+    ],
+    ids=["weighted", "multiple-with-shared-terms", "reordered-targets"],
+)
+def test_retrieve_exact_braket_observables(
+    local_braket_remote: Mock,
+    observables: list[Observable],
+    targets: list[int],
+    expected: float | dict[str, float],
+):
+    circuit = QCircuit(
+        [X(0), H(2), ExpectationMeasure(observables, targets=targets, shots=0)]
+    )
+    job = generate_job(circuit, AWSDevice.BRAKET_SV1_SIMULATOR)
+
+    original = run_braket(job)
+    retrieved = get_remote_result(job)
+
+    assert isinstance(original, Result)
+    assert original.expectation_values == pytest.approx(expected)
+    assert retrieved.expectation_values == pytest.approx(expected)
+    assert retrieved.job is job
+    assert retrieved.job.id == local_braket_remote.id
+
+    with pytest.raises(ValueError, match="original MPQP.*Job"):
+        get_remote_result(local_braket_remote.id, job.device)
+
+
+@pytest.mark.provider("braket")
+def test_retrieve_exact_braket_observables_with_cached_result_types(
+    local_braket_remote: Mock,  # passing the fixture is needed for the monkeypatch to work
+):
+    from braket.circuits.observables import Z as BraketZ
+    from braket.circuits.result_types import Expectation
+
+    circuit = QCircuit(
+        [X(0), H(2), ExpectationMeasure(Observable(2 * pX), targets=[2])]
+    )
+    job = generate_job(circuit, AWSDevice.BRAKET_SV1_SIMULATOR)
+    cached = circuit.without_measurements().to_other_device(
+        AWSDevice.BRAKET_LOCAL_SIMULATOR
+    )
+    cached.add_result_type(Expectation(observable=BraketZ(), target=[0]))
+    assert isinstance(job.circuit, QCircuit)
+    job.circuit.transpiled_circuit = cached
+    original_result_types = list(cached.result_types)
+
+    run_braket(job)
+    retrieved = get_remote_result(job)
+
+    assert retrieved.expectation_values == pytest.approx(2)
+    assert cached.result_types == original_result_types
+
+
+@pytest.mark.provider("braket")
+def test_retrieve_unmarked_braket_observable_by_arn(local_braket_remote: Mock):
+    circuit = QCircuit(
+        [H(0), ExpectationMeasure(Observable(2 * pX.to_matrix()), shots=0)]
+    )
+    job = generate_job(circuit, AWSDevice.BRAKET_SV1_SIMULATOR)
+    submit_job_braket(job)
+
+    retrieved = get_remote_result(local_braket_remote.id, job.device)
+
+    assert retrieved.expectation_values == pytest.approx(2)
+
+
+@pytest.mark.provider("braket")
+def test_retrieve_braket_samples_by_arn(local_braket_remote: Mock):
+    job = generate_job(
+        QCircuit([X(0), BasisMeasure([0], shots=10)]),
+        AWSDevice.BRAKET_SV1_SIMULATOR,
+    )
+    run_braket(job)
+
+    retrieved = get_remote_result(local_braket_remote.id, job.device)
+
+    assert retrieved.counts == [0, 10]
+    assert retrieved.job.id == local_braket_remote.id
 
 
 @pytest.mark.provider("braket")

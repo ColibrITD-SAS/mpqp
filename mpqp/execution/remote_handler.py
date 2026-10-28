@@ -49,6 +49,9 @@ def get_remote_result(
 
     Note:
         Retrieving results for jobs with multiple remote ids is not supported.
+        Exact Braket observable tasks created by :func:`~mpqp.execution.runner.run`
+        require the original :class:`~mpqp.execution.job.Job`, rather than only
+        its ARN, to reconstruct the requested observables.
 
     Examples:
         >>> print(get_remote_result('Job141933', ATOSDevice.QLM_LINALG))
@@ -119,7 +122,9 @@ def get_remote_result(
     elif isinstance(job_device, ATOSDevice):
         return get_result_from_qlm_job_id(job_id)
     elif isinstance(job_device, AWSDevice):
-        return get_result_from_aws_task_arn(job_id)
+        return get_result_from_aws_task_arn(
+            job_id, job=job_data if isinstance(job_data, Job) else None
+        )
     elif isinstance(job_device, AZUREDevice):
         return get_result_from_azure_job_id(job_id)
     elif isinstance(job_device, QUANTINUUMDevice):
