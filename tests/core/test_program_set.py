@@ -288,9 +288,7 @@ def test_pauli_grouping_shares_one_execution_between_observables():
         ),
     )
 
-    program_set, contexts = binding.to_other_device(
-        AWSDevice.BRAKET_LOCAL_SIMULATOR
-    )
+    program_set, contexts = binding.to_other_device(AWSDevice.BRAKET_LOCAL_SIMULATOR)
     result = run(binding, AWSDevice.BRAKET_LOCAL_SIMULATOR)
 
     assert program_set.total_executables == 1
