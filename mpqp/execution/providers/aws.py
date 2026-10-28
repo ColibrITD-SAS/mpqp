@@ -28,6 +28,7 @@ from mpqp.tools.errors import (
 
 if TYPE_CHECKING:
     from braket.circuits import Circuit
+    from braket.circuits.observables import Hermitian
     from braket.devices.device import Device as BraketDevice
     from braket.program_sets import ProgramSet
     from braket.tasks import GateModelQuantumTaskResult, QuantumTask
@@ -677,6 +678,14 @@ def _run_exact_braket_observables(
     return _extract_exact_braket_observables(exact_result, job, result_specs)
 
 
+def _uses_braket_pauli_grouping(measure: ExpectationMeasure) -> bool:
+    """Whether every observable can use the grouped Pauli execution path."""
+    return bool(measure.optimize_measurement) and all(
+        observable._pauli_string is not None  # pyright: ignore[reportPrivateUsage]
+        for observable in measure.observables
+    )
+
+
 def _run_optimized_braket_observables(
     job: Job,
     transpiled_circuit: "Circuit",
@@ -687,10 +696,7 @@ def _run_optimized_braket_observables(
 
     from braket.program_sets import ProgramSet
 
-    from mpqp.tools.pauli_grouping import (
-        find_qubitwise_rotations,
-        pauli_monomial_eigenvalues,
-    )
+    from mpqp.tools.pauli_grouping import find_qubitwise_rotations
 
     assert isinstance(job.measure, ExpectationMeasure)
     if job.measure.pre_transpiled is None:
@@ -705,12 +711,8 @@ def _run_optimized_braket_observables(
             pre_measure.to_other_language(Language.BRAKET)
             for pre_measure in pre_measures
         ]
-        eigenvalues = [
-            {monomial.name: pauli_monomial_eigenvalues(monomial) for monomial in group}
-            for group in grouping
-        ]
     else:
-        eigenvalues, transpiled_pre_measures = (
+        _, transpiled_pre_measures = (
             job.measure.pre_transpiled
         )  # pyright: ignore[reportGeneralTypeIssues]
 
@@ -722,6 +724,26 @@ def _run_optimized_braket_observables(
 
     program_set = ProgramSet(programs, shots_per_executable=job.measure.shots)
     program_set_result = _run_braket_program_set(job, device, program_set)
+    return _extract_optimized_braket_observables(program_set_result, job)
+
+
+def _extract_optimized_braket_observables(
+    program_set_result: "ProgramSetQuantumTaskResult",
+    job: Job,
+) -> Result:
+    """Reconstruct grouped observable values from an existing program-set result."""
+    from mpqp.tools.pauli_grouping import pauli_monomial_eigenvalues
+
+    assert isinstance(job.measure, ExpectationMeasure)
+    if job.measure.pre_transpiled is None:
+        eigenvalues = [
+            {monomial.name: pauli_monomial_eigenvalues(monomial) for monomial in group}
+            for group in job.measure.get_pauli_grouping()
+        ]
+    else:
+        eigenvalues, _ = (
+            job.measure.pre_transpiled
+        )  # pyright: ignore[reportGeneralTypeIssues]
 
     expectation_values: dict[str, float] = {}
     for eigenvalues_by_name, program_result in zip(
@@ -756,6 +778,27 @@ def _run_optimized_braket_observables(
     return Result(job, results, errors, job.measure.shots)
 
 
+def _sampled_braket_observable_bases(
+    measure: ExpectationMeasure,
+) -> list["Hermitian | None"]:
+    """Prepare matrix measurement bases while preserving Pauli representations."""
+    from braket.circuits.observables import Hermitian
+
+    return [
+        (
+            Hermitian(
+                observable.matrix,
+                display_name=(
+                    observable.label if observable.label is not None else "Hermitian"
+                ),
+            )
+            if observable._pauli_string is None  # pyright: ignore[reportPrivateUsage]
+            else None
+        )
+        for observable in measure.observables
+    ]
+
+
 def _run_sampled_braket_observables(
     job: Job,
     transpiled_circuit: "Circuit",
@@ -765,31 +808,20 @@ def _run_sampled_braket_observables(
     from copy import deepcopy
 
     from braket.circuits import Instruction
-    from braket.circuits.observables import Hermitian, Sum
+    from braket.circuits.observables import Sum
     from braket.program_sets import CircuitBinding, ProgramSet
 
     assert isinstance(job.measure, ExpectationMeasure)
     programs = []
-    result_specs: list[tuple[int, npt.NDArray[np.float64] | None, list[int] | None]] = (
-        []
-    )
+    bases = _sampled_braket_observable_bases(job.measure)
 
-    for index, observable in enumerate(job.measure.observables):
-        if observable._pauli_string is None:  # pyright: ignore[reportPrivateUsage]
-            braket_observable = Hermitian(
-                observable.matrix,
-                display_name=(
-                    observable.label if observable.label is not None else "Hermitian"
-                ),
-            )
+    for observable, basis in zip(job.measure.observables, bases, strict=True):
+        if basis is not None:
             circuit = deepcopy(transpiled_circuit)
-            for gate in braket_observable.basis_rotation_gates:
+            for gate in basis.basis_rotation_gates:
                 circuit.add_instruction(Instruction(gate, target=job.measure.targets))
             circuit.measure(job.measure.targets)
             programs.append(circuit)
-            result_specs.append(
-                (index, braket_observable.eigenvalues, job.measure.targets)
-            )
         else:
             embedded_observable = _embed_pauli_observable_for_braket(
                 observable,
@@ -804,19 +836,28 @@ def _run_sampled_braket_observables(
                     observables=braket_observable,
                 )
             )
-            result_specs.append((index, None, None))
 
     program_set = ProgramSet(programs, shots_per_executable=job.measure.shots)
     program_set_result = _run_braket_program_set(job, device, program_set)
+    return _extract_sampled_braket_observables(program_set_result, job, bases)
+
+
+def _extract_sampled_braket_observables(
+    program_set_result: "ProgramSetQuantumTaskResult",
+    job: Job,
+    bases: list["Hermitian | None"],
+) -> Result:
+    """Reconstruct ungrouped observables from the submitted measurement bases."""
+    assert isinstance(job.measure, ExpectationMeasure)
 
     results: dict[str, float] = {}
     errors: dict[str, None] = {}
-    for (observable_index, eigenvalues, targets), program_result in zip(
-        result_specs, program_set_result.entries, strict=True
+    for observable_index, (basis, program_result) in enumerate(
+        zip(bases, program_set_result.entries, strict=True)
     ):
         if TYPE_CHECKING:
             assert isinstance(program_result, CompositeEntry)
-        if eigenvalues is None:
+        if basis is None:
             expectation = program_result.expectation()
             if expectation is None:
                 raise ValueError(
@@ -824,14 +865,13 @@ def _run_sampled_braket_observables(
                     f"observable_{observable_index}."
                 )
         else:
-            assert targets is not None
             measured_entry = program_result.entries[0]
             probabilities = _ordered_measurement_probabilities(
                 measured_entry.probabilities,
                 measured_entry.measured_qubits,
-                targets,
+                job.measure.targets,
             )
-            expectation = np.dot(eigenvalues, probabilities)
+            expectation = np.dot(basis.eigenvalues, probabilities)
 
         results[f"observable_{observable_index}"] = float(expectation)
         errors[f"observable_{observable_index}"] = None
@@ -839,6 +879,32 @@ def _run_sampled_braket_observables(
     if len(results) == 1:
         return Result(job, results["observable_0"], None, job.measure.shots)
     return Result(job, results, errors, job.measure.shots)
+
+
+def _extract_braket_program_set_observables(
+    program_set_result: "ProgramSetQuantumTaskResult",
+    job: Optional[Job],
+) -> Result:
+    """Select the observable reconstruction matching the original MPQP job."""
+    if job is not None and isinstance(job.circuit, CircuitBinding):
+        raise NotImplementedError(
+            "Retrieving Braket circuit-binding results is not supported."
+        )
+    if (
+        job is None
+        or job.job_type != JobType.OBSERVABLE
+        or not isinstance(job.measure, ExpectationMeasure)
+        or job.measure.shots <= 0
+    ):
+        raise ValueError(
+            "Retrieving a sampled Braket observable result requires the "
+            "original MPQP `Job`."
+        )
+    if _uses_braket_pauli_grouping(job.measure):
+        return _extract_optimized_braket_observables(program_set_result, job)
+    return _extract_sampled_braket_observables(
+        program_set_result, job, _sampled_braket_observable_bases(job.measure)
+    )
 
 
 def run_braket_observable(job: Job) -> Result:
@@ -891,11 +957,7 @@ def run_braket_observable(job: Job) -> Result:
     if job.measure.shots == 0:
         return _run_exact_braket_observables(job, transpiled_circuit, device)
 
-    all_observables_are_pauli = all(
-        observable._pauli_string is not None  # pyright: ignore[reportPrivateUsage]
-        for observable in job.measure.observables
-    )
-    if job.measure.optimize_measurement and all_observables_are_pauli:
+    if _uses_braket_pauli_grouping(job.measure):
         return _run_optimized_braket_observables(job, transpiled_circuit, device)
     return _run_sampled_braket_observables(job, transpiled_circuit, device)
 
@@ -1109,17 +1171,19 @@ def get_result_from_aws_task_arn(task_arn: str, job: Optional[Job] = None) -> Re
 
     Args:
         task_arn: ARN of the remote AWS task.
-        job: Original MPQP job. Required for exact observable tasks created by
+        job: Original MPQP job. Required for observable tasks created by
             :func:`~mpqp.execution.runner.run`, to restore observable coefficients
             and combine their expectation values.
 
     Raises:
         AWSBraketRemoteExecutionError: When the status of the task is unknown.
-        ValueError: If an exact observable task requires its original MPQP job.
+        ValueError: If an observable task requires its original MPQP job.
+        NotImplementedError: If retrieving results for a circuit binding.
     """
     from braket.aws import AwsQuantumTask
     from braket.ir.openqasm import Program
     from braket.tasks import GateModelQuantumTaskResult
+    from braket.tasks.program_set_quantum_task_result import ProgramSetQuantumTaskResult
 
     task: QuantumTask = AwsQuantumTask(task_arn)
     # catch an error if the id is not correct (wrong ID, wrong region, ...) ?
@@ -1130,8 +1194,12 @@ def get_result_from_aws_task_arn(task_arn: str, job: Optional[Job] = None) -> Re
         raise AWSBraketRemoteExecutionError(f"Job status: {status}")
     elif status in ["CREATED", "QUEUED", "RUNNING", "COMPLETED"]:  #
         result = task.result()
-        if TYPE_CHECKING:
-            assert isinstance(result, GateModelQuantumTaskResult)
+        if not isinstance(
+            result, (GateModelQuantumTaskResult, ProgramSetQuantumTaskResult)
+        ):
+            raise AWSBraketRemoteExecutionError(
+                "Braket did not return a gate-model or program-set result."
+            )
     else:
         raise AWSBraketRemoteExecutionError(
             f"Unknown status {status} for the task {task_arn}"
@@ -1141,36 +1209,41 @@ def get_result_from_aws_task_arn(task_arn: str, job: Optional[Job] = None) -> Re
     device_arn = metadata["deviceArn"]
     device = AWSDevice.from_arn(device_arn)
 
-    action = result.additional_metadata.action
-    if isinstance(action, Program) and action.source.startswith(
-        _EXACT_OBSERVABLE_MARKER
-    ):
-        if (
-            job is None
-            or job.job_type != JobType.OBSERVABLE
-            or not isinstance(job.measure, ExpectationMeasure)
-            or job.measure.shots != 0
-        ):
-            raise ValueError(
-                "Retrieving an exact Braket observable result requires the "
-                "original MPQP `Job`."
-            )
-        from copy import deepcopy
-
-        from braket.circuits import Circuit
-
-        assert isinstance(job.circuit, QCircuit)
-        original_circuit = job.circuit.transpiled_circuit
-        result_circuit = (
-            deepcopy(original_circuit)
-            if isinstance(original_circuit, Circuit)
-            else Circuit()
-        )
-        parsed_result = _extract_exact_braket_observables(
-            result, job, _prepare_exact_braket_observables(job.measure, result_circuit)
-        )
+    if isinstance(result, ProgramSetQuantumTaskResult):
+        parsed_result = _extract_braket_program_set_observables(result, job)
     else:
-        parsed_result = extract_result(result, None, device)
+        action = result.additional_metadata.action
+        if isinstance(action, Program) and action.source.startswith(
+            _EXACT_OBSERVABLE_MARKER
+        ):
+            if (
+                job is None
+                or job.job_type != JobType.OBSERVABLE
+                or not isinstance(job.measure, ExpectationMeasure)
+                or job.measure.shots != 0
+            ):
+                raise ValueError(
+                    "Retrieving an exact Braket observable result requires the "
+                    "original MPQP `Job`."
+                )
+            from copy import deepcopy
+
+            from braket.circuits import Circuit
+
+            assert isinstance(job.circuit, QCircuit)
+            original_circuit = job.circuit.transpiled_circuit
+            result_circuit = (
+                deepcopy(original_circuit)
+                if isinstance(original_circuit, Circuit)
+                else Circuit()
+            )
+            parsed_result = _extract_exact_braket_observables(
+                result,
+                job,
+                _prepare_exact_braket_observables(job.measure, result_circuit),
+            )
+        else:
+            parsed_result = extract_result(result, None, device)
     parsed_result.job.id = task_arn
     parsed_result.job.status = JobStatus.DONE
     return parsed_result

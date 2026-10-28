@@ -49,9 +49,10 @@ def get_remote_result(
 
     Note:
         Retrieving results for jobs with multiple remote ids is not supported.
-        Exact Braket observable tasks created by :func:`~mpqp.execution.runner.run`
+        Braket observable tasks created by :func:`~mpqp.execution.runner.run`
         require the original :class:`~mpqp.execution.job.Job`, rather than only
         its ARN, to reconstruct the requested observables.
+        Retrieval of Braket circuit-binding results is not supported for now.
 
     Examples:
         >>> print(get_remote_result('Job141933', ATOSDevice.QLM_LINALG))
