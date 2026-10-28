@@ -364,6 +364,76 @@ def test_remove_instructions():
         circuit.remove(X(0))
 
 
+def test_pop_instructions_by_index():
+    first_h, second_h = H(0), H(0)
+    measurement = BasisMeasure([0, 1])
+    circuit = QCircuit([first_h, X(1), second_h, measurement])
+
+    assert circuit.pop(2) is second_h
+    assert circuit.instructions == [H(0), X(1), measurement]
+    assert circuit.measurements == [measurement]
+
+    assert circuit.pop(0) is first_h
+    assert circuit.instructions == [X(1), measurement]
+    assert circuit.measurements == [measurement]
+
+    assert circuit.pop() is measurement
+    assert circuit.instructions == [X(1)]
+    assert circuit.measurements == []
+    assert circuit.nb_qubits == 2
+    assert circuit.nb_cbits == 0
+
+    assert circuit.pop(-1) == X(1)
+    assert circuit.instructions == []
+    assert circuit.nb_qubits == 0
+
+
+def test_pop_keeps_measurement_indexes_consistent():
+    measurement = BasisMeasure([0], shots=10)
+    circuit = QCircuit([X(0), measurement, H(0)])
+
+    circuit.pop(0)
+
+    assert circuit.instructions == [measurement, H(0)]
+    assert circuit.measurements == [measurement]
+
+
+@pytest.mark.parametrize("index", [3, -4])
+def test_pop_out_of_range(index: int):
+    circuit = QCircuit([X(0), H(1), CNOT(0, 1)])
+
+    with pytest.raises(IndexError):
+        circuit.pop(index)
+
+    assert circuit.instructions == [X(0), H(1), CNOT(0, 1)]
+
+
+def test_pop_empty_circuit():
+    with pytest.raises(IndexError):
+        QCircuit(2).pop()
+
+
+def test_pop_preserves_explicit_dimensions():
+    circuit = QCircuit(
+        [X(0), BasisMeasure([0, 1], c_targets=[0, 1])], nb_qubits=4, nb_cbits=3
+    )
+
+    circuit.pop()
+    circuit.pop()
+
+    assert circuit.nb_qubits == 4
+    assert circuit.nb_cbits == 3
+
+
+def test_variables_follow_pop():
+    theta = symbols("theta")
+    circuit = QCircuit([Rx(theta, 0), X(0)])
+
+    assert circuit.variables() == {theta}
+    circuit.pop(0)
+    assert circuit.variables() == set()
+
+
 def test_remove_recomputes_dynamic_dimensions():
     measurement = BasisMeasure([0])
     circuit = QCircuit([measurement])
@@ -494,11 +564,11 @@ def test_instructions_and_measurements_are_exposed_separately(
     ordered: list[Instruction],
     unordered: list[Instruction],
 ):
-    from mpqp.tools.circuit import get_sorted_instructions_and_measurements
-
     assert repr(circuit.instructions) == repr(instructions)
     assert repr(circuit.measurements) == repr(measurements)
-    assert repr(get_sorted_instructions_and_measurements(circuit)) == repr(ordered)
+    assert repr(
+        circuit.with_measurement(deep_copy=False, measurements_last=True)
+    ) == repr(ordered)
     assert repr(circuit.with_measurement(deep_copy=False)) == repr(unordered)
 
 

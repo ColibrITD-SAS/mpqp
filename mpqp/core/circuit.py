@@ -384,6 +384,9 @@ class QCircuit:
         Raises:
             ValueError: If an instruction is not present in the circuit.
 
+        See Also:
+            :meth:`pop` to remove an instruction by its index.
+
         Examples:
             >>> circuit = QCircuit([X(0), H(1), CNOT(0, 1)])
             >>> circuit.remove(H(1))
@@ -404,6 +407,41 @@ class QCircuit:
                 self._pop_instruction(index, recompute_dimensions=False)
         finally:
             self._recompute_dynamic_dimensions()
+
+    def pop(self, index: int = -1) -> Instruction:
+        """Remove and return the instruction at ``index`` (the last one by
+        default).
+
+        Unlike :meth:`remove`, which looks for an instruction equal to the one
+        given, this targets a position in :attr:`instructions`. It is useful
+        when several equal instructions are present in the circuit.
+
+        Dynamically sized circuits retain enough qubits for the remaining
+        instructions and noise models. Explicitly set register sizes are
+        preserved.
+
+        Args:
+            index: Position of the instruction in :attr:`instructions`.
+                Negative indexes are supported.
+
+        Returns:
+            The removed instruction.
+
+        Raises:
+            IndexError: If the circuit is empty or ``index`` is out of range.
+
+        Examples:
+            >>> circuit = QCircuit([H(0), X(1), H(0), BasisMeasure([0, 1])])
+            >>> circuit.pop(2)
+            H(0)
+            >>> circuit.instructions
+            [H(0), X(1), BasisMeasure([0, 1])]
+            >>> circuit.pop()
+            BasisMeasure([0, 1])
+            >>> circuit.instructions
+            [H(0), X(1)]
+        """
+        return self._pop_instruction(index)
 
     def _insert_instruction(self, index: int, instruction: Instruction) -> None:
         """Insert an instruction while keeping instruction storage encapsulated."""
@@ -1253,26 +1291,50 @@ class QCircuit:
         new_circuit = self._clone_without(
             ["instructions", "measurements", "_nb_cbits"], deep_copy=deep_copy
         )
-        measurement_indexes = set(self._measurement_indexes)
-        instructions = [
-            instruction
-            for index, instruction in enumerate(self._instructions)
-            if index not in measurement_indexes
-        ]
+        instructions = self._non_measurement_instructions()
         new_circuit._instructions = (
             deepcopy(instructions) if deep_copy else instructions
         )
 
         return new_circuit
 
-    def with_measurement(self, deep_copy: bool = True) -> list[Instruction]:
-        """Return all instructions, including measurements, in circuit order.
+    def _non_measurement_instructions(self) -> list[Instruction]:
+        """Return the instructions that are not measurements, in circuit order."""
+        measurement_indexes = set(self._measurement_indexes)
+        return [
+            instruction
+            for index, instruction in enumerate(self._instructions)
+            if index not in measurement_indexes
+        ]
+
+    def with_measurement(
+        self, deep_copy: bool = True, measurements_last: bool = False
+    ) -> list[Instruction]:
+        """Return all instructions, including measurements.
 
         Args:
             deep_copy: If True, returns a deep copy of the resulting list;
                 otherwise, returns a shallow copy.
+            measurements_last: If ``False``, instructions are returned in
+                circuit order. If ``True``, all measurements are moved after the
+                other instructions, both groups keeping their relative order.
+                This is meant for languages that only support terminal
+                measurements: a gate placed after a measurement on the same
+                qubit would then be applied before it.
+
+        Examples:
+            >>> circuit = QCircuit([X(0), BasisMeasure([0], shots=100), H(0)])
+            >>> circuit.with_measurement()
+            [X(0), BasisMeasure([0], shots=100), H(0)]
+            >>> circuit.with_measurement(measurements_last=True)
+            [X(0), H(0), BasisMeasure([0], shots=100)]
         """
-        return deepcopy(self._instructions) if deep_copy else self._instructions.copy()
+        instructions = (
+            self._non_measurement_instructions() + self.measurements
+            if measurements_last
+            else self._instructions.copy()
+        )
+        return deepcopy(instructions) if deep_copy else instructions
 
     def without_noises(self, deep_copy: bool = True) -> QCircuit:
         """Provides a shallow copy of this circuit with all the noise models removed.
