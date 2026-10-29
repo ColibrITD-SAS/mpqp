@@ -1011,7 +1011,13 @@ def run_qctrl_function(job: Job, qiskit_params: QiskitParams) -> Result | BatchR
     For expectation results without shot metadata, ``Result.shots`` reports
     the submitted shot count, which may differ from the count actually used.
     Provider-reported shot counts take precedence when available.
+
+    Raises:
+        TypeError: If a completed function returns an unsupported result type.
+            The job retains its successful execution status.
     """
+    from qiskit.primitives import PrimitiveResult
+
     if TYPE_CHECKING:
         assert qiskit_params.qctrl_function
         assert isinstance(job.device, IBMDevice)
@@ -1101,13 +1107,18 @@ def run_qctrl_function(job: Job, qiskit_params: QiskitParams) -> Result | BatchR
         )
     job.status = JobStatus.DONE
 
+    if not isinstance(result, PrimitiveResult):
+        raise TypeError(
+            f"Q-CTRL function job {job.id} completed successfully but returned "
+            f"unsupported result type {type(result).__name__}; "
+            "expected PrimitiveResult."
+        )
+
     if job.job_type == JobType.OBSERVABLE:
         return _extract_estimator_pubs_result(
             result, job, jobs, fallback_shots=nb_shots
         )
-    return extract_result(
-        result, job, job.device
-    )  # pyright: ignore[reportArgumentType]
+    return extract_result(result, job, job.device)
 
 
 def extract_result(

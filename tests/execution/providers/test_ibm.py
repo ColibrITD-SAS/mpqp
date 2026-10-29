@@ -3,8 +3,13 @@ from typing import Any
 import numpy as np
 import pytest
 from qiskit import QuantumCircuit, transpile
-from qiskit.primitives import PubResult, StatevectorEstimator
-from qiskit.primitives.containers import DataBin
+from qiskit.primitives import (
+    PrimitiveResult,
+    PubResult,
+    SamplerPubResult,
+    StatevectorEstimator,
+)
+from qiskit.primitives.containers import BitArray, DataBin
 from qiskit.quantum_info import SparsePauliOp, Statevector
 from qiskit_aer import AerSimulator
 from qiskit_ibm_runtime import EstimatorV2, SamplerV2
@@ -147,7 +152,7 @@ def test_qctrl_observable_uses_function_result(monkeypatch: pytest.MonkeyPatch):
     qiskit_circuit = QuantumCircuit(1)
     observable = SparsePauliOp("Z")
     circuit = _FakeBinding([((qiskit_circuit, [[observable]]), contexts)])
-    qctrl_result = object()
+    qctrl_result = PrimitiveResult([])
     expected = object()
     function: Any = _FakeQctrlFunction(_FakeQctrlRun(qctrl_result))
     params = QiskitParams(
@@ -220,6 +225,61 @@ def test_qctrl_error_status_is_not_reported_as_done(
         ibm_provider.run_qctrl_function(job, params)
 
     assert job.status == JobStatus.ERROR
+
+
+@pytest.mark.provider("qiskit")
+@pytest.mark.parametrize("job_type", [JobType.SAMPLE, JobType.OBSERVABLE])
+@pytest.mark.parametrize("payload", ["unexpected response", {"message": "unexpected"}])
+def test_qctrl_unsupported_result_preserves_done_status(
+    monkeypatch: pytest.MonkeyPatch, job_type: JobType, payload: Any
+):
+    function: Any = _FakeQctrlFunction(_FakeQctrlRun(payload))
+    params = QiskitParams(qctrl_function=function)
+    measure = (
+        BasisMeasure([0], shots=100)
+        if job_type == JobType.SAMPLE
+        else ExpectationMeasure(Observable(pZ), shots=100)
+    )
+    job = Job(job_type, QCircuit([X(0), measure]), IBMDevice.IBM_FEZ)
+
+    def unexpected_backend(*args: Any, **kwargs: Any):
+        pytest.fail("This test must not access a remote backend.")
+
+    monkeypatch.setattr(
+        "mpqp.execution.connection.ibm_connection.get_backend", unexpected_backend
+    )
+    with pytest.raises(
+        TypeError, match="unsupported result type.*expected PrimitiveResult"
+    ):
+        ibm_provider.run_ibm(job, params)
+
+    assert job.status == JobStatus.DONE
+    assert job.id == "qctrl-job-id"
+
+
+@pytest.mark.provider("qiskit")
+def test_qctrl_sampler_accepts_primitive_result(monkeypatch: pytest.MonkeyPatch):
+    payload = PrimitiveResult(
+        [SamplerPubResult(DataBin(c=BitArray.from_counts({"1": 100})))]
+    )
+    function: Any = _FakeQctrlFunction(_FakeQctrlRun(payload))
+    params = QiskitParams(qctrl_function=function)
+
+    def unexpected_backend(*args: Any, **kwargs: Any):
+        pytest.fail("This test must not access a remote backend.")
+
+    monkeypatch.setattr(
+        "mpqp.execution.connection.ibm_connection.get_backend", unexpected_backend
+    )
+    result = run(
+        QCircuit([X(0), BasisMeasure([0], shots=100)]),
+        IBMDevice.IBM_FEZ,
+        provider_params=params,
+    )
+
+    assert isinstance(result, Result)
+    assert result.counts == [0, 100]
+    assert result.job.status == JobStatus.DONE
 
 
 @pytest.mark.provider("qiskit")
@@ -345,7 +405,7 @@ def test_qctrl_estimator_shot_metadata(
         DataBin(evs=np.array([-1.0]), stds=np.array([0.1]), shape=(1,)),
         metadata=metadata.copy(),
     )
-    function: Any = _FakeQctrlFunction(_FakeQctrlRun([pub_result]))
+    function: Any = _FakeQctrlFunction(_FakeQctrlRun(PrimitiveResult([pub_result])))
     params = QiskitParams(qctrl_function=function)
     measure = ExpectationMeasure(Observable(pZ), shots=100)
     execution_input = (
