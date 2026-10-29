@@ -172,10 +172,11 @@ def test_qctrl_observable_uses_function_result(monkeypatch: pytest.MonkeyPatch):
         lambda binding, device, *, transpile: binding._pubs_with_context,
     )
 
-    def extract(result: Any, root_job: Any, pubs_contexts: Any):
+    def extract(result: Any, root_job: Any, pubs_contexts: Any, *, fallback_shots: int):
         assert result is qctrl_result
         assert root_job is job
         assert pubs_contexts == [contexts]
+        assert fallback_shots == 256
         return expected
 
     monkeypatch.setattr(ibm_provider, "_extract_estimator_pubs_result", extract)
@@ -329,6 +330,43 @@ def test_qctrl_preserves_parameter_observable_pairs(
     assert len(results) == len(expected)
     for item, expected_value in zip(results, expected):
         assert item.expectation_values == pytest.approx(expected_value)
+
+
+@pytest.mark.provider("qiskit")
+@pytest.mark.parametrize("reported_shots", [None, 73])
+@pytest.mark.parametrize("binding", [False, True])
+def test_qctrl_estimator_shot_metadata(
+    monkeypatch: pytest.MonkeyPatch, reported_shots: int | None, binding: bool
+):
+    metadata: dict[str, int | None] = {"precision": None}
+    if reported_shots is not None:
+        metadata["shots"] = reported_shots
+    pub_result = PubResult(
+        DataBin(evs=np.array([-1.0]), stds=np.array([0.1]), shape=(1,)),
+        metadata=metadata.copy(),
+    )
+    function: Any = _FakeQctrlFunction(_FakeQctrlRun([pub_result]))
+    params = QiskitParams(qctrl_function=function)
+    measure = ExpectationMeasure(Observable(pZ), shots=100)
+    execution_input = (
+        CircuitBinding(QCircuit([X(0)]), measurements=measure)
+        if binding
+        else QCircuit([X(0), measure])
+    )
+
+    def unexpected_backend(*args: Any, **kwargs: Any):
+        pytest.fail("This test must not access a remote backend.")
+
+    monkeypatch.setattr(
+        "mpqp.execution.connection.ibm_connection.get_backend", unexpected_backend
+    )
+    result = run(execution_input, IBMDevice.IBM_FEZ, provider_params=params)
+    item = result.results[0] if isinstance(result, BatchResult) else result
+
+    assert item.expectation_values == pytest.approx(-1.0)
+    assert item.shots == (reported_shots if reported_shots is not None else 100)
+    assert function.run_kwargs["options"]["default_shots"] == 100
+    assert pub_result.metadata == metadata
 
 
 @pytest.mark.provider("qiskit")

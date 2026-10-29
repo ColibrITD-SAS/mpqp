@@ -12,6 +12,7 @@ from mpqp.core.instruction.gates.native_gates import NativeGate
 from mpqp.core.instruction.measurement import BasisMeasure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
 from mpqp.core.languages import Language
+from mpqp.environment.env_manager import get_env_variable
 from mpqp.execution._execution_context import ExecutionContext
 from mpqp.execution.connection.ibm_connection import (
     get_backend,
@@ -27,7 +28,6 @@ from mpqp.tools.errors import (
     IBMRemoteExecutionError,
     InstructionParsingError,
 )
-from mpqp.environment.env_manager import get_env_variable
 
 if TYPE_CHECKING:
     from qiskit import QuantumCircuit
@@ -252,8 +252,14 @@ def _extract_estimator_pubs_result(
     job: Job,
     pubs_contexts: list[list[ExecutionContext]],
     split_contexts: bool = True,
+    fallback_shots: Optional[int] = None,
 ) -> Result | BatchResult:
-    """Rebuild MPQP results from Estimator PUB results and their contexts."""
+    """Rebuild MPQP results from Estimator PUB results and their contexts.
+
+    If shot metadata is absent, ``fallback_shots`` records the requested count.
+    In some cases, this number may differ from the actual number of shots used
+    by the provider, and in those cases, the actual number takes precedence.
+    """
     from qiskit.primitives import PubResult
     from qiskit.primitives.containers import DataBin
 
@@ -286,7 +292,11 @@ def _extract_estimator_pubs_result(
                         stds=data.stds[offset : offset + count],
                         shape=(count,),
                     ),
-                    metadata=pub_result.metadata,
+                    metadata=(
+                        {"shots": fallback_shots, **pub_result.metadata}
+                        if fallback_shots is not None
+                        else pub_result.metadata
+                    ),
                 )
                 offset += count
             extracted_items.append(
@@ -996,7 +1006,12 @@ def run_remote_ibm(
 
 
 def run_qctrl_function(job: Job, qiskit_params: QiskitParams) -> Result | BatchResult:
-    """Run a circuit or circuit binding through a Q-CTRL Qiskit Function."""
+    """Run a circuit or circuit binding through a Q-CTRL Qiskit Function.
+
+    For expectation results without shot metadata, ``Result.shots`` reports
+    the submitted shot count, which may differ from the count actually used.
+    Provider-reported shot counts take precedence when available.
+    """
     if TYPE_CHECKING:
         assert qiskit_params.qctrl_function
         assert isinstance(job.device, IBMDevice)
@@ -1035,7 +1050,12 @@ def run_qctrl_function(job: Job, qiskit_params: QiskitParams) -> Result | BatchR
 
         options = deepcopy(qctrl_options)
         if circuit.shots is not None:
-            options["default_shots"] = circuit.shots
+            nb_shots = circuit.shots
+        else:
+            measure = jobs[0][0].job.measure
+            assert isinstance(measure, ExpectationMeasure)
+            nb_shots = measure.shots
+        options["default_shots"] = nb_shots
 
         run = func.run(
             primitive=primitive,
@@ -1082,7 +1102,9 @@ def run_qctrl_function(job: Job, qiskit_params: QiskitParams) -> Result | BatchR
     job.status = JobStatus.DONE
 
     if job.job_type == JobType.OBSERVABLE:
-        return _extract_estimator_pubs_result(result, job, jobs)
+        return _extract_estimator_pubs_result(
+            result, job, jobs, fallback_shots=nb_shots
+        )
     return extract_result(
         result, job, job.device
     )  # pyright: ignore[reportArgumentType]
