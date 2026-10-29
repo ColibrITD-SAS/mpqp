@@ -106,7 +106,7 @@ def run_braket(
     Args:
         job: Job to be executed, it MUST be corresponding to a
             :class:`mpqp.execution.devices.AWSDevice`.
-        provider_params: AWS-specific execution parameters. Defaults to ``None``.
+        provider_params: AWS-specific execution parameters.
 
     Returns:
         The result of the job.
@@ -241,7 +241,7 @@ def run_circuit_binding(
         job: Observable or sample job whose circuit is a
             :class:`~mpqp.core.circuit.CircuitBinding` and whose device is an
             :class:`~mpqp.execution.devices.AWSDevice`.
-        provider_params: AWS-specific execution parameters. Defaults to ``None``.
+        provider_params: AWS-specific execution parameters.
 
     Returns:
         The individual execution results in binding order.
@@ -500,7 +500,7 @@ def run_braket_observable(
 
     Args:
         job: Job to be executed.
-        provider_params: AWS-specific execution parameters. Defaults to ``None``.
+        provider_params: AWS-specific execution parameters.
 
     Returns:
         A result containing the expectation values of the observables.
@@ -709,7 +709,7 @@ def submit_job_braket(
     Args:
         job: Job to be executed, it MUST be corresponding to a
             :class:`mpqp.execution.devices.AWSDevice`.
-        provider_params: AWS-specific execution parameters. Defaults to ``None``.
+        provider_params: AWS-specific execution parameters.
 
     Returns:
         The task's id and the Task itself.
