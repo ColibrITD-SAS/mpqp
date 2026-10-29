@@ -4,9 +4,10 @@ import math
 from typing import TYPE_CHECKING, Optional
 
 import numpy as np
+import numpy.typing as npt
 
-from mpqp.core import QCircuit
 from mpqp.core.binding import BindingParameters, CircuitBinding
+from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.gates import CRk
 from mpqp.core.instruction.measurement import (
     BasisMeasure,
@@ -27,7 +28,88 @@ from mpqp.tools.errors import (
 
 if TYPE_CHECKING:
     from braket.circuits import Circuit
+    from braket.circuits.observables import Hermitian
+    from braket.devices.device import Device as BraketDevice
+    from braket.program_sets import ProgramSet
     from braket.tasks import GateModelQuantumTaskResult, QuantumTask
+    from braket.tasks.program_set_quantum_task_result import (
+        CompositeEntry,
+        ProgramSetQuantumTaskResult,
+    )
+
+
+_EXACT_OBSERVABLE_MARKER = "// mpqp:exact-observables\n"
+
+
+def _ordered_measurement_probabilities(
+    probabilities: dict[str, float],
+    measured_qubits: list[int],
+    targets: list[int],
+) -> npt.NDArray[np.float64]:
+    """Return probabilities with bits ordered like the observable targets."""
+    measured_positions = {
+        qubit: position for position, qubit in enumerate(measured_qubits)
+    }
+    try:
+        target_positions = [measured_positions[target] for target in targets]
+    except KeyError as error:
+        raise ValueError(
+            f"Braket did not measure observable target {error.args[0]}."
+        ) from error
+
+    ordered_probabilities = np.zeros(2 ** len(targets), dtype=np.float64)
+    for measured_state, probability in probabilities.items():
+        target_state = "".join(
+            measured_state[position] for position in target_positions
+        )
+        ordered_probabilities[int(target_state, 2)] += probability
+    return ordered_probabilities
+
+
+def _embed_pauli_observable_for_braket(
+    observable: Observable,
+    targets: list[int],
+    nb_qubits: int,
+) -> Observable:
+    """Embed a target-local Pauli observable in the complete circuit."""
+    from mpqp.core.instruction.measurement.pauli_string import (
+        PauliString,
+        PauliStringMonomial,
+        pI,
+    )
+
+    embedded_pauli_string = PauliString()
+    for monomial in observable.pauli_string.monomials:
+        embedded_atoms = [pI] * nb_qubits
+        for local_index, target in enumerate(targets):
+            embedded_atoms[target] = monomial.atoms[local_index]
+        embedded_pauli_string += PauliStringMonomial(
+            monomial.coef,
+            embedded_atoms,
+        )
+    return Observable(embedded_pauli_string.simplify(), label=observable.label)
+
+
+def _run_braket_program_set(
+    job: Job,
+    device: "BraketDevice",
+    program_set: "ProgramSet",
+) -> "ProgramSetQuantumTaskResult":
+    """Run a program set and bind its single Braket task id to the job."""
+    from braket.tasks.program_set_quantum_task_result import (
+        ProgramSetQuantumTaskResult,
+    )
+
+    job.status = JobStatus.RUNNING
+    task = device.run(
+        program_set,
+        shots=program_set.total_shots,
+        inputs=None,
+    )
+    job.id = task.id
+    result = task.result()
+    assert isinstance(result, ProgramSetQuantumTaskResult)
+    return result
 
 
 def apply_noise_to_braket_circuit(
@@ -72,6 +154,7 @@ def apply_noise_to_braket_circuit(
                 "Cannot simulate noisy circuit with CRk gate due to an error on"
                 " AWS Braket side."
             )
+
         noisy_circuit.apply_gate_noise(
             braket_noise,  # pyright: ignore[reportArgumentType]
             target_gates=(
@@ -84,9 +167,10 @@ def apply_noise_to_braket_circuit(
                 else None
             ),
             target_qubits=(
-                noise.targets
-                if noise.targets and set(noise.targets) != set(range(nb_qubits))
-                else None
+                None
+                if noise._dynamic  # pyright: ignore[reportPrivateUsage]
+                or set(noise.targets) == set(range(nb_qubits))
+                else noise.targets
             ),
         )
 
@@ -124,6 +208,7 @@ def run_braket(job: Job) -> Result | BatchResult:
     try:
         if isinstance(job.measure, ExpectationMeasure):
             return run_braket_observable(job)
+
         if isinstance(job.circuit, CircuitBinding):
             return run_circuit_binding(job)
         _, task = submit_job_braket(job)
@@ -170,6 +255,7 @@ def run_pseudo_circuit_binding(job: Job) -> BatchResult:
     translated_measurement = translate_binding_measurements(cb, job.device)
     device = get_braket_device(job.device, is_noisy=cb.is_noisy)
     results = []
+    job_ids: list[str] = []
 
     job.status = JobStatus.RUNNING
     for c, v, m in cb.unroll():
@@ -201,6 +287,9 @@ def run_pseudo_circuit_binding(job: Job) -> BatchResult:
             inputs=braket_inputs,  # pyright: ignore[reportArgumentType]
         )
 
+        job_ids.append(task.id)
+        job.id = job_ids[0] if len(job_ids) == 1 else list(job_ids)
+
         local_job = Job(job.job_type, c, job.device, m, v)
         local_job.id = task.id
         local_job.status = JobStatus.DONE
@@ -211,6 +300,7 @@ def run_pseudo_circuit_binding(job: Job) -> BatchResult:
             state_vector = StateVector(vector, nb_qubits=local_job.circuit.nb_qubits)
             results.append(Result(local_job, state_vector, 0, 0))
 
+    job.status = JobStatus.DONE
     return BatchResult(results)
 
 
@@ -250,10 +340,14 @@ def run_circuit_binding(job: Job) -> BatchResult:
         from braket.circuits import Circuit as braket_Circuit
 
         assert isinstance(braket_circuit, braket_Circuit)
+    job.status = JobStatus.RUNNING
+
     task = device.run(braket_circuit, shots=None, inputs=None)
+    job.id = task.id
+
     task_result = task.result()
     nbr_shots = circuitBinding.shots if circuitBinding.shots is not None else 0
-    job.id = task.id
+
     job.status = JobStatus.DONE
 
     if TYPE_CHECKING:
@@ -468,213 +562,404 @@ def run_circuit_binding(job: Job) -> BatchResult:
     return BatchResult([result for _, result in indexed_results])
 
 
+def _prepare_exact_braket_observables(
+    measure: ExpectationMeasure,
+    circuit: "Circuit",
+) -> list[list[tuple[int, float]]]:
+    """Attach coefficient-free expectations and map them to MPQP observables."""
+    from braket.circuits.observables import Hermitian
+    from braket.circuits.observables import I as BraketIdentity
+    from braket.circuits.result_types import Expectation
+
+    braket_targets = measure.targets
+    result_specs: list[list[tuple[Expectation, float]]] = []
+
+    # Braket mishandles coefficients on Pauli strings. Evaluate unique,
+    # coefficient-free monomials and recombine them locally instead.
+    for observable in measure.observables:
+        observable_specs: list[tuple[Expectation, float]] = []
+        if observable._pauli_string is not None:  # pyright: ignore[reportPrivateUsage]
+            for monomial in observable.pauli_string.monomials:
+                if TYPE_CHECKING:
+                    assert isinstance(monomial.coef, (int, float))
+                coefficient = float(monomial.coef)
+                if coefficient == 0:
+                    continue
+                braket_observable = (monomial / coefficient).to_other_language(
+                    Language.BRAKET
+                )
+                result_type = Expectation(
+                    observable=braket_observable,
+                    target=braket_targets,
+                )
+                observable_specs.append((result_type, coefficient))
+
+            if not observable_specs:
+                result_type = Expectation(
+                    observable=BraketIdentity(),
+                    target=[braket_targets[0]],
+                )
+                observable_specs.append((result_type, 0.0))
+        else:
+            braket_observable = Hermitian(
+                observable.matrix,
+                display_name=(
+                    observable.label if observable.label is not None else "Hermitian"
+                ),
+            )
+            result_type = Expectation(
+                observable=braket_observable,
+                target=braket_targets,
+            )
+            observable_specs.append((result_type, 1.0))
+        result_specs.append(observable_specs)
+
+    for observable_specs in result_specs:
+        for result_type, _ in observable_specs:
+            if result_type not in circuit.result_types:
+                circuit.add_result_type(result_type)
+    return [
+        [
+            (circuit.result_types.index(result_type), coefficient)
+            for result_type, coefficient in observable_specs
+        ]
+        for observable_specs in result_specs
+    ]
+
+
+def _extract_exact_braket_observables(
+    exact_result: "GateModelQuantumTaskResult",
+    job: Job,
+    result_specs: list[list[tuple[int, float]]],
+) -> Result:
+    """Recombine provider expectations into the original MPQP observables."""
+    assert isinstance(job.measure, ExpectationMeasure)
+    results: dict[str, float] = {}
+    errors: dict[str, None] = {}
+    for index, observable_specs in enumerate(result_specs):
+        results[f"observable_{index}"] = sum(
+            coefficient * float(exact_result.values[result_index].real)
+            for result_index, coefficient in observable_specs
+        )
+        errors[f"observable_{index}"] = None
+    job.status = JobStatus.DONE
+    if len(results) == 1:
+        return Result(job, results["observable_0"], None, job.measure.shots)
+    return Result(job, results, errors, job.measure.shots)
+
+
+def _run_exact_braket_observables(
+    job: Job,
+    transpiled_circuit: "Circuit",
+    device: "BraketDevice",
+) -> Result:
+    """Evaluate all exact observables as result types of one circuit."""
+    from copy import deepcopy
+
+    from braket.circuits.serialization import IRType
+    from braket.ir.openqasm import Program
+    from braket.tasks import GateModelQuantumTaskResult
+
+    assert isinstance(job.measure, ExpectationMeasure)
+    exact_circuit = deepcopy(transpiled_circuit)
+    result_specs = _prepare_exact_braket_observables(job.measure, exact_circuit)
+
+    job.status = JobStatus.RUNNING
+    task_specification: Circuit | Program = exact_circuit
+    if job.device.is_remote():
+        program = exact_circuit.to_ir(IRType.OPENQASM)
+        assert isinstance(program, Program)
+        program.source = _EXACT_OBSERVABLE_MARKER + program.source
+        task_specification = program
+    task = device.run(task_specification, shots=0, inputs=None)
+    job.id = task.id
+    exact_result = task.result()
+    assert isinstance(exact_result, GateModelQuantumTaskResult)
+    return _extract_exact_braket_observables(exact_result, job, result_specs)
+
+
+def _uses_braket_pauli_grouping(measure: ExpectationMeasure) -> bool:
+    """Whether every observable can use the grouped Pauli execution path."""
+    return bool(measure.optimize_measurement) and all(
+        observable._pauli_string is not None  # pyright: ignore[reportPrivateUsage]
+        for observable in measure.observables
+    )
+
+
+def _run_optimized_braket_observables(
+    job: Job,
+    transpiled_circuit: "Circuit",
+    device: "BraketDevice",
+) -> Result:
+    """Evaluate grouped Pauli observables in one Braket program set."""
+    from copy import deepcopy
+
+    from braket.program_sets import ProgramSet
+
+    from mpqp.tools.pauli_grouping import find_qubitwise_rotations
+
+    assert isinstance(job.measure, ExpectationMeasure)
+    if job.measure.pre_transpiled is None:
+        grouping = job.measure.get_pauli_grouping()
+        pre_measures = [QCircuit(find_qubitwise_rotations(group)) for group in grouping]
+        for pre_measure in pre_measures:
+            for instruction in pre_measure.instructions:
+                instruction.targets = [
+                    job.measure.targets[target] for target in instruction.targets
+                ]
+        transpiled_pre_measures = [
+            pre_measure.to_other_language(Language.BRAKET)
+            for pre_measure in pre_measures
+        ]
+    else:
+        _, transpiled_pre_measures = (
+            job.measure.pre_transpiled
+        )  # pyright: ignore[reportGeneralTypeIssues]
+
+    programs = []
+    for pre_measure in transpiled_pre_measures:
+        circuit = deepcopy(transpiled_circuit + pre_measure)
+        circuit.measure(job.measure.targets)
+        programs.append(circuit)
+
+    program_set = ProgramSet(programs, shots_per_executable=job.measure.shots)
+    program_set_result = _run_braket_program_set(job, device, program_set)
+    return _extract_optimized_braket_observables(program_set_result, job)
+
+
+def _extract_optimized_braket_observables(
+    program_set_result: "ProgramSetQuantumTaskResult",
+    job: Job,
+) -> Result:
+    """Reconstruct grouped observable values from an existing program-set result."""
+    from mpqp.tools.pauli_grouping import pauli_monomial_eigenvalues
+
+    assert isinstance(job.measure, ExpectationMeasure)
+    if job.measure.pre_transpiled is None:
+        eigenvalues = [
+            {monomial.name: pauli_monomial_eigenvalues(monomial) for monomial in group}
+            for group in job.measure.get_pauli_grouping()
+        ]
+    else:
+        eigenvalues, _ = (
+            job.measure.pre_transpiled
+        )  # pyright: ignore[reportGeneralTypeIssues]
+
+    expectation_values: dict[str, float] = {}
+    for eigenvalues_by_name, program_result in zip(
+        eigenvalues, program_set_result.entries, strict=True
+    ):
+        if TYPE_CHECKING:
+            assert isinstance(program_result, CompositeEntry)
+        measured_entry = program_result.entries[0]
+        probabilities = _ordered_measurement_probabilities(
+            measured_entry.probabilities,
+            measured_entry.measured_qubits,
+            job.measure.targets,
+        )
+        for name, monomial_eigenvalues in eigenvalues_by_name.items():
+            expectation_values[name] = float(
+                np.dot(monomial_eigenvalues, probabilities)
+            )
+
+    results: dict[str, float] = {}
+    errors: dict[str, None] = {}
+    for index, observable in enumerate(job.measure.observables):
+        expectation = 0.0
+        for monomial in observable.pauli_string.monomials:
+            if TYPE_CHECKING:
+                assert isinstance(monomial.coef, (int, float))
+            expectation += expectation_values[monomial.name] * monomial.coef
+        results[f"observable_{index}"] = expectation
+        errors[f"observable_{index}"] = None
+    job.status = JobStatus.DONE
+    if len(results) == 1:
+        return Result(job, results["observable_0"], None, job.measure.shots)
+    return Result(job, results, errors, job.measure.shots)
+
+
+def _sampled_braket_observable_bases(
+    measure: ExpectationMeasure,
+) -> list["Hermitian | None"]:
+    """Prepare matrix measurement bases while preserving Pauli representations."""
+    from braket.circuits.observables import Hermitian
+
+    return [
+        (
+            Hermitian(
+                observable.matrix,
+                display_name=(
+                    observable.label if observable.label is not None else "Hermitian"
+                ),
+            )
+            if observable._pauli_string is None  # pyright: ignore[reportPrivateUsage]
+            else None
+        )
+        for observable in measure.observables
+    ]
+
+
+def _run_sampled_braket_observables(
+    job: Job,
+    transpiled_circuit: "Circuit",
+    device: "BraketDevice",
+) -> Result:
+    """Evaluate ungrouped sampled observables in one Braket program set."""
+    from copy import deepcopy
+
+    from braket.circuits import Instruction
+    from braket.circuits.observables import Sum
+    from braket.program_sets import CircuitBinding, ProgramSet
+
+    assert isinstance(job.measure, ExpectationMeasure)
+    programs = []
+    bases = _sampled_braket_observable_bases(job.measure)
+
+    for observable, basis in zip(job.measure.observables, bases, strict=True):
+        if basis is not None:
+            circuit = deepcopy(transpiled_circuit)
+            for gate in basis.basis_rotation_gates:
+                circuit.add_instruction(Instruction(gate, target=job.measure.targets))
+            circuit.measure(job.measure.targets)
+            programs.append(circuit)
+        else:
+            embedded_observable = _embed_pauli_observable_for_braket(
+                observable,
+                job.measure.targets,
+                job.circuit.nb_qubits,
+            )
+            braket_observable = embedded_observable.to_other_language(Language.BRAKET)
+            assert isinstance(braket_observable, Sum)
+            programs.append(
+                CircuitBinding(
+                    deepcopy(transpiled_circuit),
+                    observables=braket_observable,
+                )
+            )
+
+    program_set = ProgramSet(programs, shots_per_executable=job.measure.shots)
+    program_set_result = _run_braket_program_set(job, device, program_set)
+    return _extract_sampled_braket_observables(program_set_result, job, bases)
+
+
+def _extract_sampled_braket_observables(
+    program_set_result: "ProgramSetQuantumTaskResult",
+    job: Job,
+    bases: list["Hermitian | None"],
+) -> Result:
+    """Reconstruct ungrouped observables from the submitted measurement bases."""
+    assert isinstance(job.measure, ExpectationMeasure)
+
+    results: dict[str, float] = {}
+    errors: dict[str, None] = {}
+    for observable_index, (basis, program_result) in enumerate(
+        zip(bases, program_set_result.entries, strict=True)
+    ):
+        if TYPE_CHECKING:
+            assert isinstance(program_result, CompositeEntry)
+        if basis is None:
+            expectation = program_result.expectation()
+            if expectation is None:
+                raise ValueError(
+                    "Braket did not return an expectation value for "
+                    f"observable_{observable_index}."
+                )
+        else:
+            measured_entry = program_result.entries[0]
+            probabilities = _ordered_measurement_probabilities(
+                measured_entry.probabilities,
+                measured_entry.measured_qubits,
+                job.measure.targets,
+            )
+            expectation = np.dot(basis.eigenvalues, probabilities)
+
+        results[f"observable_{observable_index}"] = float(expectation)
+        errors[f"observable_{observable_index}"] = None
+    job.status = JobStatus.DONE
+    if len(results) == 1:
+        return Result(job, results["observable_0"], None, job.measure.shots)
+    return Result(job, results, errors, job.measure.shots)
+
+
+def _extract_braket_program_set_observables(
+    program_set_result: "ProgramSetQuantumTaskResult",
+    job: Optional[Job],
+) -> Result:
+    """Select the observable reconstruction matching the original MPQP job."""
+    if job is not None and isinstance(job.circuit, CircuitBinding):
+        raise NotImplementedError(
+            "Retrieving Braket circuit-binding results is not supported."
+        )
+    if (
+        job is None
+        or job.job_type != JobType.OBSERVABLE
+        or not isinstance(job.measure, ExpectationMeasure)
+        or job.measure.shots <= 0
+    ):
+        raise ValueError(
+            "Retrieving a sampled Braket observable result requires the "
+            "original MPQP `Job`."
+        )
+    if _uses_braket_pauli_grouping(job.measure):
+        return _extract_optimized_braket_observables(program_set_result, job)
+    return _extract_sampled_braket_observables(
+        program_set_result, job, _sampled_braket_observable_bases(job.measure)
+    )
+
+
 def run_braket_observable(job: Job) -> Result:
-    """Returns the result of an ``OBSERVABLE`` job.
+    """Run an ``OBSERVABLE`` job as one Braket task.
 
     TODO: check that the link bellow is correctly generated.
     If :attr:`~mpqp.execution.job.Job.measure.optimize_measurement`, this
     function will run based on the grouping of the pauli monomials (Read
     :ref:`TODO here` for more information).
 
-    Otherwise each observable will be ran one by one.
+    Exact simulations attach all expectation result types to one circuit.
+    Sampled simulations submit all required circuits in one program set. Both
+    cases therefore create a single Braket task and bind its id to ``job.id``.
 
     Args:
         job: Job to be executed.
 
     Returns:
-        A result containing the expectation values of the observables.
+        The result containing one expectation value when the measure contains
+        one observable, or a dictionary indexed by observable when it contains
+        several observables.
+
+    Raises:
+        NotImplementedError: If the job does not contain a measurement.
+
+    Note:
+        This function is not meant to be used directly. Use
+        :func:`mpqp.execution.runner.run` instead.
     """
     from braket.circuits import Circuit
-    from braket.tasks import GateModelQuantumTaskResult
 
-    if TYPE_CHECKING:
-        assert isinstance(job.measure, ExpectationMeasure)
-        assert isinstance(job.device, AWSDevice)
-
+    assert isinstance(job.device, AWSDevice)
     assert isinstance(job.circuit, QCircuit)
-    circuit = job.circuit.without_measurements()
-    if circuit.transpiled_circuit is None:
-        transpiled_circuit = circuit.to_other_device(job.device)
-    else:
-        transpiled_circuit = circuit.transpiled_circuit
-        if TYPE_CHECKING:
-            assert isinstance(transpiled_circuit, Circuit)
-
-    device = get_braket_device(
-        job.device,
-        is_noisy=bool(job.circuit.noises),
-    )
-
-    results, errors = {}, {}
-    if job.measure.optimize_measurement:
-        from mpqp.tools.pauli_grouping import (
-            find_qubitwise_rotations,
-            pauli_monomial_eigenvalues,
+    if job.circuit.transpiled_circuit is None:
+        # Observable target ordering is handled by ``adjust_measure`` and the
+        # Braket-specific execution helpers below. Reapplying the generic
+        # measurement pre-circuit would duplicate those swaps.
+        transpiled_circuit = job.circuit.to_other_device(
+            job.device, skip_pre_measure=True
         )
-
-        if job.measure.pre_transpiled is None:
-            grouping = job.measure.get_pauli_grouping()
-            pre_measure = [
-                QCircuit(
-                    find_qubitwise_rotations(group, job.measure.targets)
-                    + (
-                        [BasisMeasure(targets=job.measure.targets)]
-                        if job.measure.shots != 0
-                        else []
-                    )
-                )
-                for group in grouping
-            ]
-            transpiled_pre_measures = [
-                pre_m.to_other_language(Language.BRAKET) for pre_m in pre_measure
-            ]
-            eigenvalues = [
-                {
-                    monomial.name: pauli_monomial_eigenvalues(monomial)
-                    for monomial in group
-                }
-                for group in grouping
-            ]
-        else:
-            eigenvalues, transpiled_pre_measures = (
-                job.measure.pre_transpiled
-            )  # pyright: ignore[reportGeneralTypeIssues]
-
-        expectation_values = {}
-        for eigenvalues, pre_measure in zip(eigenvalues, transpiled_pre_measures):
-            job.status = JobStatus.RUNNING
-            if job.measure.shots == 0:
-                from copy import deepcopy
-
-                cirq = deepcopy(transpiled_circuit + pre_measure)
-                cirq.state_vector()  # pyright: ignore[reportAttributeAccessIssue]
-                local_result = device.run(
-                    cirq,
-                    shots=0,
-                    inputs=None,  # disable_qubit_rewiring=True
-                ).result()
-
-                assert isinstance(local_result, GateModelQuantumTaskResult)
-                values = local_result.values[0]
-                sorted_values = []
-                for i in range(len(values)):
-                    sorted_values.append(float(np.abs(values[i]) ** 2))
-            else:
-                local_result = device.run(
-                    transpiled_circuit + pre_measure,
-                    shots=job.measure.shots,
-                    inputs=None,
-                    # disable_qubit_rewiring=True,
-                )
-                result = local_result.result()
-                assert isinstance(result, GateModelQuantumTaskResult)
-                a = len(list(result.measurement_probabilities.keys())[0])
-                length = 2**a
-                sorted_values: list[float] = []
-                for i in range(length):
-                    binary_state = f"{bin(i)[2:].zfill(len(bin(length))- 3)}"
-                    if binary_state in result.measurement_probabilities:
-                        sorted_values.append(
-                            result.measurement_probabilities[binary_state].real
-                        )
-                    else:
-                        sorted_values.append(0)
-            for name, eigenvalue in eigenvalues.items():
-                expectation_value: float = np.dot(
-                    eigenvalue,
-                    np.array(sorted_values, dtype=np.float64),
-                )
-                expectation_values[name] = expectation_value
-        for i, obs in enumerate(job.measure.observables):
-            string = obs.pauli_string
-            local: float = 0
-            for monoms in string.monomials:
-                if TYPE_CHECKING:
-                    assert isinstance(monoms.coef, (int, float))
-                local += expectation_values[monoms.name] * monoms.coef
-            results.update({f"observable_{i}": local})
-            errors.update({f"observable_{len(errors)}": None})
-        if len(results) == 1:
-            return Result(job, results["observable_0"], shots=job.measure.shots)
-        return Result(job, results, errors, shots=job.measure.shots)
-
     else:
-        from copy import deepcopy
+        transpiled_circuit = job.circuit.transpiled_circuit
+        assert isinstance(transpiled_circuit, Circuit)
 
-        braket_sum = None
-        index = []
-        for i, obs in enumerate(job.measure.observables):
-            from braket.circuits.observables import Hermitian
+    if job.measure is None:
+        raise NotImplementedError("job.measure is None")
+    assert isinstance(job.measure, ExpectationMeasure)
 
-            if job.measure.shots == 0:
-                # TODO: Remove this when Braket will have fixed PauliString with coeff
-                # force the conversion to matrix to avoid issues with pauli_string with coeff
-                if obs._pauli_string is not None:  # pyright: ignore[reportPrivateUsage]
-                    obs = deepcopy(obs)
-                    obs.matrix
-                    obs._pauli_string = None  # pyright: ignore[reportPrivateUsage]
-            braket_obs = obs.to_other_language(Language.BRAKET)
+    device = get_braket_device(job.device, is_noisy=bool(job.circuit.noises))
+    if job.measure.shots == 0:
+        return _run_exact_braket_observables(job, transpiled_circuit, device)
 
-            if isinstance(braket_obs, Hermitian):
-                copy = deepcopy(transpiled_circuit)
-                copy.expectation(  # pyright: ignore[reportAttributeAccessIssue]
-                    observable=braket_obs, target=job.measure.targets
-                )
-                job.status = JobStatus.RUNNING
-                # TODO: handle disable_qubit_rewiring, linked to verbatim box but crashes when not in use.
-                local_result = device.run(
-                    copy,
-                    shots=job.measure.shots,
-                    inputs=None,
-                    # disable_qubit_rewiring=True,
-                ).result()
-                assert isinstance(local_result, GateModelQuantumTaskResult)
-                results.update({f"observable_{i}": local_result.values[0].real})
-                errors.update({f"observable_{i}": None})
-            else:
-                index.append(i)
-                results.update({f"observable_{i}": None})
-                errors.update({f"observable_{i}": None})
-                braket_sum = (
-                    braket_sum + braket_obs if braket_sum is not None else braket_obs
-                )
-
-        if braket_sum is not None:
-            from braket.circuits.observables import Sum
-            from braket.program_sets import CircuitBinding, ProgramSet
-            from braket.tasks.program_set_quantum_task_result import (
-                ProgramSetQuantumTaskResult,
-            )
-
-            if not isinstance(braket_sum, Sum):
-                braket_sum = [braket_sum]
-            copy = deepcopy(transpiled_circuit)
-            program_set = ProgramSet(
-                CircuitBinding(
-                    copy,
-                    observables=braket_sum,
-                )
-            )
-            job.status = JobStatus.RUNNING
-
-            if TYPE_CHECKING:
-                assert isinstance(device, AWSDevice)
-
-            local_result = device.run(
-                program_set,
-                shots=program_set.total_executables * job.measure.shots,
-                inputs=None,
-                # disable_qubit_rewiring=True,
-            ).result()
-            assert isinstance(local_result, ProgramSetQuantumTaskResult)
-            for res in local_result:
-                for i, value in enumerate(res.entries):
-                    results.update({f"observable_{index[i]}": value.expectation})
-                    errors.update({f"observable_{index[i]}": None})
-
-        if len(results) == 1:
-            return Result(job, results["observable_0"], None, job.measure.shots)
-    return Result(job, results, errors, job.measure.shots)
+    if _uses_braket_pauli_grouping(job.measure):
+        return _run_optimized_braket_observables(job, transpiled_circuit, device)
+    return _run_sampled_braket_observables(job, transpiled_circuit, device)
 
 
 def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
@@ -704,27 +989,24 @@ def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
             "`job` must correspond to an `AWSDevice`, but corresponds to a "
             f"{job.device} instead"
         )
+    assert isinstance(job.circuit, QCircuit)
 
     if job.job_type == JobType.STATE_VECTOR and job.device.is_remote():
         raise DeviceJobIncompatibleError(
             "State vector cannot be computed using AWS Braket remote simulators"
             " and devices. Please use the LocalSimulator instead"
         )
-    if isinstance(job.circuit, QCircuit):
-        if job.job_type == JobType.SAMPLE and job.measure is None:
-            raise ValueError("`SAMPLE` jobs must have a measure.")
-        if job.job_type == JobType.OBSERVABLE and not isinstance(
-            job.measure, ExpectationMeasure
-        ):
-            raise ValueError("`OBSERVABLE` jobs must have an `ExpectationMeasure`.")
+    if job.job_type == JobType.SAMPLE and job.measure is None:
+        raise ValueError("`SAMPLE` jobs must have a measure.")
+    if job.job_type == JobType.OBSERVABLE and not isinstance(
+        job.measure, ExpectationMeasure
+    ):
+        raise ValueError("`OBSERVABLE` jobs must have an `ExpectationMeasure`.")
     is_noisy = bool(job.circuit.noises)
     if is_noisy and job.job_type not in [JobType.SAMPLE, JobType.OBSERVABLE]:
         raise ValueError(
             f"Job of type {job.job_type} is not supported for noisy circuits."
         )
-
-    if TYPE_CHECKING:
-        assert isinstance(job.circuit, QCircuit)
 
     from braket.circuits import Circuit
 
@@ -734,9 +1016,9 @@ def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
         braket_circuit = job.circuit.to_other_device(job.device)
     else:
         braket_circuit = job.circuit.transpiled_circuit
+
     if TYPE_CHECKING:
         assert isinstance(braket_circuit, Circuit)
-
     if job.job_type == JobType.STATE_VECTOR:
         # rebind safe_retrieve_samples from braket to Normalize the probability
         # because the bracket does not do so and this causes a crash.
@@ -757,7 +1039,6 @@ def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
 
         if TYPE_CHECKING:
             assert isinstance(device, AWSDevice)
-
         task = device.run(braket_circuit, shots=0, inputs=None)
 
     elif job.job_type == JobType.SAMPLE:
@@ -766,18 +1047,12 @@ def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
         job.status = JobStatus.RUNNING
         if TYPE_CHECKING:
             assert isinstance(device, AWSDevice)
-        task = device.run(
-            braket_circuit,
-            shots=job.measure.shots,
-            inputs=None,
-            # disable_qubit_rewiring=True,
-        )
+        task = device.run(braket_circuit, shots=job.measure.shots, inputs=None)
 
     elif job.job_type == JobType.OBSERVABLE:
         # TODO : [multi-obs] update this to take into account the case when we have list of Observables
         if TYPE_CHECKING:
             assert isinstance(job.measure, ExpectationMeasure)
-
         if job.measure.observables[0].pre_transpiled is None:
             herm_op = job.measure.observables[0].to_other_language(Language.BRAKET)
         else:
@@ -791,6 +1066,7 @@ def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
         if TYPE_CHECKING:
             assert isinstance(device, AWSDevice)
         task = device.run(braket_circuit, shots=job.measure.shots, inputs=None)
+
     else:
         raise NotImplementedError(f"Job of type {job.job_type} not handled.")
 
@@ -883,24 +1159,31 @@ def extract_result(
             assert job.measure is not None
         exp_value = braket_result.values[0]
         return Result(job, exp_value, None, job.measure.shots)
+
     else:
         raise NotImplementedError(f"Job of type {job.job_type} not handled.")
 
 
-def get_result_from_aws_task_arn(task_arn: str) -> Result:
-    """Retrieves the result, described by the job_id in parameter, from the
-    remote QLM and converts it into an mpqp result.
+def get_result_from_aws_task_arn(task_arn: str, job: Optional[Job] = None) -> Result:
+    """Retrieve a remote Braket task and convert its result to MPQP.
 
     If the job is still running, we wait (blocking) until it is DONE.
 
     Args:
-        task_arn: Arn of the remote aws task.
+        task_arn: ARN of the remote AWS task.
+        job: Original MPQP job. Required for observable tasks created by
+            :func:`~mpqp.execution.runner.run`, to restore observable coefficients
+            and combine their expectation values.
 
     Raises:
         AWSBraketRemoteExecutionError: When the status of the task is unknown.
+        ValueError: If an observable task requires its original MPQP job.
+        NotImplementedError: If retrieving results for a circuit binding.
     """
     from braket.aws import AwsQuantumTask
+    from braket.ir.openqasm import Program
     from braket.tasks import GateModelQuantumTaskResult
+    from braket.tasks.program_set_quantum_task_result import ProgramSetQuantumTaskResult
 
     task: QuantumTask = AwsQuantumTask(task_arn)
     # catch an error if the id is not correct (wrong ID, wrong region, ...) ?
@@ -911,17 +1194,59 @@ def get_result_from_aws_task_arn(task_arn: str) -> Result:
         raise AWSBraketRemoteExecutionError(f"Job status: {status}")
     elif status in ["CREATED", "QUEUED", "RUNNING", "COMPLETED"]:  #
         result = task.result()
-        if TYPE_CHECKING:
-            assert isinstance(result, GateModelQuantumTaskResult)
+        if not isinstance(
+            result, (GateModelQuantumTaskResult, ProgramSetQuantumTaskResult)
+        ):
+            raise AWSBraketRemoteExecutionError(
+                "Braket did not return a gate-model or program-set result."
+            )
     else:
         raise AWSBraketRemoteExecutionError(
             f"Unknown status {status} for the task {task_arn}"
         )
 
-    device_arn = task.metadata()["deviceArn"]
+    metadata = task.metadata()
+    device_arn = metadata["deviceArn"]
     device = AWSDevice.from_arn(device_arn)
 
-    return extract_result(result, None, device)
+    if isinstance(result, ProgramSetQuantumTaskResult):
+        parsed_result = _extract_braket_program_set_observables(result, job)
+    else:
+        action = result.additional_metadata.action
+        if isinstance(action, Program) and action.source.startswith(
+            _EXACT_OBSERVABLE_MARKER
+        ):
+            if (
+                job is None
+                or job.job_type != JobType.OBSERVABLE
+                or not isinstance(job.measure, ExpectationMeasure)
+                or job.measure.shots != 0
+            ):
+                raise ValueError(
+                    "Retrieving an exact Braket observable result requires the "
+                    "original MPQP `Job`."
+                )
+            from copy import deepcopy
+
+            from braket.circuits import Circuit
+
+            assert isinstance(job.circuit, QCircuit)
+            original_circuit = job.circuit.transpiled_circuit
+            result_circuit = (
+                deepcopy(original_circuit)
+                if isinstance(original_circuit, Circuit)
+                else Circuit()
+            )
+            parsed_result = _extract_exact_braket_observables(
+                result,
+                job,
+                _prepare_exact_braket_observables(job.measure, result_circuit),
+            )
+        else:
+            parsed_result = extract_result(result, None, device)
+    parsed_result.job.id = task_arn
+    parsed_result.job.status = JobStatus.DONE
+    return parsed_result
 
 
 def estimate_cost_single_job(

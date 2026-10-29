@@ -35,8 +35,9 @@ from mpqp.execution.providers.quantinuum import get_result_from_quantinuum_job_i
 def get_remote_result(
     job_data: str | Job, device: Optional[AvailableDevice] = None
 ) -> Result:
-    """Retrieve and parse a remote result from a job_id (or a Job) and device. If the
-    job is still running, it will wait until it is done.
+    """Retrieve and parse a remote result from a job id or a Job. When passing
+    a job id, the device on which the job was submitted must also be provided.
+    If the job is still running, wait until it is done.
 
     Args:
         job_data: Either the :class:`~mpqp.execution.job.Job` object or the
@@ -45,7 +46,14 @@ def get_remote_result(
             ``job_data`` is the identifier of the job.
 
     Returns:
-        The result(s) associated with the desired remote job in parameter.
+        The result associated with the desired remote job in parameter.
+
+    Note:
+        Retrieving results for jobs with multiple remote ids is not supported.
+        Braket observable tasks created by :func:`~mpqp.execution.runner.run`
+        require the original :class:`~mpqp.execution.job.Job`, rather than only
+        its ARN, to reconstruct the requested observables.
+        Retrieval of Braket circuit-binding results is not supported for now.
 
     Examples:
         >>> print(get_remote_result('Job141933', ATOSDevice.QLM_LINALG))
@@ -83,6 +91,9 @@ def get_remote_result(
          Number of qubits: 2
 
     """
+
+    job_id: str | list[str]
+
     if isinstance(job_data, Job):
         if job_data.id is None:
             raise ValueError("Can't retrieve remote result for a job whose id is None.")
@@ -92,11 +103,16 @@ def get_remote_result(
     else:
         if device is None:
             raise ValueError(
-                "To retrieve a remote result from a job ID, please also provide "
-                "the device on which the job was executed."
+                "To get a remote result from a job id, please also provide the "
+                "device to get the data from."
             )
         job_id = job_data
         job_device = device
+
+    if isinstance(job_id, list):
+        raise NotImplementedError(
+            "Can't retrieve remote result for a job with multiple ids."
+        )
 
     if not job_device.is_remote():
         raise ValueError(
@@ -108,7 +124,9 @@ def get_remote_result(
     elif isinstance(job_device, ATOSDevice):
         return get_result_from_qlm_job_id(job_id)
     elif isinstance(job_device, AWSDevice):
-        return get_result_from_aws_task_arn(job_id)
+        return get_result_from_aws_task_arn(
+            job_id, job=job_data if isinstance(job_data, Job) else None
+        )
     elif isinstance(job_device, AZUREDevice):
         return get_result_from_azure_job_id(job_id)
     elif isinstance(job_device, QUANTINUUMDevice):

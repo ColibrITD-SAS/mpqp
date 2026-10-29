@@ -61,9 +61,16 @@ from mpqp.gates import *
         ),
     ],
 )
-def running_remote_QLM_without_error(circuit: QCircuit):
-    run(circuit, ATOSDevice.QLM_LINALG)
+def remote_qlm_execution_binds_job_ids(circuit: QCircuit):
+    result = run(circuit, ATOSDevice.QLM_LINALG)
+
+    job_ids = result.job.id
+    assert job_ids
+    if isinstance(job_ids, list):
+        assert all(isinstance(job_id, str) and job_id for job_id in job_ids)
+    else:
+        assert isinstance(job_ids, str)
 
 
 if "--long" in sys.argv:
-    test_running_remote_QLM_without_error = running_remote_QLM_without_error
+    test_remote_qlm_execution_binds_job_ids = remote_qlm_execution_binds_job_ids
