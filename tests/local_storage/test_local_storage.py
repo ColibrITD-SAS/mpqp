@@ -10,6 +10,7 @@ pytestmark = pytest.mark.skipif(
 )
 
 import inspect
+import json
 import os
 from copy import deepcopy
 from types import TracebackType
@@ -100,6 +101,7 @@ def create_test_local_storage(providers: Optional[list[str]] = None) -> None:
 
     c1 = QCircuit([], nb_qubits=2)
     c2 = QCircuit([Id(0), Id(1)], nb_qubits=2, label="Id")
+
     result12 = run([c1, c2], device=devices)
     insert_results(result12)
     save_env_variable("DB_PATH", save_local_storage)
@@ -178,6 +180,26 @@ def test_get_all_jobs(mock_local_storage_jobs: list[dict[str, DictDB | Job]]):
 
         for job, mock_local_storage_job in zip(jobs, mock_local_storage_jobs):
             assert mock_local_storage_job["job"] == job
+
+
+@pytest.mark.parametrize("input_as_list", [False, True])
+def test_jobs_local_storage_to_mpqp_restores_separate_measurement(input_as_list: bool):
+    circuit = QCircuit([X(0)])
+    measurement = BasisMeasure(shots=10)
+    stored_job: DictDB = {
+        "type": JobType.SAMPLE.name,
+        "circuit": json.dumps(repr(circuit)),
+        "device": str(AWSDevice.BRAKET_LOCAL_SIMULATOR),
+        "measure": json.dumps(repr(measurement)),
+    }
+
+    loaded_job = jobs_local_storage_to_mpqp(
+        [stored_job] if input_as_list else stored_job
+    )[0]
+
+    assert loaded_job.circuit.measurements == []
+    assert loaded_job.measure == measurement
+    Result(loaded_job, [Sample(1, index=1, count=10)], shots=10)
 
 
 def test_fetch_all_jobs(mock_local_storage_jobs: list[dict[str, DictDB | Job]]):

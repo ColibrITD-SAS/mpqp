@@ -24,6 +24,7 @@ ObjectKey = tuple[Hashable, ...]
 
 if TYPE_CHECKING:
     from mpqp.core.circuit import QCircuit
+    from mpqp.core.instruction.measurement.measure import Measure
     from mpqp.execution.devices import AvailableDevice
 
 
@@ -52,11 +53,16 @@ class ResultKey:
 
 
 def result_key(
-    circuit: QCircuit, device: AvailableDevice, snapshot: Snapshot | None = None
+    circuit: QCircuit,
+    device: AvailableDevice,
+    snapshot: Snapshot | None = None,
+    *,
+    measurement: Measure | None = None,
 ) -> ResultKey:
     """Capture criteria from a job circuit or an input before execution."""
     snapshot = snapshot if snapshot is not None else Snapshot()
-    measurement = circuit.measurements[0] if circuit.measurements else None
+    if measurement is None:
+        measurement = circuit.measurements[0] if circuit.measurements else None
     return ResultKey(snapshot(circuit), snapshot(device), snapshot(measurement))
 
 
@@ -405,21 +411,25 @@ def encode_result_key(key: ResultKey) -> str:
 
 
 def decode_result_key(
-    data: str, device: AvailableDevice, circuit: QCircuit
+    data: str,
+    device: AvailableDevice,
+    circuit: QCircuit,
+    *,
+    measurement: Measure | None = None,
 ) -> ResultKey:
     """Restore criteria; older label-free keys fall back to the recorded job."""
     version, value = _decode_payload(data)
     if version in (3, 4):
         if len(value) != 3 or not all(isinstance(item, tuple) for item in value):
             raise ValueError("Invalid submitted result criteria")
-        circuit_key, device_key, measurement = cast(
+        circuit_key, device_key, measurement_key = cast(
             tuple[ObjectKey, ObjectKey, ObjectKey], value
         )
-        return ResultKey(circuit_key, device_key, measurement)
+        return ResultKey(circuit_key, device_key, measurement_key)
     if version in (1, 2):
         # These formats omitted labels, which cannot be recovered reliably from
         # the original snapshots. Never treat a missing label as a wildcard.
-        return result_key(circuit, device)
+        return result_key(circuit, device, measurement=measurement)
     raise ValueError(f"Unsupported result lookup key version: {version}")
 
 

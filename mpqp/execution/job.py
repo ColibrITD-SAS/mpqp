@@ -23,10 +23,13 @@ from mpqp.tools.generics import MessageEnum
 # is a class (probably because Enum does weird things to the Enum class)
 if TYPE_CHECKING:
     from enum import Enum
+    from sympy import Expr
+    from numbers import Complex
+    from ..core.circuit import QCircuit
+    from ..core.binding import CircuitBinding
 
 from mpqp.core.instruction.measurement import BasisMeasure, ExpectationMeasure, Measure
 
-from ..core.circuit import QCircuit
 from ..tools.errors import IBMRemoteExecutionError, QLMRemoteExecutionError
 from .connection.azure_connection import get_jobs_by_id
 from .connection.ibm_connection import get_QiskitRuntimeService
@@ -115,8 +118,10 @@ class Job:
     def __init__(
         self,
         job_type: JobType,
-        circuit: QCircuit,
+        circuit: QCircuit | CircuitBinding,
         device: AvailableDevice,
+        measurement: Optional[Measure] = None,
+        values: Optional[dict[Expr | str, Complex | float]] = None,
     ):
         self._status = JobStatus.INIT
 
@@ -136,12 +141,22 @@ class Job:
         """Optional message associated with the current job status, especially
         for execution errors."""
 
+        self._measurement = measurement
+        """Store the measurement of a circuit, used mostly for ``CircuitBinding`` execution."""
+
+        self.values = values
+        """Store parameters in case the original circuit was parametrized."""
+
     @property
     def measure(self) -> Optional[Measure]:
         """Returns the first measurement from the circuit's measurements."""
+        from ..core.binding import CircuitBinding
+
+        if isinstance(self.circuit, CircuitBinding):
+            return self._measurement
 
         return (
-            None
+            self._measurement
             if len(self.circuit.measurements) == 0
             else self.circuit.measurements[0]
         )

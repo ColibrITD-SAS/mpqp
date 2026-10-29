@@ -44,7 +44,7 @@ from mpqp.core._keys import (
 from mpqp.core.instruction.gates.custom_gate import CustomGate
 from mpqp.core.instruction.gates.native_gates import CP, PRX, SWAP, TOF, CRk, Rxx, U
 from mpqp.core.instruction.measurement.basis import HadamardBasis
-from mpqp.execution import BatchResult, Job, JobType, Result, StateVector
+from mpqp.execution import BatchResult, Job, JobType, Result, Sample, StateVector
 from mpqp.execution.devices import AvailableDevice
 
 
@@ -242,6 +242,7 @@ def test_runner_preserves_submitted_labels(label: Optional[str]):
     assert isinstance(batch, BatchResult)
     assert circuit.label == label
     assert batch.get_matching(circuit=before).results == [batch[0]]
+    assert isinstance(batch[0].job.circuit, QCircuit)
     assert batch[0].job.circuit.label == ("circuit 1" if label is None else label)
 
 
@@ -458,6 +459,7 @@ def test_real_local_batch_and_multiple_devices():
     batch = run([circuit], IBMDevice.AER_SIMULATOR)
     assert isinstance(batch, BatchResult)
     assert circuit.label is None
+    assert isinstance(batch[0].job.circuit, QCircuit)
     assert batch[0].job.circuit.label == "circuit 1"
     np.testing.assert_allclose(
         batch.get_matching(circuit=circuit)[0].amplitudes,
@@ -766,6 +768,7 @@ def test_packed_keys_resolve_hash_collisions_by_exact_content():
     )
     results = [make_result(first), make_result(second)]
     for result in results:
+        assert isinstance(result.job.circuit, QCircuit)
         key = result_key(result.job.circuit, result.device)
         object.__setattr__(key, "_hash", 0)
         result._submitted_key = key  # pyright: ignore[reportPrivateUsage]
@@ -918,3 +921,36 @@ def test_storage_preserves_gate_class_selectors(isolated_storage: Path):
     assert len(restored) == 1
     assert restored.get_matching(circuit=original).results == [restored[0]]
     assert not restored.get_matching(circuit=circuit)
+
+
+def test_separate_job_measurement_matching_and_storage(isolated_storage: Path):
+    circuit = QCircuit([H(0)])
+    measurement = BasisMeasure([0], shots=16)
+    original = deepcopy(measurement)
+    result = Result(
+        Job(JobType.SAMPLE, circuit, IBMDevice.AER_SIMULATOR, measurement=measurement),
+        [Sample(1, index=0, count=16)],
+        shots=16,
+    )
+    batch = BatchResult([result])
+    assert batch.get_matching(circuit=circuit, measurement=original).results == [result]
+    assert not batch.get_matching(measurement=None)
+    restored = BatchResult.load_by_local_ids(batch.save())
+    assert restored.get_matching(measurement=original).results == [restored[0]]
+    assert not restored.get_matching(measurement=None)
+    measurement.shots = 32
+    assert batch.get_matching(measurement=original).results == [result]
+    assert not batch.get_matching(measurement=measurement)
+
+
+def test_legacy_keys_fall_back_to_separate_job_measurement():
+    circuit = QCircuit([H(0)])
+    measurement = BasisMeasure([0], shots=16)
+    key = result_key(circuit, IBMDevice.AER_SIMULATOR, measurement=measurement)
+    restored = decode_result_key(
+        legacy_payload(key, 2),
+        IBMDevice.AER_SIMULATOR,
+        circuit,
+        measurement=measurement,
+    )
+    assert restored.measurement == object_key(measurement)
