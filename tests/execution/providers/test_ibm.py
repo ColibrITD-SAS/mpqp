@@ -5,11 +5,20 @@ import pytest
 from qiskit import QuantumCircuit, transpile
 from qiskit.primitives import PubResult
 from qiskit.primitives.containers import DataBin
-from qiskit.quantum_info import SparsePauliOp
+from qiskit.quantum_info import SparsePauliOp, Statevector
 from qiskit_aer import AerSimulator
 from qiskit_ibm_runtime import EstimatorV2, SamplerV2
 
-from mpqp import BatchResult, IBMDevice, Job, JobType, QCircuit, Result
+from mpqp import (
+    BatchResult,
+    CircuitBinding,
+    IBMDevice,
+    Job,
+    JobType,
+    QCircuit,
+    Result,
+    run,
+)
 from mpqp.execution._execution_context import ExecutionContext
 from mpqp.execution.job import JobStatus
 from mpqp.execution.providers import ibm as ibm_provider
@@ -57,9 +66,6 @@ class _FakeBinding:
 
     def __init__(self, pubs_with_context: list[tuple[Any, list[Any]]]):
         self._pubs_with_context = pubs_with_context
-
-    def to_other_device(self, _device: Any):
-        return self._pubs_with_context
 
 
 def test_qiskit_params_copy_options():
@@ -158,6 +164,10 @@ def test_qctrl_observable_uses_function_result(monkeypatch: pytest.MonkeyPatch):
     )()
 
     monkeypatch.setattr(ibm_provider, "check_job_compatibility", lambda _job: None)
+    monkeypatch.setattr(
+        "mpqp.translation.qiskit.circuitbinding_to_pubs",
+        lambda binding, device, *, transpile: binding._pubs_with_context,
+    )
 
     def extract(result: Any, root_job: Any, pubs_contexts: Any):
         assert result is qctrl_result
@@ -184,7 +194,7 @@ def test_qctrl_error_status_is_not_reported_as_done(
     function: Any = _FakeQctrlFunction(_FakeQctrlRun("provider error", status="ERROR"))
     params = QiskitParams(qctrl_function=function)
     circuit = type(
-        "FakeCircuit", (), {"to_other_device": lambda self, device: object()}
+        "FakeCircuit", (), {"to_other_language": lambda self, language: object()}
     )()
     measure = type("FakeMeasure", (), {"shots": 32})()
     job: Any = type(
@@ -206,6 +216,58 @@ def test_qctrl_error_status_is_not_reported_as_done(
         ibm_provider.run_qctrl_function(job, params)
 
     assert job.status == JobStatus.ERROR
+
+
+@pytest.mark.provider("qiskit")
+@pytest.mark.parametrize("execution", ["sampler", "estimator", "binding"])
+def test_qctrl_submits_logical_circuits(
+    monkeypatch: pytest.MonkeyPatch, execution: str
+):
+    class SubmissionCaptured(Exception):
+        pass
+
+    def capture_submission(**kwargs: Any):
+        pub = kwargs["pubs"][0]
+        circuit = pub[0]
+        assert circuit.num_qubits == 2
+        assert circuit.layout is None
+        state = Statevector.from_instruction(circuit.remove_final_measurements(False))
+        if execution == "sampler":
+            assert circuit.count_ops()["measure"] == 2
+            assert state.probabilities_dict() == {"01": 1.0}
+        else:
+            observable = pub[1][0][0]
+            assert observable.num_qubits == 2
+            assert state.expectation_value(observable) == pytest.approx(-1.0)
+        raise SubmissionCaptured
+
+    def unexpected_backend(*args: Any, **kwargs: Any):
+        pytest.fail("Q-CTRL submission must not fetch a hardware backend.")
+
+    monkeypatch.setattr(
+        "mpqp.execution.connection.ibm_connection.get_backend", unexpected_backend
+    )
+    function: Any = _FakeQctrlFunction(_FakeQctrlRun(object()))
+    monkeypatch.setattr(function, "run", capture_submission)
+    params = QiskitParams(qctrl_function=function)
+    measurement = (
+        BasisMeasure([0, 1], shots=100)
+        if execution == "sampler"
+        else ExpectationMeasure(Observable(pZ @ pI), shots=100)
+    )
+    circuit = QCircuit([X(0), measurement], nb_qubits=2)
+    if execution == "binding":
+        # A cached hardware observable must not replace its logical counterpart.
+        assert isinstance(measurement, ExpectationMeasure)
+        monkeypatch.setattr(
+            measurement.observables[0], "pre_transpiled", SparsePauliOp("III")
+        )
+        execution_input = CircuitBinding(circuit)
+    else:
+        execution_input = circuit
+
+    with pytest.raises(SubmissionCaptured):
+        run(execution_input, IBMDevice.IBM_FEZ, provider_params=params)
 
 
 @pytest.mark.provider("qiskit")

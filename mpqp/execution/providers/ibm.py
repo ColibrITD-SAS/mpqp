@@ -1013,11 +1013,13 @@ def run_qctrl_function(job: Job, qiskit_params: QiskitParams) -> Result | BatchR
     qctrl_options = qiskit_params.get_options()
 
     if job.job_type == JobType.OBSERVABLE:
+        from mpqp.translation.qiskit import circuitbinding_to_pubs
+
         if isinstance(job.circuit, QCircuit):
             circuit = CircuitBinding(job.circuit)
         else:
             circuit = job.circuit
-        pubs_with_context = circuit.to_other_device(job.device)
+        pubs_with_context = circuitbinding_to_pubs(circuit, job.device, transpile=False)
         pubs = [item[0] for item in pubs_with_context]
         jobs = [item[1] for item in pubs_with_context]
 
@@ -1035,7 +1037,7 @@ def run_qctrl_function(job: Job, qiskit_params: QiskitParams) -> Result | BatchR
         if isinstance(job.circuit, CircuitBinding):
             raise ValueError("WIP: cannot run a pubs with BasisMeasure inside of them.")
         nb_shots = job.measure.shots if job.measure else 0
-        pubs = [(job.circuit.to_other_device(job.device),)]
+        pubs = [(job.circuit.to_other_language(Language.QISKIT),)]
         options = deepcopy(qctrl_options)
         options["default_shots"] = nb_shots
         run = func.run(

@@ -226,8 +226,17 @@ if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
         return new_circ
 
     def circuitbinding_to_pubs(
-        binding: "CircuitBinding", device: "IBMDevice"
+        binding: "CircuitBinding", device: "IBMDevice", *, transpile: bool = True
     ) -> "list[tuple[EstimatorPubLike, list[ExecutionContext]]]":
+        """Prepare estimator PUBs and their execution contexts.
+
+        Args:
+            binding: Binding containing expectation measurements.
+            device: Device associated with the execution contexts.
+            transpile: Whether to prepare circuits for the device. If False,
+                translate logical circuits and observables for services that
+                perform their own compilation.
+        """
         from copy import deepcopy
 
         from mpqp.core.instruction import ExpectationMeasure
@@ -243,7 +252,9 @@ if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
 
         from mpqp.tools.binding_utils import translate_binding_circuits
 
-        translated_circuits = translate_binding_circuits(binding, device)
+        translated_circuits = (
+            translate_binding_circuits(binding, device) if transpile else {}
+        )
 
         grouped = {}
         for index, (c, values, measure) in enumerate(unrolled):
@@ -252,7 +263,11 @@ if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
         pubs_with_context = []
         for executions in grouped.values():
             _, circuit, _, _ = executions[0]
-            q_c = translated_circuits.get(id(circuit))
+            q_c = (
+                translated_circuits.get(id(circuit))
+                if transpile
+                else circuit.to_other_language(Language.QISKIT)
+            )
             if q_c is None:
                 raise ValueError(
                     f"Circuit with id {id(circuit)} wasn't found in the binding, please contact the maintainers of this library."
@@ -283,7 +298,7 @@ if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
                     [
                         (
                             obs.pre_transpiled
-                            if obs.pre_transpiled is not None
+                            if transpile and obs.pre_transpiled is not None
                             else obs.to_other_language(Language.QISKIT)
                         )
                         for obs in measure.observables
