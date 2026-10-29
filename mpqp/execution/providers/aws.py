@@ -157,9 +157,11 @@ def run_pseudo_circuit_binding(
     job: Job, provider_params: Optional[BraketParams] = None
 ) -> BatchResult:
     """Execute a pseudo circuit binding job through AWS Braket.
-    This function is used if the requested job type is not supported by ``ProgramSet`` which is STATE_VECTOR and OBSERVABLE_ideal.
+    This function is used if the requested job type is not supported by
+    ``ProgramSet`` which is STATE_VECTOR and OBSERVABLE_ideal.
 
-    So instead of running a ``ProgramSet`` it's going to unroll the CircuitBinding and execute iteratively the jobs.
+    So instead of running a ``ProgramSet`` it's going to unroll the
+    CircuitBinding and execute iteratively the jobs.
     """
     from braket.circuits import Circuit as braket_Circuit
 

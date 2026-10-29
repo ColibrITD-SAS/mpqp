@@ -11,7 +11,6 @@ A mock is a local stand-in that records how it is called and returns configured
 values without executing the real AWS SDK operation.
 """
 
-# 3M-TODO
 import sys
 from contextlib import contextmanager
 from types import ModuleType
@@ -31,8 +30,8 @@ from mpqp import (
     pZ,
     run,
 )
-from mpqp.execution.job import Job, JobType
 from mpqp.core.binding import CircuitBinding
+from mpqp.execution.job import Job, JobType
 from mpqp.execution.providers.aws import (
     optional_reservation_arn,
     submit_job_braket,
@@ -128,6 +127,7 @@ def test_binding_forwards_braket_params():
         )
 
     assert result is expected
+    assert execute.call_args.args[1] is params
 
 
 @pytest.mark.provider("braket")
@@ -148,4 +148,3 @@ def test_diagonal_observable_forwards_braket_params():
 
     run_braket.assert_called_once()
     assert result.expectation_values == 1.0
-    assert execute.call_args.args[1] is params
