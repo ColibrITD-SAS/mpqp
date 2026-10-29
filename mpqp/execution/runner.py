@@ -286,12 +286,13 @@ def _run_diagonal_observables(
     device: AvailableDevice,
     observable_job: Job,
     values: "Optional[dict[Expr | str, Complex]]" = None,
+    provider_params: Optional[ProviderParams] = None,
 ) -> Result:
 
     adapted_circuit = circuit.without_measurements(deep_copy=False)
     adapted_circuit.add(BasisMeasure(exp_measure.targets, shots=exp_measure.shots))
 
-    result = _run_single(adapted_circuit, device, values, False)
+    result = _run_single(adapted_circuit, device, values, False, provider_params)
 
     return _compute_result_diagonal_observables(result, exp_measure, observable_job)
 
@@ -414,7 +415,7 @@ def _run_single(
                     )
                 else:
                     return _run_diagonal_observables(
-                        circuit, measure, device, job, values
+                        circuit, measure, device, job, values, provider_params
                     )
 
     if len(circuit.noises) != 0:

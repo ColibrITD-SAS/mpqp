@@ -20,14 +20,25 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 
 import mpqp.execution.runner as runner
-from mpqp import CNOT, AWSDevice, BasisMeasure, H, QCircuit, run
+from mpqp import (
+    CNOT,
+    AWSDevice,
+    BasisMeasure,
+    ExpectationMeasure,
+    H,
+    Observable,
+    QCircuit,
+    pZ,
+    run,
+)
+from mpqp.execution.job import Job, JobType
 from mpqp.core.binding import CircuitBinding
 from mpqp.execution.providers.aws import (
     optional_reservation_arn,
     submit_job_braket,
 )
 from mpqp.execution.providers.providers_params import BraketParams
-from mpqp.execution.result import BatchResult
+from mpqp.execution.result import BatchResult, Result, Sample
 
 
 @pytest.mark.provider("braket")
@@ -117,4 +128,24 @@ def test_binding_forwards_braket_params():
         )
 
     assert result is expected
+
+
+@pytest.mark.provider("braket")
+def test_diagonal_observable_forwards_braket_params():
+    """Preserve reservation parameters when reducing an observable to sampling."""
+    params = BraketParams(reservation_arn="reservation-arn")
+    circuit = QCircuit(
+        [ExpectationMeasure(Observable(pZ), shots=100, optim_diagonal=True)]
+    )
+
+    def execute(job: Job, provider_params: BraketParams | None = None) -> Result:
+        assert provider_params is params
+        assert job.job_type == JobType.SAMPLE
+        return Result(job, [Sample(1, index=0, count=100)], None, 100)
+
+    with patch("mpqp.execution.runner.run_braket", side_effect=execute) as run_braket:
+        result = run(circuit, AWSDevice.IQM_GARNET, provider_params=params)
+
+    run_braket.assert_called_once()
+    assert result.expectation_values == 1.0
     assert execute.call_args.args[1] is params
