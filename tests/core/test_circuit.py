@@ -425,6 +425,24 @@ def test_pop_preserves_explicit_dimensions():
     assert circuit.nb_cbits == 3
 
 
+def test_pop_without_recomputing_dimensions():
+    circuit = QCircuit([H(0), X(3), BasisMeasure([0, 1, 2, 3])])
+
+    circuit.pop(recompute_dimensions=False)
+    circuit.pop(recompute_dimensions=False)
+
+    assert circuit.instructions == [H(0)]
+    assert circuit.measurements == []
+    assert circuit.nb_qubits == 4
+    assert circuit.nb_cbits == 4
+
+    circuit.add(X(1))
+    circuit.pop()
+
+    assert circuit.nb_qubits == 1
+    assert circuit.nb_cbits == 0
+
+
 def test_variables_follow_pop():
     theta = symbols("theta")
     circuit = QCircuit([Rx(theta, 0), X(0)])
@@ -546,14 +564,13 @@ def test_instructions_cannot_be_modified_directly():
 
 
 @pytest.mark.parametrize(
-    "circuit, instructions, measurements, ordered, unordered",
+    "circuit, instructions, measurements, measurements_last",
     [
         (
             QCircuit([X(0), BasisMeasure([0], shots=100), H(0)]),
             [X(0), BasisMeasure([0], shots=100), H(0)],
             [BasisMeasure([0], shots=100)],
             [X(0), H(0), BasisMeasure([0], shots=100)],
-            [X(0), BasisMeasure([0], shots=100), H(0)],
         )
     ],
 )
@@ -561,15 +578,12 @@ def test_instructions_and_measurements_are_exposed_separately(
     circuit: QCircuit,
     instructions: list[Instruction],
     measurements: list[Measure],
-    ordered: list[Instruction],
-    unordered: list[Instruction],
+    measurements_last: list[Instruction],
 ):
     assert repr(circuit.instructions) == repr(instructions)
     assert repr(circuit.measurements) == repr(measurements)
-    assert repr(
-        circuit.with_measurement(deep_copy=False, measurements_last=True)
-    ) == repr(ordered)
-    assert repr(circuit.with_measurement(deep_copy=False)) == repr(unordered)
+    assert repr(circuit.with_measurement(deep_copy=False)) == repr(measurements_last)
+    assert repr(circuit.with_measurement()) == repr(measurements_last)
 
 
 @pytest.mark.parametrize(
@@ -1455,14 +1469,14 @@ def test_instruction_no_target(component: Instruction | NoiseModel):
     circuit.add(component)
 
     qubits = list(range(circuit.nb_qubits))
-    for instruction in circuit.with_measurement(deep_copy=False):
+    for instruction in circuit.instructions:
         assert qubits == instruction.targets
     for noise in circuit.noises:
         assert qubits == noise.targets
 
     circuit.nb_qubits += 1
     qubits = list(range(circuit.nb_qubits))
-    for instruction in circuit.with_measurement(deep_copy=False):
+    for instruction in circuit.instructions:
         assert qubits == instruction.targets
     for noise in circuit.noises:
         assert qubits == noise.targets
@@ -1567,17 +1581,14 @@ def test_to_matrix_gphase():
     ],
 )
 def test_inverse(circuit: QCircuit, expected_inverse: QCircuit):
-    if any(
-        not isinstance(inst, (Gate, Barrier))
-        for inst in circuit.with_measurement(deep_copy=False)
-    ):
+    if any(not isinstance(inst, (Gate, Barrier)) for inst in circuit.instructions):
         with pytest.warns(NonReversibleWarning):
             inverse_circuit = circuit.inverse()
     else:
         inverse_circuit = circuit.inverse()
     for inverse_inst, expected_inst in zip(
-        inverse_circuit.with_measurement(deep_copy=False),
-        expected_inverse.with_measurement(deep_copy=False),
+        inverse_circuit.instructions,
+        expected_inverse.instructions,
     ):
         if isinstance(expected_inst, Gate) and isinstance(inverse_inst, Gate):
             assert matrix_eq(
@@ -1595,8 +1606,8 @@ def test_inverse_random():
         qcircuit = random_circuit(nb_qubits=4)
         inverse_circuit = qcircuit.inverse()
         for inverse_inst, expected_inst in zip(
-            inverse_circuit.with_measurement(deep_copy=False),
-            reversed(qcircuit.with_measurement(deep_copy=False)),
+            inverse_circuit.instructions,
+            reversed(qcircuit.instructions),
         ):
             if isinstance(expected_inst, Gate) and isinstance(inverse_inst, Gate):
                 assert matrix_eq(

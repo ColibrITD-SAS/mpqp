@@ -142,7 +142,7 @@ def mpqp_to_qasm2(
     c_targets = {i: 0 for i in range(qcircuit.nb_qubits)}
     gphase = 0
 
-    instructions = qcircuit.with_measurement(deep_copy=False, measurements_last=True)
+    instructions = qcircuit.with_measurement(deep_copy=False)
     for instruction in instructions:
         if not skip_pre_measure:
             if isinstance(instruction, Measure):

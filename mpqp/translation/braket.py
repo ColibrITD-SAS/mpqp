@@ -142,7 +142,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
         from mpqp.core.languages import Language
         from mpqp.core.circuit import QCircuit
 
-        instructions = circuit.with_measurement(deep_copy=False, measurements_last=True)
+        instructions = circuit.with_measurement(deep_copy=False)
 
         if len(circuit.noises) != 0:
             if any(isinstance(instr, CRk) for instr in instructions):
@@ -172,9 +172,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                     ],
                     nb_qubits=circuit.nb_qubits,
                 ) + deepcopy(circuit)
-                instructions = circuit.with_measurement(
-                    deep_copy=False, measurements_last=True
-                )
+                instructions = circuit.with_measurement(deep_copy=False)
 
         for instruction in instructions:
             targets = [target for target in instruction.targets]

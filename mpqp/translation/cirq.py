@@ -143,7 +143,7 @@ if InstalledProviders.CIRQ in _INSTALLED_MPQP_PROVIDERS:
         for qubit in cirq_qubits:
             cirq_circuit.append(I(qubit))
 
-        instructions = circuit.with_measurement(deep_copy=False, measurements_last=True)
+        instructions = circuit.with_measurement(deep_copy=False)
         for instruction in instructions:
             if not skip_pre_measure:
                 if isinstance(instruction, Measure):

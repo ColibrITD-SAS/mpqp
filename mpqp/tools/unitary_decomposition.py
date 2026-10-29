@@ -218,8 +218,12 @@ def _decompose(
 def _optimize_circuit(circuit: QCircuit) -> QCircuit:
     """
     Optimize the circuit of the decomposition by removing useless CNOT gates.
+
+    Dimensions are not recomputed: :func:`_decompose` applies single-qubit
+    rotations on every target qubit and only CNOTs are removed here, so the
+    qubits used by the circuit cannot change.
     """
-    instructions = circuit._instructions  # pyright: ignore[reportPrivateUsage]
+    instructions = circuit.instructions
     length = len(instructions)
     i = 0
     while i < length - 2:
@@ -227,19 +231,15 @@ def _optimize_circuit(circuit: QCircuit) -> QCircuit:
             j = i + 1
             while isinstance(instructions[j], CNOT):
                 if instructions[i] == instructions[j]:
-                    circuit._pop_instruction(  # pyright: ignore[reportPrivateUsage]
-                        j, recompute_dimensions=False
-                    )
-                    circuit._pop_instruction(  # pyright: ignore[reportPrivateUsage]
-                        i, recompute_dimensions=False
-                    )
+                    circuit.pop(j, recompute_dimensions=False)
+                    circuit.pop(i, recompute_dimensions=False)
+                    del instructions[j], instructions[i]
                     length -= 2
                     i -= 1
                     break
                 j += 1
         i += 1
 
-    circuit._recompute_dynamic_dimensions()  # pyright: ignore[reportPrivateUsage]
     return circuit
 
 

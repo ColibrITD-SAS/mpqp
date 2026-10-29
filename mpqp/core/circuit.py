@@ -368,6 +368,68 @@ class QCircuit:
             if isinstance(components, Measure):
                 self._measurement_indexes.append(instruction_index)
 
+    def pop(self, index: int = -1, recompute_dimensions: bool = True) -> Instruction:
+        """Remove and return the instruction at ``index`` (the last one by
+        default).
+
+        Unlike :meth:`remove`, which looks for an instruction equal to the one
+        given, this targets a position in :attr:`instructions`. It is useful
+        when several equal instructions are present in the circuit.
+
+        Dynamically sized circuits retain enough qubits for the remaining
+        instructions and noise models. Explicitly set register sizes are
+        preserved.
+
+        Args:
+            index: Position of the instruction in :attr:`instructions`.
+                Negative indexes are supported.
+            recompute_dimensions: Whether to shrink the dynamically sized
+                registers to what the remaining components need. This walks
+                the whole circuit, so set it to ``False`` when popping many
+                instructions in a loop: the registers then keep their current
+                size until the next removal made with ``True``.
+
+        Returns:
+            The removed instruction.
+
+        Raises:
+            IndexError: If the circuit is empty or ``index`` is out of range.
+
+        Examples:
+            >>> circuit = QCircuit([H(0), X(1), H(0), BasisMeasure([0, 1])])
+            >>> circuit.pop(2)
+            H(0)
+            >>> circuit.instructions
+            [H(0), X(1), BasisMeasure([0, 1])]
+            >>> circuit.pop()
+            BasisMeasure([0, 1])
+            >>> circuit.instructions
+            [H(0), X(1)]
+            >>> circuit.pop(recompute_dimensions=False)
+            X(1)
+            >>> circuit.nb_qubits
+            2
+            >>> circuit.pop()
+            H(0)
+            >>> circuit.nb_qubits
+            0
+        """
+        normalized_index = index if index >= 0 else len(self._instructions) + index
+        instruction = self._instructions.pop(index)
+        self._instruction_revision.value += 1
+        self._measurement_indexes = [
+            (
+                measurement_index - 1
+                if measurement_index > normalized_index
+                else measurement_index
+            )
+            for measurement_index in self._measurement_indexes
+            if measurement_index != normalized_index
+        ]
+        if recompute_dimensions:
+            self._recompute_dynamic_dimensions()
+        return instruction
+
     def remove(self, instructions: OneOrMany[Instruction]) -> None:
         """Remove one or several instructions from the circuit.
 
@@ -398,50 +460,15 @@ class QCircuit:
         """
         if isinstance(instructions, Instruction):
             index = self._instructions.index(instructions)
-            self._pop_instruction(index)
+            self.pop(index)
             return
 
         try:
             for instruction in instructions:
                 index = self._instructions.index(instruction)
-                self._pop_instruction(index, recompute_dimensions=False)
+                self.pop(index, recompute_dimensions=False)
         finally:
             self._recompute_dynamic_dimensions()
-
-    def pop(self, index: int = -1) -> Instruction:
-        """Remove and return the instruction at ``index`` (the last one by
-        default).
-
-        Unlike :meth:`remove`, which looks for an instruction equal to the one
-        given, this targets a position in :attr:`instructions`. It is useful
-        when several equal instructions are present in the circuit.
-
-        Dynamically sized circuits retain enough qubits for the remaining
-        instructions and noise models. Explicitly set register sizes are
-        preserved.
-
-        Args:
-            index: Position of the instruction in :attr:`instructions`.
-                Negative indexes are supported.
-
-        Returns:
-            The removed instruction.
-
-        Raises:
-            IndexError: If the circuit is empty or ``index`` is out of range.
-
-        Examples:
-            >>> circuit = QCircuit([H(0), X(1), H(0), BasisMeasure([0, 1])])
-            >>> circuit.pop(2)
-            H(0)
-            >>> circuit.instructions
-            [H(0), X(1), BasisMeasure([0, 1])]
-            >>> circuit.pop()
-            BasisMeasure([0, 1])
-            >>> circuit.instructions
-            [H(0), X(1)]
-        """
-        return self._pop_instruction(index)
 
     def _insert_instruction(self, index: int, instruction: Instruction) -> None:
         """Insert an instruction while keeping instruction storage encapsulated."""
@@ -449,7 +476,7 @@ class QCircuit:
             raise ValueError("Measurements cannot be inserted among instructions.")
 
         self.add(instruction)
-        inserted_instruction = self._pop_instruction(recompute_dimensions=False)
+        inserted_instruction = self.pop(recompute_dimensions=False)
         normalized_index = (
             min(index, len(self._instructions))
             if index >= 0
@@ -465,35 +492,6 @@ class QCircuit:
         ]
         self._instructions.insert(index, inserted_instruction)
         self._instruction_revision.value += 1
-
-    def _pop_instruction(
-        self, index: int = -1, recompute_dimensions: bool = True
-    ) -> Instruction:
-        """Remove and return an instruction at ``index``.
-
-        This internal method lets MPQP transformations modify a circuit without
-        exposing its instruction storage.
-
-        Args:
-            index: Index of the instruction to remove.
-            recompute_dimensions: Whether to recompute dynamic circuit dimensions
-                after removal. Disable this for temporary removals or batched edits.
-        """
-        normalized_index = index if index >= 0 else len(self._instructions) + index
-        instruction = self._instructions.pop(index)
-        self._instruction_revision.value += 1
-        self._measurement_indexes = [
-            (
-                measurement_index - 1
-                if measurement_index > normalized_index
-                else measurement_index
-            )
-            for measurement_index in self._measurement_indexes
-            if measurement_index != normalized_index
-        ]
-        if recompute_dimensions:
-            self._recompute_dynamic_dimensions()
-        return instruction
 
     def _recompute_dynamic_dimensions(self) -> None:
         """Recompute dimensions that were not explicitly set by the user."""
@@ -664,8 +662,7 @@ class QCircuit:
         if not hasattr(self, "_nb_qubits") or nb_qubits != self._nb_qubits:
             self._nb_qubits = nb_qubits
 
-            instructions = self.with_measurement(deep_copy=False)
-            for instruction in instructions:
+            for instruction in self._instructions:
                 if instruction._dynamic:  # pyright: ignore[reportPrivateUsage]
                     self._update_targets_components(instruction)
             # Noise validation requires measurements to already span the new width.
@@ -743,7 +740,7 @@ class QCircuit:
                 " index and the size of this circuit"
             )
 
-        for inst in other.with_measurement(deep_copy=True):
+        for inst in deepcopy(other._instructions):
             inst.targets = [qubit + qubits_offset for qubit in inst.targets]
             if isinstance(inst, ControlledGate):
                 inst.controls = [qubit + qubits_offset for qubit in inst.controls]
@@ -1307,33 +1304,27 @@ class QCircuit:
             if index not in measurement_indexes
         ]
 
-    def with_measurement(
-        self, deep_copy: bool = True, measurements_last: bool = False
-    ) -> list[Instruction]:
-        """Return all instructions, including measurements.
+    def with_measurement(self, deep_copy: bool = True) -> list[Instruction]:
+        """Returns the instructions with the measurements added at the back.
+
+        The non-measurement instructions and the measurements each keep their
+        relative order. This is meant for languages that only support terminal
+        measurements: a gate placed after a measurement on the same qubit is
+        then applied before it. Use :attr:`instructions` to get all
+        instructions in circuit order.
 
         Args:
             deep_copy: If True, returns a deep copy of the resulting list;
                 otherwise, returns a shallow copy.
-            measurements_last: If ``False``, instructions are returned in
-                circuit order. If ``True``, all measurements are moved after the
-                other instructions, both groups keeping their relative order.
-                This is meant for languages that only support terminal
-                measurements: a gate placed after a measurement on the same
-                qubit would then be applied before it.
 
         Examples:
             >>> circuit = QCircuit([X(0), BasisMeasure([0], shots=100), H(0)])
-            >>> circuit.with_measurement()
+            >>> circuit.instructions
             [X(0), BasisMeasure([0], shots=100), H(0)]
-            >>> circuit.with_measurement(measurements_last=True)
+            >>> circuit.with_measurement()
             [X(0), H(0), BasisMeasure([0], shots=100)]
         """
-        instructions = (
-            self._non_measurement_instructions() + self.measurements
-            if measurements_last
-            else self._instructions.copy()
-        )
+        instructions = self._non_measurement_instructions() + self.measurements
         return deepcopy(instructions) if deep_copy else instructions
 
     def without_noises(self, deep_copy: bool = True) -> QCircuit:
@@ -2261,9 +2252,7 @@ class QCircuit:
 
     def __repr__(self) -> str:
         args = []
-        components: list[Instruction | NoiseModel] = (
-            self.with_measurement(deep_copy=False) + self.noises
-        )
+        components: list[Instruction | NoiseModel] = self._instructions + self.noises
         if len(components) != 0:
             args.append(f"[{', '.join(repr(component) for component in components)}]")
         if self._user_nb_qubits is not None:
