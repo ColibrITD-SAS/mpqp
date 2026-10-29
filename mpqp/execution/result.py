@@ -608,12 +608,9 @@ class Result:
                     observables = f"\n  Observables: {[o.pauli_string for o in self.job.measure.observables]}"
                 else:
                     observables = ""
-                return (
-                    f"""{header}
+                return f"""{header}
   Expectation value: {self.expectation_values}
-  Error/Variance: {self.error}"""
-                    + observables
-                )
+  Error/Variance: {self.error}""" + observables
             else:
                 if TYPE_CHECKING:
                     assert isinstance(self.expectation_values, dict)
