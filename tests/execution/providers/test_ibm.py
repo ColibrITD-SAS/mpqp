@@ -3,11 +3,12 @@ from typing import Any
 import numpy as np
 import pytest
 from qiskit import QuantumCircuit, transpile
-from qiskit.primitives import PubResult
+from qiskit.primitives import PubResult, StatevectorEstimator
 from qiskit.primitives.containers import DataBin
 from qiskit.quantum_info import SparsePauliOp, Statevector
 from qiskit_aer import AerSimulator
 from qiskit_ibm_runtime import EstimatorV2, SamplerV2
+from sympy import Symbol
 
 from mpqp import (
     BatchResult,
@@ -143,7 +144,9 @@ def test_extract_estimator_pubs_result_uses_execution_context():
 
 def test_qctrl_observable_uses_function_result(monkeypatch: pytest.MonkeyPatch):
     contexts = [object()]
-    circuit = _FakeBinding([("estimator-pub", contexts)])
+    qiskit_circuit = QuantumCircuit(1)
+    observable = SparsePauliOp("Z")
+    circuit = _FakeBinding([((qiskit_circuit, [[observable]]), contexts)])
     qctrl_result = object()
     expected = object()
     function: Any = _FakeQctrlFunction(_FakeQctrlRun(qctrl_result))
@@ -180,7 +183,7 @@ def test_qctrl_observable_uses_function_result(monkeypatch: pytest.MonkeyPatch):
     assert ibm_provider.run_qctrl_function(job, params) is expected
     assert function.run_kwargs == {
         "primitive": "estimator",
-        "pubs": ["estimator-pub"],
+        "pubs": [(qiskit_circuit, [observable])],
         "backend_name": "ibm_fake",
         "options": {"default_shots": 256, "job_tags": ["experiment"]},
     }
@@ -236,7 +239,7 @@ def test_qctrl_submits_logical_circuits(
             assert circuit.count_ops()["measure"] == 2
             assert state.probabilities_dict() == {"01": 1.0}
         else:
-            observable = pub[1][0][0]
+            observable = pub[1][0]
             assert observable.num_qubits == 2
             assert state.expectation_value(observable) == pytest.approx(-1.0)
         raise SubmissionCaptured
@@ -268,6 +271,64 @@ def test_qctrl_submits_logical_circuits(
 
     with pytest.raises(SubmissionCaptured):
         run(execution_input, IBMDevice.IBM_FEZ, provider_params=params)
+
+
+@pytest.mark.provider("qiskit")
+@pytest.mark.parametrize(
+    "execution", ["multiple_observables", "sweep", "multi_observable_sweep", "ragged"]
+)
+def test_qctrl_preserves_parameter_observable_pairs(
+    monkeypatch: pytest.MonkeyPatch, execution: str
+):
+    def execute(**kwargs: Any):
+        result = StatevectorEstimator().run(kwargs["pubs"]).result()
+        for index in range(len(result)):
+            # Isolate PUB pairing from Q-CTRL's separate metadata contract.
+            result[index].metadata["shots"] = 100
+        return _FakeQctrlRun(result)
+
+    def unexpected_backend(*args: Any, **kwargs: Any):
+        pytest.fail("This test must not access a remote backend.")
+
+    monkeypatch.setattr(
+        "mpqp.execution.connection.ibm_connection.get_backend", unexpected_backend
+    )
+    function: Any = _FakeQctrlFunction(_FakeQctrlRun(object()))
+    monkeypatch.setattr(function, "run", execute)
+    params = QiskitParams(qctrl_function=function)
+    z = Observable(pZ, label="z")
+    x = Observable(pX, label="x")
+    theta = Symbol("theta")
+    execution_input: QCircuit | CircuitBinding
+    if execution == "multiple_observables":
+        execution_input = QCircuit([X(0), ExpectationMeasure([z, x], shots=100)])
+        expected = [{"z": -1.0, "x": 0.0}]
+    elif execution == "ragged":
+        execution_input = CircuitBinding(
+            QCircuit([X(0)]),
+            measurements=[
+                ExpectationMeasure(z, shots=100),
+                ExpectationMeasure([z, x], shots=100),
+            ],
+        )
+        expected = [-1.0, {"z": -1.0, "x": 0.0}]
+    else:
+        observables = [z, x] if execution == "multi_observable_sweep" else [z]
+        execution_input = CircuitBinding(
+            QCircuit([Ry(theta, 0), ExpectationMeasure(observables, shots=100)]),
+            values=[{theta: 0.0}, {theta: np.pi}],
+        )
+        expected = (
+            [{"z": 1.0, "x": 0.0}, {"z": -1.0, "x": 0.0}]
+            if execution == "multi_observable_sweep"
+            else [1.0, -1.0]
+        )
+
+    result = run(execution_input, IBMDevice.IBM_FEZ, provider_params=params)
+    results = result.results if isinstance(result, BatchResult) else [result]
+    assert len(results) == len(expected)
+    for item, expected_value in zip(results, expected):
+        assert item.expectation_values == pytest.approx(expected_value)
 
 
 @pytest.mark.provider("qiskit")

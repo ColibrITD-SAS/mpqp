@@ -77,6 +77,44 @@ def run_ibm(
     )
 
 
+def _prepare_estimator_pubs(
+    pubs: list["EstimatorPubLike"],
+) -> list["EstimatorPubLike"]:
+    """Align each binding observable with its parameter values in a flat PUB."""
+    pubs_to_run = []
+    for pub in pubs:
+        circ = pub[0]  # pyright: ignore[reportIndexIssue]
+        obs_array = pub[1] if len(pub) > 1 else None  # pyright: ignore
+        params = pub[2] if len(pub) > 2 else None  # pyright: ignore
+
+        if obs_array is not None:
+            if params is not None:
+                params = [
+                    values
+                    for observables, values in zip(
+                        obs_array, params  # pyright: ignore[reportArgumentType]
+                    )
+                    for _ in observables
+                ]
+            obs_array = [
+                obs
+                for observables in obs_array  # pyright: ignore[reportGeneralTypeIssues]
+                for obs in observables
+            ]
+
+        if obs_array is not None and circ.layout is not None:
+            obs_array = [obs.apply_layout(circ.layout) for obs in obs_array]
+
+        if params is not None:
+            pubs_to_run.append((circ, obs_array, params))
+        elif obs_array is not None:
+            pubs_to_run.append((circ, obs_array))
+        else:
+            pubs_to_run.append((circ,))
+
+    return pubs_to_run
+
+
 def compute_expectation_value(
     job: Job,
     simulator: Optional["AerSimulator"],
@@ -137,35 +175,7 @@ def compute_expectation_value(
         nb_shots = shots
         context_jobs_to_run = pubs_contexts
 
-        for pub in pubs:
-            circ = pub[0]  # pyright: ignore[reportIndexIssue]
-            obs_array = pub[1] if len(pub) > 1 else None  # pyright: ignore
-            params = pub[2] if len(pub) > 2 else None  # pyright: ignore
-
-            if obs_array is not None:
-                if params is not None:
-                    params = [
-                        values
-                        for observables, values in zip(
-                            obs_array, params  # pyright: ignore[reportArgumentType]
-                        )
-                        for _ in observables
-                    ]
-                obs_array = [
-                    obs
-                    for observables in obs_array  # pyright: ignore[reportGeneralTypeIssues]
-                    for obs in observables
-                ]
-
-            if obs_array is not None and circ.layout is not None:
-                obs_array = [obs.apply_layout(circ.layout) for obs in obs_array]
-
-            if params is not None:
-                pubs_to_run.append((circ, obs_array, params))
-            elif obs_array is not None:
-                pubs_to_run.append((circ, obs_array))
-            else:
-                pubs_to_run.append((circ,))
+        pubs_to_run = _prepare_estimator_pubs(pubs)
 
     else:
         # Exécution classique 1:1 (sans CircuitBinding)
@@ -1020,7 +1030,7 @@ def run_qctrl_function(job: Job, qiskit_params: QiskitParams) -> Result | BatchR
         else:
             circuit = job.circuit
         pubs_with_context = circuitbinding_to_pubs(circuit, job.device, transpile=False)
-        pubs = [item[0] for item in pubs_with_context]
+        pubs = _prepare_estimator_pubs([item[0] for item in pubs_with_context])
         jobs = [item[1] for item in pubs_with_context]
 
         options = deepcopy(qctrl_options)
