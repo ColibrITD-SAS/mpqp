@@ -322,6 +322,47 @@ def _extract_estimator_pubs_result(
     return BatchResult(final_flat_results)
 
 
+def _extract_sampler_pubs_result(
+    sampler_result: Any,
+    job: Job,
+    pubs_contexts: list[list[ExecutionContext]],
+) -> Result | BatchResult:
+    """Rebuild MPQP sampling results in binding unroll order."""
+    if TYPE_CHECKING:
+        assert isinstance(job.device, IBMDevice)
+
+    if len(sampler_result) != len(pubs_contexts):
+        raise ValueError(
+            "Sampler result count does not match the submitted PUB count: "
+            f"{len(sampler_result)} != {len(pubs_contexts)}."
+        )
+
+    extracted_items: list[tuple[int, Result | BatchResult]] = []
+    for index, contexts in enumerate(pubs_contexts):
+        if len(contexts) != 1:
+            raise ValueError("Each sampler PUB must map to one execution context.")
+        context = contexts[0]
+        extracted_items.append(
+            (
+                context.index,
+                extract_result(sampler_result[index], context.job, job.device),
+            )
+        )
+
+    final_results: list[Result] = []
+    for _, item in sorted(extracted_items, key=lambda indexed: indexed[0]):
+        if isinstance(item, BatchResult):
+            final_results.extend(item.results)
+        else:
+            final_results.append(item)
+
+    if not final_results:
+        raise ValueError("Cannot extract an empty Sampler result.")
+    if isinstance(job.circuit, QCircuit):
+        return final_results[0]
+    return BatchResult(final_results)
+
+
 def check_job_compatibility(job: Job):
     """Checks whether the job in parameter has coherent and compatible
     attributes.
@@ -1013,7 +1054,6 @@ def run_qctrl_function(job: Job, qiskit_params: QiskitParams) -> Result | BatchR
     Provider-reported shot counts take precedence when available.
 
     Raises:
-        NotImplementedError: If a sampling ``CircuitBinding`` is provided.
         TypeError: If a completed function returns an unsupported result type.
             The job retains its successful execution status.
     """
@@ -1032,11 +1072,6 @@ def run_qctrl_function(job: Job, qiskit_params: QiskitParams) -> Result | BatchR
         raise ValueError(
             "Cannot run a STATEVECTOR or an ideal Observable job with a QiskitFunction"
         )
-    if job.job_type != JobType.OBSERVABLE and isinstance(job.circuit, CircuitBinding):
-        # TODO: Support sampling CircuitBindings through Qiskit Functions.
-        raise NotImplementedError(
-            "Qiskit Functions do not support CircuitBinding sampling jobs yet."
-        )
     check_job_compatibility(job)
 
     func = qiskit_params.qctrl_function
@@ -1045,7 +1080,6 @@ def run_qctrl_function(job: Job, qiskit_params: QiskitParams) -> Result | BatchR
             "Only the q-ctrl QiskitFunctions are available through MPQP at the moment."
         )
     primitive = "estimator" if job.job_type == JobType.OBSERVABLE else "sampler"
-    job.status = JobStatus.RUNNING
     jobs: list[list[ExecutionContext]] = []
     qctrl_options = qiskit_params.get_options()
 
@@ -1067,26 +1101,32 @@ def run_qctrl_function(job: Job, qiskit_params: QiskitParams) -> Result | BatchR
             measure = jobs[0][0].job.measure
             assert isinstance(measure, ExpectationMeasure)
             nb_shots = measure.shots
-        options["default_shots"] = nb_shots
-
-        run = func.run(
-            primitive=primitive,
-            pubs=pubs,
-            backend_name=job.device.value,
-            **({"options": options} if options else {}),
-        )
     else:
-        assert isinstance(job.circuit, QCircuit)
-        nb_shots = job.measure.shots if job.measure else 0
-        pubs = [(job.circuit.to_other_language(Language.QISKIT),)]
         options = deepcopy(qctrl_options)
-        options["default_shots"] = nb_shots
-        run = func.run(
-            primitive=primitive,
-            options=options,
-            pubs=pubs,
-            backend_name=job.device.value,
-        )
+        if isinstance(job.circuit, CircuitBinding):
+            from mpqp.translation.qiskit import circuitbinding_to_sampler_pubs
+
+            pubs_with_context = circuitbinding_to_sampler_pubs(job.circuit, job.device)
+            pubs = [item[0] for item in pubs_with_context]
+            jobs = [item[1] for item in pubs_with_context]
+            if job.circuit.shots is not None:
+                nb_shots = job.circuit.shots
+            else:
+                measure = jobs[0][0].job.measure
+                assert isinstance(measure, BasisMeasure)
+                nb_shots = measure.shots
+        else:
+            nb_shots = job.measure.shots if job.measure else 0
+            pubs = [(job.circuit.to_other_language(Language.QISKIT),)]
+
+    options["default_shots"] = nb_shots
+    job.status = JobStatus.RUNNING
+    run = func.run(
+        primitive=primitive,
+        options=options,
+        pubs=pubs,
+        backend_name=job.device.value,
+    )
 
     job.id = run.job_id
     try:
@@ -1123,6 +1163,8 @@ def run_qctrl_function(job: Job, qiskit_params: QiskitParams) -> Result | BatchR
         return _extract_estimator_pubs_result(
             result, job, jobs, fallback_shots=nb_shots
         )
+    if isinstance(job.circuit, CircuitBinding):
+        return _extract_sampler_pubs_result(result, job, jobs)
     return extract_result(result, job, job.device)
 
 

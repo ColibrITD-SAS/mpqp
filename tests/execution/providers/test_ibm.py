@@ -10,6 +10,7 @@ from qiskit.primitives import (
     StatevectorEstimator,
 )
 from qiskit.primitives.containers import BitArray, DataBin
+from qiskit.primitives.containers.sampler_pub import SamplerPub
 from qiskit.quantum_info import SparsePauliOp, Statevector
 from qiskit_aer import AerSimulator
 from qiskit_ibm_runtime import EstimatorV2, SamplerV2
@@ -227,19 +228,41 @@ def test_qctrl_error_status_is_not_reported_as_done(
     assert job.status == JobStatus.ERROR
 
 
-def test_qctrl_rejects_sampling_binding_before_submission():
+def test_qctrl_runs_sampling_binding_pubs_in_unroll_order(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    def execute(**kwargs: Any):
+        assert kwargs["primitive"] == "sampler"
+        assert len(kwargs["pubs"]) == 2
+        coerced_pubs = [SamplerPub.coerce(pub) for pub in kwargs["pubs"]]
+        assert [pub.shots for pub in coerced_pubs] == [32, 32]
+        assert [pub.parameter_values.as_array().tolist() for pub in coerced_pubs] == [
+            [0.0],
+            [np.pi],
+        ]
+        result = PrimitiveResult(
+            [
+                SamplerPubResult(DataBin(c=BitArray.from_counts({"0": 32}))),
+                SamplerPubResult(DataBin(c=BitArray.from_counts({"1": 32}))),
+            ]
+        )
+        return _FakeQctrlRun(result)
+
     function: Any = _FakeQctrlFunction(_FakeQctrlRun(object()))
+    monkeypatch.setattr(function, "run", execute)
     params = QiskitParams(qctrl_function=function)
+    theta = Symbol("theta")
     binding = CircuitBinding(
-        QCircuit([X(0)]), measurements=BasisMeasure([0], shots=32)
+        QCircuit([Ry(theta, 0)]),
+        values=[{theta: 0.0}, {theta: np.pi}],
+        measurements=BasisMeasure([0], shots=32),
     )
+
     job = Job(JobType.SAMPLE, binding, IBMDevice.IBM_FEZ)
+    result = ibm_provider.run_qctrl_function(job, params)
 
-    with pytest.raises(NotImplementedError, match="CircuitBinding sampling jobs"):
-        ibm_provider.run_qctrl_function(job, params)
-
-    assert job.id is None
-    assert function.run_kwargs is None
+    assert isinstance(result, BatchResult)
+    assert [item.counts for item in result.results] == [[32, 0], [0, 32]]
 
 
 @pytest.mark.provider("qiskit")

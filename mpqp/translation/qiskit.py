@@ -15,7 +15,7 @@ if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
 
     if TYPE_CHECKING:
         from qiskit import QuantumCircuit
-        from qiskit.primitives.containers import EstimatorPubLike
+        from qiskit.primitives.containers import EstimatorPubLike, SamplerPubLike
 
         from mpqp.core.binding import CircuitBinding
         from mpqp.core.circuit import QCircuit
@@ -326,5 +326,70 @@ if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
             else:
                 pub = (q_c,)
             pubs_with_context.append((pub, contexts))
+
+        return pubs_with_context
+
+    def circuitbinding_to_sampler_pubs(
+        binding: "CircuitBinding", device: "IBMDevice"
+    ) -> "list[tuple[SamplerPubLike, list[ExecutionContext]]]":
+        """Prepare logical sampler PUBs and their execution contexts.
+
+        Qiskit Functions accept abstract circuits, so this translation does not
+        transpile for a concrete backend. Each resolved binding execution is
+        represented by one PUB to preserve its measurement and result ordering.
+
+        Args:
+            binding: Binding containing basis measurements.
+            device: Device associated with the execution contexts.
+
+        Returns:
+            Sampler PUBs paired with their original binding execution context.
+
+        Raises:
+            ValueError: If the binding is not a sampling binding, contains a
+                non-basis measurement, or omits a circuit parameter value.
+        """
+        from copy import deepcopy
+
+        from mpqp.core.instruction import BasisMeasure
+        from mpqp.core.languages import Language
+        from mpqp.execution import Job, JobType
+
+        if binding.job_type != JobType.SAMPLE:
+            raise ValueError(
+                "Sampler PUB translation requires circuits with basis measurements."
+            )
+
+        pubs_with_context = []
+        for index, (circuit, values, measure) in enumerate(binding.unroll()):
+            if not isinstance(measure, BasisMeasure):
+                raise ValueError("Sampling bindings require basis measurements.")
+
+            context_circuit = circuit.without_measurements(deep_copy=False)
+            context_circuit.add(deepcopy(measure))
+            qiskit_circuit = context_circuit.to_other_language(Language.QISKIT)
+            parameter_names = [
+                parameter.name for parameter in qiskit_circuit.parameters
+            ]
+            normalized_values = {
+                str(key): value for key, value in (values or {}).items()
+            }
+            missing = [
+                name for name in parameter_names if name not in normalized_values
+            ]
+            if missing:
+                raise ValueError(f"Missing values for circuit parameters: {missing}")
+
+            parameter_values = [normalized_values[name] for name in parameter_names]
+            pub = (
+                qiskit_circuit,
+                parameter_values if parameter_values else None,
+                measure.shots,
+            )
+            context = ExecutionContext(
+                job=Job(binding.job_type, context_circuit, device, values=values),
+                index=index,
+            )
+            pubs_with_context.append((pub, [context]))
 
         return pubs_with_context
