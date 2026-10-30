@@ -230,9 +230,7 @@ def test_qctrl_error_status_is_not_reported_as_done(
 def test_qctrl_rejects_sampling_binding_before_submission():
     function: Any = _FakeQctrlFunction(_FakeQctrlRun(object()))
     params = QiskitParams(qctrl_function=function)
-    binding = CircuitBinding(
-        QCircuit([X(0)]), measurements=BasisMeasure([0], shots=32)
-    )
+    binding = CircuitBinding(QCircuit([X(0)]), measurements=BasisMeasure([0], shots=32))
     job = Job(JobType.SAMPLE, binding, IBMDevice.IBM_FEZ)
 
     with pytest.raises(NotImplementedError, match="CircuitBinding sampling jobs"):
