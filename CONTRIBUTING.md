@@ -104,6 +104,20 @@ Here are some useful scripts for when you are developing:
 | `python -m pytest --provider <provider>` | Runs the test suite with a specified provider |
 
 
+With `--seed`, Aer simulator calls receive a reproducible sequence of varying
+seed values, in addition to the existing NumPy test-generator seeding. Database
+setup has its own sequence, initialized before the test database is populated.
+Each test has a separate sequence derived from the command-line seed and its
+pytest node ID, so selecting or reordering other tests does not change it.
+Seeds explicitly supplied to `AerSimulator.run` or configured on the simulator
+are preserved, including `0`; an explicit run option of `None` also takes
+precedence. Omitting `--seed` leaves Aer seeding unchanged.
+
+Reproduction assumes the same test ID, execution path, SDK versions and simulator
+configuration. Calls within a test consume its sequence in order. This option
+does not seed Qiskit transpilation, every estimator-specific random generator,
+or other providers' simulators, and cannot make real hardware deterministic.
+
 When making commits, make sure to follow the
 [conventional commit](https://www.conventionalcommits.org/en/v1.0.0/)
 guidelines, i.e. prepending the message with `feat:`, `fix:`, `docs:`, etc... You
