@@ -227,6 +227,21 @@ def test_qctrl_error_status_is_not_reported_as_done(
     assert job.status == JobStatus.ERROR
 
 
+def test_qctrl_rejects_sampling_binding_before_submission():
+    function: Any = _FakeQctrlFunction(_FakeQctrlRun(object()))
+    params = QiskitParams(qctrl_function=function)
+    binding = CircuitBinding(
+        QCircuit([X(0)]), measurements=BasisMeasure([0], shots=32)
+    )
+    job = Job(JobType.SAMPLE, binding, IBMDevice.IBM_FEZ)
+
+    with pytest.raises(NotImplementedError, match="CircuitBinding sampling jobs"):
+        ibm_provider.run_qctrl_function(job, params)
+
+    assert job.id is None
+    assert function.run_kwargs is None
+
+
 @pytest.mark.provider("qiskit")
 @pytest.mark.parametrize("job_type", [JobType.SAMPLE, JobType.OBSERVABLE])
 @pytest.mark.parametrize("payload", ["unexpected response", {"message": "unexpected"}])

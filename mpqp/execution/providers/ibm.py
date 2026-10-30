@@ -1013,6 +1013,7 @@ def run_qctrl_function(job: Job, qiskit_params: QiskitParams) -> Result | BatchR
     Provider-reported shot counts take precedence when available.
 
     Raises:
+        NotImplementedError: If a sampling ``CircuitBinding`` is provided.
         TypeError: If a completed function returns an unsupported result type.
             The job retains its successful execution status.
     """
@@ -1030,6 +1031,11 @@ def run_qctrl_function(job: Job, qiskit_params: QiskitParams) -> Result | BatchR
     if job.job_type == JobType.STATE_VECTOR:
         raise ValueError(
             "Cannot run a STATEVECTOR or an ideal Observable job with a QiskitFunction"
+        )
+    if job.job_type != JobType.OBSERVABLE and isinstance(job.circuit, CircuitBinding):
+        # TODO: Support sampling CircuitBindings through Qiskit Functions.
+        raise NotImplementedError(
+            "Qiskit Functions do not support CircuitBinding sampling jobs yet."
         )
     check_job_compatibility(job)
 
@@ -1070,8 +1076,7 @@ def run_qctrl_function(job: Job, qiskit_params: QiskitParams) -> Result | BatchR
             **({"options": options} if options else {}),
         )
     else:
-        if isinstance(job.circuit, CircuitBinding):
-            raise ValueError("WIP: cannot run a pubs with BasisMeasure inside of them.")
+        assert isinstance(job.circuit, QCircuit)
         nb_shots = job.measure.shots if job.measure else 0
         pubs = [(job.circuit.to_other_language(Language.QISKIT),)]
         options = deepcopy(qctrl_options)
