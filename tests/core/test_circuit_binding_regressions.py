@@ -24,9 +24,9 @@ from mpqp import (
 )
 from mpqp.core.binding import BindingMode, CircuitBinding
 from mpqp.core.instruction.measurement.measure import Measure
-from mpqp.execution.job import JobType
+from mpqp.execution.job import Job, JobType
 from mpqp.execution.providers.providers_params import QiskitParams
-from mpqp.execution.result import BatchResult
+from mpqp.execution.result import BatchResult, Result, StateVector
 
 
 @pytest.mark.parametrize("lengths", list(product((1, 2), repeat=3)))
@@ -202,7 +202,14 @@ def test_provider_parameters_forwarded(many_circuits: bool, many_devices: bool):
         else IBMDevice.AER_SIMULATOR
     )
     params = QiskitParams(instance="selected-instance")
-    with patch.object(runner, "_run_single", return_value=None) as execute:
+    with patch.object(
+        runner,
+        "_run_single",
+        side_effect=lambda circuit, device, *args: Result(
+            Job(JobType.STATE_VECTOR, circuit, device),
+            StateVector(np.array([1, 0], dtype=np.complex128)),
+        ),
+    ) as execute:
         runner.run(circuits, devices, provider_params=params)
     assert execute.call_count == (2 if many_circuits else 1) * (
         2 if many_devices else 1

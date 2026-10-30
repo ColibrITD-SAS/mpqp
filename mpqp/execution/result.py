@@ -23,18 +23,42 @@ from __future__ import annotations
 
 import math
 import random
+from collections.abc import Iterator
 from copy import copy
 from numbers import Complex
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Union, overload
 
 import numpy as np
 import numpy.typing as npt
 
+from mpqp.core._keys import Snapshot
+from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
+from mpqp.core.instruction.measurement.measure import Measure
 from mpqp.execution import Job, JobStatus, JobType
 from mpqp.execution.devices import AvailableDevice
 from mpqp.tools.display import clean_1D_array, clean_number_repr
 from mpqp.tools.errors import ResultAttributeError
+
+
+class _Unset:
+    def __repr__(self) -> str:
+        return "<unspecified>"
+
+
+_UNSET = _Unset()
+
+
+def _validate_matching_criteria(
+    circuit: object, device: object, measurement: object
+) -> None:
+    """Validate runtime inputs independently of the public type annotations."""
+    if circuit is not None and not isinstance(circuit, QCircuit):
+        raise TypeError("circuit must be a QCircuit or None")
+    if device is not None and not isinstance(device, AvailableDevice):
+        raise TypeError("device must be an AvailableDevice or None")
+    if not isinstance(measurement, (_Unset, Measure, type(None))):
+        raise TypeError("measurement must be a Measure or None")
 
 
 class StateVector:
@@ -278,7 +302,9 @@ class Result:
         errors: Information about the error or the variance in the measurement.
         shots: Number of shots of the experiment (equal to zero if the exact
             value was required).
-        label: A label may be used to contextualize the data.
+        label: Display label for this result. When omitted, the recorded circuit's
+            label is used. Batch execution may assign an automatic display name
+            without changing the circuit label.
 
     Examples:
         >>> job = Job(JobType.STATE_VECTOR, QCircuit(2), ATOSDevice.MYQLM_CLINALG)
@@ -534,7 +560,8 @@ class Result:
                 "Result's job should be made for one individual circuit not a CircuitBinding."
             )
 
-        label = "" if self.job.circuit.label is None else self.job.circuit.label + ", "
+        display_label = self.label if self.label is not None else self.job.circuit.label
+        label = "" if display_label is None else display_label + ", "
         val = f"\n  Variables: {self.job.values}" if self.job.values else ""
         header = (
             f"Result: {label}{type(self.device).__name__}, {self.device.name}" + val
@@ -825,7 +852,13 @@ class Result:
 
 
 class BatchResult:
-    """Class used to handle several Result instances.
+    """Group execution results and filter their recorded metadata.
+
+    Use :meth:`get_matching` to select runs by circuit, device, or measurement.
+    Integer indexing, slicing, iteration, and ``len(batch)`` refer to individual
+    runs in execution order, including repeated circuits and multiple devices.
+    The :attr:`results` property returns an independent list; editing that list
+    does not change the batch.
 
     Args:
         results: List of results.
@@ -877,29 +910,209 @@ class BatchResult:
           Probabilities: [0.25, 0.25, 0.25, 0.25]
           Number of qubits: 2
 
+        >>> batch_result.get_matching(measurement=result2.job.measure).results == [result2]
+        True
+
+    Note:
+        Filtering uses each result's current circuit, device, and measurement.
+        See :meth:`get_matching` for the effects of editing this metadata.
+
     """
 
     def __init__(self, results: list[Result]):
-        self.results = results
-        """See parameter description."""
+        self._results = list(results)
+
+    @property
+    def results(self) -> list[Result]:
+        """Results in execution order, returned as an independent list."""
+        return list(self)
+
+    def __iter__(self) -> Iterator[Result]:
+        return iter(self._results)
 
     def __str__(self):
-        header = f"BatchResult: {len(self.results)} results\n"
+        header = f"BatchResult: {len(self)} results\n"
         body = "\n".join(
-            "    " + line
-            for result in self.results
-            for line in str(result).splitlines()
+            "    " + line for result in self for line in str(result).splitlines()
         )
         return header + body
 
     def __repr__(self):
         return f"BatchResult({self.results})"
 
-    def __getitem__(self, index: int):
-        return self.results[index]
+    @overload
+    def __getitem__(self, index: int) -> Result: ...
+
+    @overload
+    def __getitem__(self, index: slice) -> list[Result]: ...
+
+    def __getitem__(self, index: int | slice) -> Result | list[Result]:
+        """Retrieve results by position in execution order.
+
+        Args:
+            index: Integer position or slice.
+
+        Returns:
+            The matching result, or a list for a slice.
+
+        Raises:
+            IndexError: If the integer position is out of range.
+            TypeError: If the index is not an integer or slice.
+        """
+        return self._results[index]
+
+    def get_matching(
+        self,
+        *,
+        circuit: Optional[QCircuit] = None,
+        device: Optional[AvailableDevice] = None,
+        measurement: Optional[Measure] | _Unset = _UNSET,
+    ) -> BatchResult:
+        """Retrieve runs whose recorded metadata matches every supplied criterion.
+
+        Criteria combine with AND. Comparisons happen only when this method is
+        called, and only for the supplied criteria. Constructing or executing a
+        batch does not capture its inputs for filtering. A device-only query
+        does not inspect circuits or measurements. Repeated circuits and runs
+        on multiple devices retain every individual result.
+
+        Circuit matching includes dimensions, ordered instructions, parameters,
+        measurements, noise, input global phase, and the labels of all objects.
+        Changing a circuit, gate, measurement, or observable label changes its
+        matching criteria. Automatically generated result display names are
+        separate from circuit labels. Inferred-size bookkeeping and execution
+        caches are ignored. Matching uses exact structural values:
+        numerically close matrices and different observable representations are
+        not interchangeable. Existing public equality and numerical equivalence
+        methods are unchanged.
+
+        Args:
+            circuit: Complete recorded circuit, including its measurements.
+                ``None`` leaves the circuit unrestricted.
+            device: Recorded device. ``None`` leaves the device unrestricted.
+            measurement: Recorded job measurement. Omission leaves measurements
+                unrestricted; ``None`` selects runs without an explicit measure.
+                An explicit zero-shot :class:`~mpqp.core.instruction.measurement.basis_measure.BasisMeasure`
+                is distinct from having no measurement.
+
+        Returns:
+            A new batch in execution order, including repeated runs. Call
+            ``get_matching`` again to refine it, iterate over it, or use
+            ``list(matches)`` to obtain a list. No criteria returns a copy of
+            the full batch; no matches returns an empty batch. The container
+            is independent and contains the same :class:`Result` instances.
+
+        Raises:
+            TypeError: If a criterion has the wrong type, or a component needed
+                for structural comparison is unsupported.
+
+        Examples:
+            Filter a batch containing repeated runs. All executions below use
+            the local Qiskit simulator:
+
+            >>> from copy import deepcopy
+            >>> device = IBMDevice.AER_SIMULATOR
+            >>> circuit = QCircuit([H(0)])
+            >>> other = QCircuit([X(0), BasisMeasure([0], shots=16)])
+            >>> batch = run([circuit, other, deepcopy(other)], device)  # doctest: +QISKIT
+            >>> matches = batch.get_matching(circuit=other)  # doctest: +QISKIT
+            >>> len(matches)  # doctest: +QISKIT
+            2
+            >>> batch.get_matching(circuit=deepcopy(other)).results == matches.results  # doctest: +QISKIT
+            True
+
+            Refine a selection, or iterate over it as over the original batch:
+
+            >>> refined = matches.get_matching(device=device)  # doctest: +QISKIT
+            >>> isinstance(refined, BatchResult)  # doctest: +QISKIT
+            True
+            >>> list(refined) == list(matches)  # doctest: +QISKIT
+            True
+            >>> refined[0] is batch[1]  # doctest: +QISKIT
+            True
+
+            Combine criteria, or search by measurement across circuits:
+
+            >>> measurement = other.measurements[0]
+            >>> batch.get_matching(  # doctest: +QISKIT
+            ...     device=device, measurement=measurement
+            ... ).results == matches.results
+            True
+            >>> batch.get_matching(  # doctest: +QISKIT
+            ...     circuit=other, device=device, measurement=measurement
+            ... ).results == matches.results
+            True
+            >>> batch.get_matching(measurement=measurement).results == matches.results  # doctest: +QISKIT
+            True
+
+            Labels must match as well as the computation:
+
+            >>> renamed = deepcopy(other)
+            >>> renamed.label = "another experiment"
+            >>> batch.get_matching(circuit=renamed)  # doctest: +QISKIT
+            BatchResult([])
+
+            Omitted criteria are unrestricted. Missing matches return an empty
+            batch; ``measurement=None`` selects runs with no explicit measurement:
+
+            >>> len(batch.get_matching())  # doctest: +QISKIT
+            3
+            >>> batch.get_matching(measurement=None).results == [batch[0]]  # doctest: +QISKIT
+            True
+            >>> batch.get_matching(circuit=QCircuit([X(0)]))  # doctest: +QISKIT
+            BatchResult([])
+            >>> batch[:2] == batch.get_matching()[:2]  # doctest: +QISKIT
+            True
+
+            Editing recorded metadata changes subsequent matches:
+
+            >>> recorded = batch[0].job.circuit  # doctest: +QISKIT
+            >>> original = deepcopy(recorded)  # doctest: +QISKIT
+            >>> recorded.label = "edited experiment"  # doctest: +QISKIT
+            >>> batch.get_matching(circuit=original)  # doctest: +QISKIT
+            BatchResult([])
+            >>> batch.get_matching(circuit=recorded).results == [batch[0]]  # doctest: +QISKIT
+            True
+
+        Note:
+            Matching uses the current metadata held by each result, rather than
+            a historical snapshot of submitted inputs. Editing a recorded
+            circuit, measurement, nested object, label, or job device can change
+            future matches, including after an earlier query. Editing original
+            inputs may also affect matching when mutable objects are shared.
+            For stable matching, keep result metadata unchanged and edit
+            independent copies instead. Filtered batches share the same results,
+            so metadata changes are visible through every selection.
+
+            Recorded circuits and measurements may reflect parameter
+            substitution or preparation for execution. They can therefore differ
+            from the original inputs. Inspect ``result.job.circuit`` and
+            ``result.job.measure`` when constructing a query. Circuit matching
+            includes the complete recorded circuit: omitting its measurements
+            does not act as a wildcard for those measurements.
+        """
+        _validate_matching_criteria(circuit, device, measurement)
+        if circuit is None and device is None and isinstance(measurement, _Unset):
+            return BatchResult(self._results)
+        snapshot = Snapshot()
+
+        def matches(result: Result) -> bool:
+            # Reject cheap criteria first; unrelated large objects are untouched.
+            if device is not None and result.device != device:
+                return False
+            if not isinstance(measurement, _Unset):
+                recorded_measurement = result.job.measure
+                if recorded_measurement is None or measurement is None:
+                    if recorded_measurement is not measurement:
+                        return False
+                elif snapshot(recorded_measurement) != snapshot(measurement):
+                    return False
+            return circuit is None or snapshot(result.job.circuit) == snapshot(circuit)
+
+        return BatchResult([result for result in self._results if matches(result)])
 
     def __len__(self) -> int:
-        return len(self.results)
+        return len(self._results)
 
     def plot(self, show: bool = True):
         """Display the result(s) using ``matplotlib.pyplot``.
@@ -923,10 +1136,10 @@ class BatchResult:
         """
         from matplotlib import pyplot as plt
 
-        n_cols = math.ceil((len(self.results) + 1) // 2)
-        n_rows = math.ceil(len(self.results) / n_cols)
+        n_cols = math.ceil((len(self) + 1) // 2)
+        n_rows = math.ceil(len(self) / n_cols)
 
-        for index, result in enumerate(self.results):
+        for index, result in enumerate(self):
             plt.subplot(n_rows, n_cols, index + 1)
 
             result.plot(show=False)

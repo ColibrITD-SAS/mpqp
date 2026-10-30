@@ -558,7 +558,17 @@ def run(
 
 @overload
 def run(
-    circuit: OneOrMany[QCircuit],
+    circuit: Sequence[QCircuit],
+    device: OneOrMany[AvailableDevice],
+    values: "Optional[dict[Expr | str, Complex]]" = None,
+    display_breakpoints: bool = True,
+    provider_params: Optional[ProviderParams] = None,
+) -> BatchResult: ...
+
+
+@overload
+def run(
+    circuit: QCircuit,
     device: AvailableDevice,
     values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
@@ -648,58 +658,36 @@ def run(
 
     """
 
-    def namer(circ: QCircuit, i: int):
-        circ.label = f"circuit {i}" if circ.label is None else circ.label
-        return circ
-
-    if isinstance(device, Iterable):
-        results: list[Result] = []
-        devices = flatten(device)
-        if isinstance(circuit, (QCircuit, Iterable)):
-            for i, circ in enumerate(flatten(circuit)):
-                for dev in devices:
-                    results.append(
-                        _run_single(
-                            namer(circ, i + 1),
-                            dev,
-                            values,
-                            display_breakpoints,
-                            provider_params,
-                        )
-                    )
-        else:
-            for dev in devices:
-                if values is not None:
-                    raise ValueError("values must be specified in CircuitBinding")
+    if not isinstance(circuit, (QCircuit, Iterable)):
+        if values is not None:
+            raise ValueError("values must be specified in CircuitBinding")
+        if isinstance(device, Iterable):
+            binding_results: list[Result] = []
+            for dev in flatten(device):
                 result = _run_circuit_binding(
                     circuit, dev, display_breakpoints, provider_params
                 )
-                results.extend(result.results)
-        return BatchResult(results)
-    else:
-        if isinstance(circuit, QCircuit):
-            return _run_single(
-                circuit, device, values, display_breakpoints, provider_params
-            )
-        elif isinstance(circuit, Iterable):
-            results: list[Result] = []
-            for i, circ in enumerate(flatten(circuit)):
-                results.append(
-                    _run_single(
-                        namer(circ, i + 1),
-                        device,
-                        values,
-                        display_breakpoints,
-                        provider_params,
-                    )
+                binding_results.extend(result.results)
+            return BatchResult(binding_results)
+        return _run_circuit_binding(
+            circuit, device, display_breakpoints, provider_params
+        )
+
+    if isinstance(circuit, Iterable) or isinstance(device, Iterable):
+        devices = flatten(device)
+        results: list[Result] = []
+        for i, circ in enumerate(flatten(circuit)):
+            for dev in devices:
+                result = _run_single(
+                    circ, dev, values, display_breakpoints, provider_params
                 )
-            return BatchResult(results)
-        else:
-            if values is not None:
-                raise ValueError("values must be specified in CircuitBinding")
-            return _run_circuit_binding(
-                circuit, device, display_breakpoints, provider_params
-            )
+                # Display names belong to results, not to the circuit metadata
+                # used for structural matching.
+                if circ.label is None and result.label is None:
+                    result.label = f"circuit {i + 1}"
+                results.append(result)
+        return BatchResult(results)
+    return _run_single(circuit, device, values, display_breakpoints, provider_params)
 
 
 def submit(

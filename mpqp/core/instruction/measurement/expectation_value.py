@@ -85,6 +85,7 @@ class Observable:
         self.pre_transpiled = None
 
         if isinstance(observable, PauliString):
+            self._key_source = "_pauli_string"
             self.nb_qubits = observable.nb_qubits
             self._pauli_string = observable.simplify()
         else:
@@ -119,15 +120,18 @@ class Observable:
                         )
 
                     self._matrix = observable
+                    self._key_source = "_matrix"
 
                 else:
                     self._is_diagonal = True
                     self._diag_elements = observable.real.flatten().astype(np.float64)
+                    self._key_source = "_diag_elements"
 
             # correspond to isinstance(observable, list)
             else:
                 self._is_diagonal = True
                 self._diag_elements = np.array(observable, dtype=np.float64)
+                self._key_source = "_diag_elements"
 
     @property
     def matrix(self) -> Matrix:
@@ -178,6 +182,7 @@ class Observable:
             )
 
         self._matrix = matrix
+        self._key_source = "_matrix"
         self._pauli_string = None
         self._diag_elements = None
         self._is_diagonal = None
@@ -185,6 +190,7 @@ class Observable:
     @pauli_string.setter
     def pauli_string(self, pauli_string: PauliString):
         self._pauli_string = pauli_string
+        self._key_source = "_pauli_string"
         self._matrix = None
         self._diag_elements = None
         self._is_diagonal = None
@@ -202,6 +208,7 @@ class Observable:
         self._is_diagonal = True
         self._pauli_string = None
         self._matrix = None
+        self._key_source = "_diag_elements"
 
     def is_matrix_set(self):
         """Returns if the matrix is already set in the observable."""
