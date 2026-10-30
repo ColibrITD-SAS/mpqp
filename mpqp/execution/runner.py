@@ -18,7 +18,6 @@ return the corresponding job id and :class:`~mpqp.execution.job.Job` object.
 
 from __future__ import annotations
 
-from copy import copy
 from itertools import pairwise
 from numbers import Complex
 from textwrap import indent
@@ -26,7 +25,6 @@ from typing import TYPE_CHECKING, Iterable, Optional, Sequence, overload
 
 import numpy as np
 
-from mpqp.core._keys import ResultKey, Snapshot
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.breakpoint import Breakpoint
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
@@ -675,37 +673,17 @@ def run(
         )
 
     if isinstance(circuit, Iterable) or isinstance(device, Iterable):
-        # Snapshot every input before executing any job: providers may adapt a
-        # circuit or a shared measurement, and the same input can occur twice.
-        snapshot = Snapshot()
-        circuits = [
-            (
-                circ,
-                snapshot(circ),
-                snapshot(circ.measurements[0] if circ.measurements else None),
-            )
-            for circ in flatten(circuit)
-        ]
-        devices = [(dev, snapshot(dev)) for dev in flatten(device)]
-        del snapshot
+        devices = flatten(device)
         results: list[Result] = []
-        for i, (circ, circuit_key, measurement_key) in enumerate(circuits):
-            for dev, device_key in devices:
-                execution_circuit = circ
-                if circ.label is None:
-                    # Keep display names on the job copy so the submitted
-                    # circuit still matches its original, unlabeled snapshot.
-                    execution_circuit = copy(circ)
-                    execution_circuit.label = f"circuit {i + 1}"
+        for i, circ in enumerate(flatten(circuit)):
+            for dev in devices:
                 result = _run_single(
-                    execution_circuit,
-                    dev,
-                    values,
-                    display_breakpoints,
-                    provider_params,
+                    circ, dev, values, display_breakpoints, provider_params
                 )
-                key = ResultKey(circuit_key, device_key, measurement_key)
-                result._submitted_key = key  # pyright: ignore[reportPrivateUsage]
+                # Display names belong to results, not to the circuit metadata
+                # used for structural matching.
+                if circ.label is None and result.label is None:
+                    result.label = f"circuit {i + 1}"
                 results.append(result)
         return BatchResult(results)
     return _run_single(circuit, device, values, display_breakpoints, provider_params)

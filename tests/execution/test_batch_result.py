@@ -1,9 +1,8 @@
-"""Content lookup must retain submitted circuits and every individual run."""
+"""Lazy filtering uses current result metadata and retains every run."""
 
 from __future__ import annotations
 
 import json
-import pickle
 from copy import deepcopy
 from numbers import Complex
 from pathlib import Path
@@ -32,15 +31,7 @@ from mpqp import (
     pZ,
     run,
 )
-from mpqp.core._keys import (
-    Snapshot,
-    decode_key,
-    decode_result_key,
-    encode_key,
-    encode_result_key,
-    object_key,
-    result_key,
-)
+from mpqp.core._keys import Snapshot, object_key
 from mpqp.core.instruction.gates.custom_gate import CustomGate
 from mpqp.core.instruction.gates.native_gates import CP, PRX, SWAP, TOF, CRk, Rxx, U
 from mpqp.core.instruction.measurement.basis import HadamardBasis
@@ -111,9 +102,8 @@ def test_duplicates_and_detached_lists():
     assert BatchResult([]).get_matching().results == []
 
 
-def test_chained_filtering_retains_snapshots_duplicates_and_order():
+def test_chained_filtering_preserves_duplicates_order_and_current_metadata():
     circuit = QCircuit([H(0), BasisMeasure([0], label="readout")], label="input")
-    original = deepcopy(circuit)
     other = QCircuit([X(0), BasisMeasure([0], label="readout")], label="other")
     results = [
         make_result(circuit),
@@ -122,28 +112,26 @@ def test_chained_filtering_retains_snapshots_duplicates_and_order():
         make_result(circuit),
     ]
     batch = BatchResult(results)
-    circuit.label = "edited"
-    circuit.measurements[0].label = "edited readout"
-    results[0].job.device = AWSDevice.BRAKET_LOCAL_SIMULATOR
-
-    by_device = batch.get_matching(device=IBMDevice.AER_SIMULATOR)
-    refined = by_device.get_matching(measurement=original.measurements[0])
-    refined = refined.get_matching(circuit=original)
-    assert isinstance(refined, BatchResult)
+    refined = (
+        batch.get_matching(device=IBMDevice.AER_SIMULATOR)
+        .get_matching(measurement=circuit.measurements[0])
+        .get_matching(circuit=deepcopy(circuit))
+    )
     assert list(refined) == [results[0], results[3]]
     assert refined[0] is results[0]
     assert refined[-1] is results[3]
     assert refined[:] == [results[0], results[3]]
-    assert (
-        refined.results
-        == batch.get_matching(
-            circuit=original,
+    assert list(refined) == list(
+        batch.get_matching(
+            circuit=circuit,
             device=IBMDevice.AER_SIMULATOR,
-            measurement=original.measurements[0],
-        ).results
+            measurement=circuit.measurements[0],
+        )
     )
-    assert len(batch) == 4
-    assert len(by_device) == 3
+    before = deepcopy(circuit)
+    circuit.label = "edited"
+    assert len(refined.get_matching(circuit=before)) == 0
+    assert list(refined.get_matching(circuit=circuit)) == [results[0], results[3]]
 
 
 def test_full_and_empty_selections_are_independent_batches():
@@ -158,24 +146,27 @@ def test_full_and_empty_selections_are_independent_batches():
 
     empty = batch.get_matching(circuit=QCircuit([X(0)]))
     assert isinstance(empty, BatchResult)
-    assert not empty
+    assert len(empty) == 0
     assert list(empty) == []
     assert len(empty.get_matching(device=IBMDevice.AER_SIMULATOR)) == 0
     assert len(batch) == 1
 
 
-def test_snapshot_survives_nested_mutation():
+def test_queries_follow_nested_mutation_before_and_after_first_query():
     circuit = QCircuit([Rx(0.5, 0), BasisMeasure([0], shots=100)])
-    original = deepcopy(circuit)
+    before = deepcopy(circuit)
     result = make_result(circuit)
     batch = BatchResult([result])
-    circuit.instructions[0].targets[0] = 1
+    circuit.instructions[0].label = "edited before first query"
+    assert len(batch.get_matching(circuit=before)) == 0
+    assert batch.get_matching(circuit=deepcopy(circuit)).results == [result]
+    before = deepcopy(circuit)
     circuit.measurements[0].shots = 200
     circuit.add(X(0))
-    assert batch.get_matching(circuit=original).results == [result]
-    assert batch.get_matching(circuit=circuit).results == []
-    assert batch.get_matching(measurement=original.measurements[0]).results == [result]
-    assert batch.get_matching(measurement=circuit.measurements[0]).results == []
+    assert len(batch.get_matching(circuit=before)) == 0
+    assert batch.get_matching(circuit=circuit).results == [result]
+    assert len(batch.get_matching(measurement=before.measurements[0])) == 0
+    assert batch.get_matching(measurement=circuit.measurements[0]).results == [result]
 
 
 @pytest.mark.parametrize(
@@ -226,12 +217,12 @@ def test_circuit_gate_and_measurement_labels_distinguish_runs():
     ).results == [results[3]]
     before = deepcopy(original)
     original.label = "renamed"
-    assert batch.get_matching(circuit=before).results == [results[0]]
-    assert batch.get_matching(circuit=original).results == []
+    assert len(batch.get_matching(circuit=before)) == 0
+    assert batch.get_matching(circuit=original).results == [results[0]]
 
 
 @pytest.mark.parametrize("label", [None, "", "input"])
-def test_runner_preserves_submitted_labels(label: Optional[str]):
+def test_runner_keeps_display_names_separate_from_circuit_labels(label: Optional[str]):
     circuit = QCircuit([H(0)], label=label)
     before = deepcopy(circuit)
     with patch(
@@ -243,7 +234,8 @@ def test_runner_preserves_submitted_labels(label: Optional[str]):
     assert circuit.label == label
     assert batch.get_matching(circuit=before).results == [batch[0]]
     assert isinstance(batch[0].job.circuit, QCircuit)
-    assert batch[0].job.circuit.label == ("circuit 1" if label is None else label)
+    assert batch[0].job.circuit.label == label
+    assert batch[0].label == ("circuit 1" if label is None else None)
 
 
 @pytest.mark.parametrize(
@@ -297,36 +289,18 @@ def test_invalid_criteria_fail_explicitly(criterion: str):
         BatchResult([]).get_matching(**{criterion: cast(Any, "invalid")})
 
 
-def test_submitted_metadata_survives_job_mutation():
+def test_queries_follow_job_device_and_measurement_changes():
     circuit = QCircuit([H(0), BasisMeasure([0], shots=16)])
     original = deepcopy(circuit)
     result = make_result(circuit)
     batch = BatchResult([result])
+    assert batch.get_matching(device=IBMDevice.AER_SIMULATOR).results == [result]
     result.job.device = AWSDevice.BRAKET_LOCAL_SIMULATOR
     circuit.measurements[0].shots = 32
-    assert batch.get_matching(device=IBMDevice.AER_SIMULATOR).results == [result]
-    assert batch.get_matching(device=result.job.device).results == []
-    assert batch.get_matching(measurement=original.measurements[0]).results == [result]
-
-
-def test_submitted_key_serialization_and_legacy_fallback():
-    circuit = QCircuit([H(0), BasisMeasure([0], shots=16)])
-    device = IBMDevice.AER_SIMULATOR
-    key = result_key(circuit, device)
-    assert decode_result_key(encode_result_key(key), device, circuit) == key
-    recorded = deepcopy(circuit)
-    recorded.label = "recorded execution"
-    assert decode_result_key(
-        encode_key(object_key(circuit)), device, recorded
-    ) == result_key(recorded, device)
-    legacy = legacy_payload(key, 2)
-    assert decode_result_key(legacy, device, recorded) == result_key(recorded, device)
-    without_measurement = QCircuit([H(0)])
-    assert decode_result_key(
-        encode_key(object_key(without_measurement)), device, without_measurement
-    ) == result_key(without_measurement, device)
-    with pytest.raises(ValueError, match="version"):
-        decode_result_key('[99, []]', device, circuit)
+    assert len(batch.get_matching(device=IBMDevice.AER_SIMULATOR)) == 0
+    assert batch.get_matching(device=result.job.device).results == [result]
+    assert len(batch.get_matching(measurement=original.measurements[0])) == 0
+    assert batch.get_matching(measurement=circuit.measurements[0]).results == [result]
 
 
 def test_no_measurement_is_distinct_from_zero_shots():
@@ -352,11 +326,10 @@ def test_no_measurement_is_distinct_from_zero_shots():
         Depolarizing(0.1, [0]),
     ],
 )
-def test_component_keys_are_independent_and_serializable(value: Any):
+def test_component_comparisons_are_independent(value: Any):
     key = object_key(value)
     assert key == object_key(deepcopy(value))
     assert {key: "found"}[object_key(deepcopy(value))] == "found"
-    assert decode_key(encode_key(key)) == key
 
 
 def test_composable_circuit_measurement_keys():
@@ -427,29 +400,22 @@ def test_unknown_extensions_fail_explicitly():
         object_key(float("nan"))
 
 
-def test_runner_captures_all_inputs_before_execution():
-    theta = Symbol("theta")
-    circuit = QCircuit([Rx(theta, 0)])
-    original = deepcopy(circuit)
-
-    def execute(
-        circ: QCircuit,
-        device: AvailableDevice,
-        values: Optional[dict[Expr | str, Complex]],
-        *args: object,
-    ) -> Result:
-        assert values is not None
-        adapted = circ.subs(values)
-        circ.add(X(0))  # Simulate a provider mutating the shared input.
-        return make_result(adapted)
-
-    with patch("mpqp.execution.runner._run_single", side_effect=execute):
-        values: dict[Expr | str, Complex] = {theta: cast(Complex, 0.5)}
-        batch = run([circuit, circuit], [IBMDevice.AER_SIMULATOR], values)
-    assert isinstance(batch, BatchResult)
-    assert batch.get_matching(circuit=original).results == list(batch)
-    assert len(batch) == 2
-    assert batch.get_matching(circuit=circuit).results == []
+def test_runner_and_nonstructural_queries_do_not_capture_inputs():
+    circuit = QCircuit([H(0)])
+    with patch(
+        "mpqp.core._keys.Snapshot.__call__",
+        side_effect=AssertionError("Unnecessary capture"),
+    ), patch(
+        "mpqp.execution.runner._run_single",
+        side_effect=lambda circ, *args: make_result(circ),
+    ):
+        batch = run([circuit, circuit], IBMDevice.AER_SIMULATOR)
+        assert isinstance(batch, BatchResult)
+        assert len(batch) == 2
+        assert batch[:1] == [batch[0]]
+        assert list(batch.get_matching()) == list(batch)
+        assert list(batch.get_matching(device=IBMDevice.AER_SIMULATOR)) == list(batch)
+        assert list(batch.get_matching(measurement=None)) == list(batch)
 
 
 @pytest.mark.provider("qiskit")
@@ -460,7 +426,8 @@ def test_real_local_batch_and_multiple_devices():
     assert isinstance(batch, BatchResult)
     assert circuit.label is None
     assert isinstance(batch[0].job.circuit, QCircuit)
-    assert batch[0].job.circuit.label == "circuit 1"
+    assert batch[0].job.circuit.label is None
+    assert "circuit 1" in str(batch[0])
     np.testing.assert_allclose(
         batch.get_matching(circuit=circuit)[0].amplitudes,
         [2**-0.5, 0, 0, 2**-0.5],
@@ -483,32 +450,37 @@ def test_sampling_lookup():
 
 
 @pytest.mark.provider("qiskit")
-def test_observable_lookup_uses_submitted_measurement():
+def test_observable_lookup_uses_recorded_measurement():
     circuit = QCircuit(
         [X(1), ExpectationMeasure(Observable(pZ), [1], shots=0)], nb_qubits=2
     )
     original = deepcopy(circuit)
     batch = run([circuit], IBMDevice.AER_SIMULATOR)
     assert isinstance(batch, BatchResult)
-    assert batch.get_matching(circuit=original)[0].expectation_values == pytest.approx(
-        -1
-    )
-    assert batch.get_matching(circuit=circuit).results == [batch[0]]
-    assert batch.get_matching(measurement=original.measurements[0]).results == [
+    recorded = batch[0].job.circuit
+    assert isinstance(recorded, QCircuit)
+    assert len(batch.get_matching(circuit=original)) == 0
+    assert batch.get_matching(circuit=deepcopy(recorded))[
+        0
+    ].expectation_values == pytest.approx(-1)
+    assert batch.get_matching(measurement=deepcopy(batch[0].job.measure)).results == [
         batch[0]
     ]
 
 
 @pytest.mark.provider("qiskit")
-def test_symbolic_lookup_uses_submitted_parameters():
+def test_symbolic_lookup_uses_recorded_parameters():
     theta = Symbol("theta")
     circuit = QCircuit([Rx(theta, 0)])
     values: dict[Expr | str, Complex] = {theta: cast(Complex, np.pi)}
     batch = run([circuit], IBMDevice.AER_SIMULATOR, values)
     assert isinstance(batch, BatchResult)
-    np.testing.assert_allclose(
-        np.abs(batch.get_matching(circuit=circuit)[0].amplitudes), [0, 1], atol=1e-14
-    )
+    assert len(batch.get_matching(circuit=circuit)) == 0
+    recorded = batch[0].job.circuit
+    assert isinstance(recorded, QCircuit)
+    matches = batch.get_matching(circuit=deepcopy(recorded))
+    assert list(matches) == [batch[0]]
+    np.testing.assert_allclose(np.abs(matches[0].amplitudes), [0, 1], atol=1e-14)
 
 
 @pytest.fixture
@@ -523,24 +495,24 @@ def isolated_storage(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     return path
 
 
-def test_storage_preserves_submitted_keys_and_cleans_up(isolated_storage: Path):
+def test_save_and_load_do_not_capture_inputs(isolated_storage: Path):
     original = QCircuit([Rx(Symbol("theta"), 0)])
+    values: dict[Expr | str, Complex] = {"theta": cast(Complex, 0.5)}
     with patch(
+        "mpqp.core._keys.Snapshot.__call__",
+        side_effect=AssertionError("Unnecessary capture"),
+    ), patch(
         "mpqp.execution.runner._run_single",
         side_effect=lambda circ, dev, values, *args: make_result(circ.subs(values)),
     ):
-        values: dict[Expr | str, Complex] = {"theta": cast(Complex, 0.5)}
         batch = run([original], IBMDevice.AER_SIMULATOR, values)
-    assert isinstance(batch, BatchResult)
-    ids = batch.save()
-    restored = BatchResult.load_by_local_ids(ids)
+        assert isinstance(batch, BatchResult)
+        restored = BatchResult.load_by_local_ids(batch.save())
     assert len(restored) == 1
-    assert restored.get_matching(circuit=original).results == [restored[0]]
-    assert restored.get_matching(circuit=QCircuit([Rx(0.5, 0)])).results == []
-    with connect(isolated_storage) as connection:
-        assert connection.execute("SELECT COUNT(*) FROM result_keys").fetchone() == (1,)
-        connection.execute("DELETE FROM results")
-        assert connection.execute("SELECT COUNT(*) FROM result_keys").fetchone() == (0,)
+    assert len(restored.get_matching(circuit=original)) == 0
+    assert restored.get_matching(circuit=QCircuit([Rx(0.5, 0)])).results == [
+        restored[0]
+    ]
 
 
 def test_legacy_storage_falls_back_to_job_circuit(isolated_storage: Path):
@@ -553,53 +525,29 @@ def test_legacy_storage_falls_back_to_job_circuit(isolated_storage: Path):
     assert len(restored) == 1
 
 
-@pytest.mark.parametrize("legacy_version", [None, 1, 2])
-def test_storage_uses_submitted_or_legacy_recorded_criteria(
-    isolated_storage: Path, legacy_version: Optional[int]
+@pytest.mark.parametrize("with_old_metadata", [False, True])
+def test_storage_uses_recorded_metadata(
+    isolated_storage: Path, with_old_metadata: bool
 ):
     from mpqp.local_storage.save import insert_results
 
-    original = QCircuit(
-        [X(1), ExpectationMeasure(Observable(pZ), [1], shots=0)], nb_qubits=2
-    )
-    adapted = QCircuit([X(1), ExpectationMeasure(Observable(pZ @ pZ), [0, 1], shots=0)])
-    executed = Result(Job(JobType.OBSERVABLE, adapted, IBMDevice.AER_SIMULATOR), -1.0)
-    if legacy_version is not None:
-        # Legacy formats did not reliably preserve original labels.
-        ids = insert_results(executed)
-        old_key = result_key(original, executed.device)
-        data = (
-            encode_key(old_key.circuit)
-            if legacy_version == 1
-            else legacy_payload(old_key, 2)
-        )
+    circuit = QCircuit([H(0)])
+    ids = insert_results(make_result(circuit))
+    if with_old_metadata:
         with connect(isolated_storage) as connection:
             connection.execute(
                 "CREATE TABLE result_keys (result_id INTEGER PRIMARY KEY, circuit_key TEXT)"
             )
             connection.execute(
                 "INSERT INTO result_keys VALUES (?, ?)",
-                (ids[0], data),
+                (ids[0], json.dumps((3, (("scalar", None),) * 3))),
             )
-    else:
-        with patch("mpqp.execution.runner._run_single", return_value=executed):
-            batch = run([original], IBMDevice.AER_SIMULATOR)
-        assert isinstance(batch, BatchResult)
-        ids = batch.save()
     restored = BatchResult.load_by_local_ids(ids)
-    expected = adapted if legacy_version is not None else original
-    assert restored.get_matching(
-        circuit=expected,
-        device=IBMDevice.AER_SIMULATOR,
-        measurement=expected.measurements[0],
-    ).results == [restored[0]]
-    other = original if legacy_version is not None else adapted
-    assert restored.get_matching(measurement=other.measurements[0]).results == []
+    assert restored.get_matching(circuit=circuit).results == [restored[0]]
 
 
-def test_storage_preserves_submitted_labels(isolated_storage: Path):
+def test_storage_preserves_recorded_labels(isolated_storage: Path):
     circuit = QCircuit([H(0), BasisMeasure([0], label="readout")], label="input")
-    circuit.instructions[0].label = "preparation"
     batch = BatchResult([make_result(circuit)])
     restored = BatchResult.load_by_local_ids(batch.save())
     assert restored.get_matching(circuit=deepcopy(circuit)).results == [restored[0]]
@@ -617,37 +565,17 @@ def test_storage_preserves_submitted_labels(isolated_storage: Path):
 def test_refined_batch_can_be_saved_and_loaded(isolated_storage: Path):
     circuit = QCircuit([H(0), BasisMeasure([0], label="readout")], label="input")
     original = deepcopy(circuit)
-    results = [make_result(circuit), make_result(QCircuit([X(0)]))]
-    batch = BatchResult(results)
-    circuit.label = "edited"
-    circuit.measurements[0].label = "edited readout"
+    batch = BatchResult([make_result(circuit), make_result(QCircuit([X(0)]))])
     refined = batch.get_matching(device=IBMDevice.AER_SIMULATOR).get_matching(
         circuit=original, measurement=original.measurements[0]
     )
+    circuit.label = "edited"
+    circuit.measurements[0].label = "edited readout"
     restored = BatchResult.load_by_local_ids(refined.save())
     assert len(restored) == 1
-    assert restored.get_matching(circuit=original)[0] is restored[0]
-    assert restored.get_matching(measurement=original.measurements[0])[0] is restored[0]
-    assert not restored.get_matching(circuit=circuit)
-
-
-def legacy_payload(key: Any, version: int) -> str:
-    """Reproduce pre-packed-array snapshots, including their scalar tuples."""
-
-    def unpack(value: Any) -> Any:
-        if not isinstance(value, tuple):
-            return value
-        if value and value[0] == "array-v2":
-            _, shape, data, exceptions = value
-            overrides = dict(exceptions)
-            items = tuple(
-                overrides.get(i, object_key(item))
-                for i, item in enumerate(np.frombuffer(data, dtype="<c16"))
-            )
-            return ("array", shape, items)
-        return tuple(unpack(item) for item in value)
-
-    return json.dumps((version, unpack((key.circuit, key.device, key.measurement))))
+    assert restored.get_matching(circuit=circuit)[0] is restored[0]
+    assert restored.get_matching(measurement=circuit.measurements[0])[0] is restored[0]
+    assert len(restored.get_matching(circuit=original)) == 0
 
 
 @pytest.mark.parametrize(
@@ -668,7 +596,6 @@ def test_packed_array_numeric_equality(dtype: Any):
     expected = object_key(np.array([[0, 1], [0, 2]], dtype=np.complex128))
     assert object_key(value) == expected
     assert hash(object_key(value)) == hash(expected)
-    assert decode_key(encode_key(object_key(value))) == expected
 
 
 @pytest.mark.parametrize(
@@ -691,7 +618,6 @@ def test_packed_arrays_preserve_layout_independence_and_exact_values(value: Any)
     key = object_key(value)
     assert key == object_key(value.astype(object))
     assert key == object_key(np.asfortranarray(value).reshape(value.shape))
-    assert decode_key(encode_key(key)) == key
     saved = value.copy()
     if value.size:
         value.flat[0] = 0
@@ -723,39 +649,7 @@ def test_snapshot_reuses_shared_arrays_without_caching_mutable_sources():
     assert object_key(value) != first
 
 
-def test_version_three_matrix_keys_preserve_original_submitted_inputs():
-    circuit = QCircuit(
-        [H(0), ExpectationMeasure(Observable(np.diag([1.0, -1.0])), [0], shots=0)],
-        label="submitted",
-    )
-    key = result_key(circuit, IBMDevice.AER_SIMULATOR)
-    payload = legacy_payload(key, 3)
-    recorded = deepcopy(circuit)
-    recorded.label = "adapted"
-    restored = decode_result_key(payload, IBMDevice.AER_SIMULATOR, recorded)
-    assert restored == key
-    assert hash(restored) == hash(key)
-    assert restored != result_key(recorded, IBMDevice.AER_SIMULATOR)
-
-
-def test_cached_hash_is_recomputed_after_serialization():
-    key = result_key(QCircuit([H(0)]), IBMDevice.AER_SIMULATOR)
-    expected_hash = hash(key)
-    object.__setattr__(key, "_hash", expected_hash + 1)
-    restored = pickle.loads(pickle.dumps(key))
-    assert restored == key
-    assert hash(restored) == expected_hash
-    assert (
-        hash(
-            decode_result_key(
-                encode_result_key(key), IBMDevice.AER_SIMULATOR, QCircuit(1)
-            )
-        )
-        == expected_hash
-    )
-
-
-def test_packed_keys_resolve_hash_collisions_by_exact_content():
+def test_matrix_queries_distinguish_exact_content():
     first = QCircuit(
         [ExpectationMeasure(Observable(np.diag([1.0, -1.0])), [0], shots=0)]
     )
@@ -767,15 +661,9 @@ def test_packed_keys_resolve_hash_collisions_by_exact_content():
         ]
     )
     results = [make_result(first), make_result(second)]
-    for result in results:
-        assert isinstance(result.job.circuit, QCircuit)
-        key = result_key(result.job.circuit, result.device)
-        object.__setattr__(key, "_hash", 0)
-        result._submitted_key = key  # pyright: ignore[reportPrivateUsage]
     batch = BatchResult(results)
-    assert len(batch) == 2
-    assert batch.get_matching(circuit=first).results == [results[0]]
-    assert batch.get_matching(circuit=second).results == [results[1]]
+    assert batch.get_matching(circuit=deepcopy(first)).results == [results[0]]
+    assert batch.get_matching(circuit=deepcopy(second)).results == [results[1]]
 
 
 @pytest.mark.parametrize(
@@ -800,7 +688,7 @@ def test_packed_keys_resolve_hash_collisions_by_exact_content():
         ),
     ],
 )
-def test_native_gate_keys_preserve_the_stored_structural_format(
+def test_native_gate_keys_include_all_structural_fields(
     gate: Any, fields: tuple[str, ...]
 ):
     expected = (
@@ -811,7 +699,6 @@ def test_native_gate_keys_preserve_the_stored_structural_format(
     )
     key = object_key(gate)
     assert key == expected
-    assert decode_key(encode_key(key)) == expected
     original = deepcopy(gate)
     gate.label = "edited gate"
     assert object_key(gate) != key
@@ -886,7 +773,6 @@ def test_array_fast_path_preserves_source_bits_and_snapshot_independence(
     if values.flags.writeable:
         values[0, 0] = 3
         assert key != object_key(values)
-    assert decode_key(encode_key(key)) == expected
 
 
 @pytest.mark.parametrize("gate_class,name", [(H, "H"), (CNOT, "CNOT"), (Rx, "Rx")])
@@ -894,7 +780,6 @@ def test_gate_classes_use_type_keys(gate_class: type, name: str):
     expected = ("type", "mpqp.core.instruction.gates.native_gates", name)
     key = object_key(gate_class)
     assert key == expected
-    assert decode_key(encode_key(key)) == expected
     assert object_key((gate_class,)) == ("sequence", (expected,))
     assert key != object_key(H(0))
 
@@ -908,8 +793,8 @@ def test_noisy_circuit_matching_distinguishes_gate_classes():
     assert batch.get_matching(circuit=original).results == [first]
     assert batch.get_matching(circuit=other).results == [second]
     circuit.noises[0].gates[0] = X
-    assert batch.get_matching(circuit=original).results == [first]
-    assert batch.get_matching(circuit=circuit).results == [second]
+    assert len(batch.get_matching(circuit=original)) == 0
+    assert batch.get_matching(circuit=circuit).results == [first, second]
 
 
 def test_storage_preserves_gate_class_selectors(isolated_storage: Path):
@@ -919,8 +804,8 @@ def test_storage_preserves_gate_class_selectors(isolated_storage: Path):
     circuit.noises[0].gates[0] = X
     restored = BatchResult.load_by_local_ids(batch.save())
     assert len(restored) == 1
-    assert restored.get_matching(circuit=original).results == [restored[0]]
-    assert not restored.get_matching(circuit=circuit)
+    assert len(restored.get_matching(circuit=original)) == 0
+    assert restored.get_matching(circuit=circuit).results == [restored[0]]
 
 
 def test_separate_job_measurement_matching_and_storage(isolated_storage: Path):
@@ -934,23 +819,72 @@ def test_separate_job_measurement_matching_and_storage(isolated_storage: Path):
     )
     batch = BatchResult([result])
     assert batch.get_matching(circuit=circuit, measurement=original).results == [result]
-    assert not batch.get_matching(measurement=None)
+    assert len(batch.get_matching(measurement=None)) == 0
     restored = BatchResult.load_by_local_ids(batch.save())
     assert restored.get_matching(measurement=original).results == [restored[0]]
-    assert not restored.get_matching(measurement=None)
+    assert len(restored.get_matching(measurement=None)) == 0
     measurement.shots = 32
-    assert batch.get_matching(measurement=original).results == [result]
-    assert not batch.get_matching(measurement=measurement)
+    assert len(batch.get_matching(measurement=original)) == 0
+    assert batch.get_matching(measurement=measurement).results == [result]
 
 
-def test_legacy_keys_fall_back_to_separate_job_measurement():
-    circuit = QCircuit([H(0)])
+def test_basic_batch_operations_do_not_capture_metadata():
+    results = [
+        make_result(QCircuit([H(0)])),
+        make_result(QCircuit([X(0)]), AWSDevice.BRAKET_LOCAL_SIMULATOR),
+    ]
+    with patch(
+        "mpqp.core._keys.Snapshot.__call__",
+        side_effect=AssertionError("Unnecessary capture"),
+    ):
+        batch = BatchResult(results)
+        assert len(batch) == 2
+        assert batch[0] is results[0]
+        assert batch[:] == results
+        assert list(batch) == results
+        assert batch.get_matching().results == results
+        assert batch.get_matching(device=IBMDevice.AER_SIMULATOR).results == results[:1]
+
+
+def test_measurement_queries_do_not_inspect_circuits():
+    class UnsupportedGate(H):
+        pass
+
     measurement = BasisMeasure([0], shots=16)
-    key = result_key(circuit, IBMDevice.AER_SIMULATOR, measurement=measurement)
-    restored = decode_result_key(
-        legacy_payload(key, 2),
-        IBMDevice.AER_SIMULATOR,
-        circuit,
-        measurement=measurement,
-    )
-    assert restored.measurement == object_key(measurement)
+    circuit = QCircuit([UnsupportedGate(0), measurement])
+    result = make_result(circuit)
+    batch = BatchResult([result])
+    assert batch.get_matching(measurement=deepcopy(measurement)).results == [result]
+    with pytest.raises(TypeError, match="explicit structural key"):
+        batch.get_matching(circuit=circuit)
+
+
+def test_device_rejection_avoids_structural_capture():
+    result = make_result(QCircuit([H(0)]))
+    batch = BatchResult([result])
+    with patch(
+        "mpqp.core._keys.Snapshot.__call__",
+        side_effect=AssertionError("Unnecessary capture"),
+    ):
+        assert (
+            len(
+                batch.get_matching(
+                    device=AWSDevice.BRAKET_LOCAL_SIMULATOR,
+                    circuit=QCircuit([X(0)]),
+                    measurement=BasisMeasure([0]),
+                )
+            )
+            == 0
+        )
+
+
+def test_repeated_queries_follow_current_metadata():
+    circuit = QCircuit([Rx(0.5, 0)])
+    before = deepcopy(circuit)
+    batch = BatchResult([make_result(circuit), make_result(circuit)])
+    assert len(batch.get_matching(circuit=before)) == 2
+    gate = circuit.instructions[0]
+    assert isinstance(gate, Rx)
+    gate.parameters[0] = 0.8
+    assert len(batch.get_matching(circuit=before)) == 0
+    assert len(batch.get_matching(circuit=deepcopy(circuit))) == 2

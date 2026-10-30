@@ -6,7 +6,7 @@ storage. In the process, they are converted to MPQP  objects
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
 
 from mpqp import *
 from mpqp.local_storage.queries import *
@@ -109,47 +109,7 @@ def results_local_storage_to_mpqp(
                 )
             )
 
-    _restore_submitted_keys(
-        [results] if isinstance(results, dict) else results, results_mpqp
-    )
     return results_mpqp
-
-
-def _restore_submitted_keys(records: list[DictDB], results: list[Result]) -> None:
-    """Restore optional submitted criteria; older records use job metadata."""
-    from sqlite3 import connect
-
-    from mpqp.core._keys import decode_result_key
-    from mpqp.environment.env_manager import get_env_variable
-
-    if not records or not any("id" in record for record in records):
-        return
-    connection = connect(get_env_variable("DB_PATH"))
-    try:
-        if (
-            connection.execute(
-                "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'result_keys'"
-            ).fetchone()
-            is None
-        ):
-            return
-        for record, result in zip(records, results):
-            row = connection.execute(
-                "SELECT circuit_key FROM result_keys WHERE result_id = ?",
-                (record.get("id"),),
-            ).fetchone()
-            if row is not None:
-                if TYPE_CHECKING:
-                    assert isinstance(result.job.circuit, QCircuit)
-                key = decode_result_key(
-                    row[0],
-                    result.device,
-                    result.job.circuit,
-                    measurement=result.job.measure,
-                )
-                result._submitted_key = key  # pyright: ignore[reportPrivateUsage]
-    finally:
-        connection.close()
 
 
 def get_all_jobs() -> list[Job]:

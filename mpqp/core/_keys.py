@@ -1,69 +1,24 @@
-"""Immutable, provider-independent snapshots used for result lookup.
+"""Provider-independent structural comparisons captured during result filtering.
 
 Keys describe exact structure and labels, rather than numerical equivalence.
 Inferred-size bookkeeping and execution caches are deliberately excluded. This is
 an internal protocol: mutable MPQP objects themselves remain unchanged.
+Snapshots live only for one query, so later queries see current metadata.
 """
 
 from __future__ import annotations
 
-import base64
-import json
 import math
 from collections.abc import Hashable
-from dataclasses import dataclass, field
 from enum import Enum as PythonEnum
 from functools import lru_cache
-from typing import TYPE_CHECKING, Any, Callable, Iterable, cast
+from typing import Any, Callable, Iterable, cast
 
 import numpy as np
 from aenum import Enum
 from sympy import Basic, srepr
 
 ObjectKey = tuple[Hashable, ...]
-
-if TYPE_CHECKING:
-    from mpqp.core.circuit import QCircuit
-    from mpqp.core.instruction.measurement.measure import Measure
-    from mpqp.execution.devices import AvailableDevice
-
-
-@dataclass(frozen=True)
-class ResultKey:
-    """Independent submitted criteria identifying one group of executions."""
-
-    circuit: ObjectKey
-    device: ObjectKey
-    measurement: ObjectKey
-    _hash: int = field(init=False, repr=False, compare=False)
-
-    def __post_init__(self) -> None:
-        object.__setattr__(
-            self, "_hash", hash((self.circuit, self.device, self.measurement))
-        )
-
-    def __hash__(self) -> int:
-        return self._hash
-
-    def __reduce__(
-        self,
-    ) -> tuple[type[ResultKey], tuple[ObjectKey, ObjectKey, ObjectKey]]:
-        # Hashes depend on the Python process; reconstruct instead of serializing.
-        return ResultKey, (self.circuit, self.device, self.measurement)
-
-
-def result_key(
-    circuit: QCircuit,
-    device: AvailableDevice,
-    snapshot: Snapshot | None = None,
-    *,
-    measurement: Measure | None = None,
-) -> ResultKey:
-    """Capture criteria from a job circuit or an input before execution."""
-    snapshot = snapshot if snapshot is not None else Snapshot()
-    if measurement is None:
-        measurement = circuit.measurements[0] if circuit.measurements else None
-    return ResultKey(snapshot(circuit), snapshot(device), snapshot(measurement))
 
 
 class Snapshot:
@@ -386,79 +341,3 @@ def _domain_fields(value_type: type) -> Callable[[Any], tuple[str, ...]]:
     if issubclass(value_type, Breakpoint):
         return fixed("targets", "enabled", "draw_circuit")
     raise TypeError(f"Result lookup keys do not support {value_type.__qualname__}")
-
-
-def encode_key(key: ObjectKey) -> str:
-    """Serialize key data without executable object representations."""
-    return json.dumps((1, key), allow_nan=False, default=_json_bytes)
-
-
-def decode_key(data: str) -> ObjectKey:
-    """Restore immutable key data without importing or evaluating stored names."""
-    version, restored = _decode_payload(data)
-    if version != 1:
-        raise ValueError(f"Unsupported result lookup key version: {version}")
-    return restored
-
-
-def encode_result_key(key: ResultKey) -> str:
-    """Store submitted criteria as versioned JSON in the legacy metadata column."""
-    return json.dumps(
-        (4, (key.circuit, key.device, key.measurement)),
-        allow_nan=False,
-        default=_json_bytes,
-    )
-
-
-def decode_result_key(
-    data: str,
-    device: AvailableDevice,
-    circuit: QCircuit,
-    *,
-    measurement: Measure | None = None,
-) -> ResultKey:
-    """Restore criteria; older label-free keys fall back to the recorded job."""
-    version, value = _decode_payload(data)
-    if version in (3, 4):
-        if len(value) != 3 or not all(isinstance(item, tuple) for item in value):
-            raise ValueError("Invalid submitted result criteria")
-        circuit_key, device_key, measurement_key = cast(
-            tuple[ObjectKey, ObjectKey, ObjectKey], value
-        )
-        return ResultKey(circuit_key, device_key, measurement_key)
-    if version in (1, 2):
-        # These formats omitted labels, which cannot be recovered reliably from
-        # the original snapshots. Never treat a missing label as a wildcard.
-        return result_key(circuit, device, measurement=measurement)
-    raise ValueError(f"Unsupported result lookup key version: {version}")
-
-
-def _decode_payload(data: str) -> tuple[int, ObjectKey]:
-    version, value = json.loads(data)
-    if version not in (1, 2, 3, 4):
-        raise ValueError(f"Unsupported result lookup key version: {version}")
-
-    def restore(item: Any) -> Hashable:
-        if isinstance(item, list):
-            restored = tuple(restore(child) for child in item)
-            if len(restored) == 3 and restored[0] == "array":
-                return _pack_array(
-                    restored[1], cast(tuple[ObjectKey, ...], restored[2])
-                )
-            return restored
-        if isinstance(item, dict) and set(item) == {"bytes"}:
-            return base64.b64decode(item["bytes"], validate=True)
-        if item is None or isinstance(item, (str, bool, int, float)):
-            return item
-        raise ValueError("Invalid result lookup key data")
-
-    restored = restore(value)
-    if not isinstance(restored, tuple):
-        raise ValueError("Invalid result lookup key data")
-    return version, restored
-
-
-def _json_bytes(value: Any) -> dict[str, str]:
-    if isinstance(value, bytes):
-        return {"bytes": base64.b64encode(value).decode("ascii")}
-    raise TypeError(f"Unsupported lookup key value: {type(value).__qualname__}")
