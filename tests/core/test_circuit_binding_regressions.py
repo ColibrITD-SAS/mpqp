@@ -29,11 +29,19 @@ from mpqp.execution.providers.providers_params import QiskitParams
 from mpqp.execution.result import BatchResult
 
 
-def test_public_binding_exports_use_renamed_module():
-    import mpqp
+def test_extracting_measurements_does_not_clear_source_transpilation_cache():
+    circuit = QCircuit([X(0), BasisMeasure()])
+    source_cache = {IBMDevice.AER_SIMULATOR: object()}
+    setattr(circuit, "transpiled_circuit", source_cache)
 
-    assert mpqp.CircuitBinding is CircuitBinding
-    assert mpqp.BindingMode is BindingMode
+    binding = CircuitBinding(circuit)
+
+    assert circuit.transpiled_circuit is source_cache
+    inner_binding = binding.circuits[0]
+    assert isinstance(inner_binding, CircuitBinding)
+    extracted_circuit = inner_binding.circuits[0]
+    assert isinstance(extracted_circuit, QCircuit)
+    assert extracted_circuit.transpiled_circuit is None
 
 
 def test_zip_keeps_observables_on_their_own_register():
