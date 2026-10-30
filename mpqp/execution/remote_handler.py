@@ -92,11 +92,15 @@ def get_remote_result(
 
     """
 
-    job_id: str | list[str]
+    job_id: str
 
     if isinstance(job_data, Job):
         if job_data.id is None:
             raise ValueError("Can't retrieve remote result for a job whose id is None.")
+        if isinstance(job_data.id, list):
+            raise NotImplementedError(
+                "Can't retrieve remote result for a job with multiple ids."
+            )
 
         job_id = job_data.id
         job_device = job_data.device
@@ -108,11 +112,6 @@ def get_remote_result(
             )
         job_id = job_data
         job_device = device
-
-    if isinstance(job_id, list):
-        raise NotImplementedError(
-            "Can't retrieve remote result for a job with multiple ids."
-        )
 
     if not job_device.is_remote():
         raise ValueError(
