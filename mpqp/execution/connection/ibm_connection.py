@@ -247,7 +247,7 @@ def get_backend(device: IBMDevice, instance: Optional[str] = None) -> "BackendV2
 
     Args:
         device: The device to get from the qiskit Runtime service.
-        instance: IBM Quantum instance used to retrive the backend.
+        instance: IBM Quantum instance used to retrieve the backend.
 
     Returns:
         The requested backend.

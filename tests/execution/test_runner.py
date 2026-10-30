@@ -19,8 +19,44 @@ from mpqp import (
 )
 from mpqp.core.instruction.measurement import PauliString
 from mpqp.execution import adjust_measure
+from mpqp.execution.job import Job, JobStatus, JobType
+from mpqp.execution.providers.providers_params import QiskitParams
+from mpqp.execution.result import Result, Sample
 from mpqp.tools.errors import NumberQubitsError
 from mpqp.tools.maths import matrix_eq
+
+
+def test_diagonal_optimization_preserves_provider_parameters(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    params = QiskitParams(
+        instance="selected-instance",
+        options={"environment": {"private": True, "job_tags": ["experiment"]}},
+    )
+    monkeypatch.setattr(params, "qctrl_function", object())
+
+    def execute(job: Job, qiskit_params: QiskitParams | None = None) -> Result:
+        assert qiskit_params is params
+        assert job.job_type == JobType.SAMPLE
+        assert isinstance(job.measure, BasisMeasure)
+        assert job.measure.shots == 100
+        job.id = "sampling-job-id"
+        job.status = JobStatus.DONE
+        return Result(job, [Sample(1, index=1, count=100)], shots=100)
+
+    monkeypatch.setattr("mpqp.execution.runner.run_ibm", execute)
+    circuit = QCircuit(
+        [
+            X(0),
+            ExpectationMeasure(Observable(pZ), shots=100, optim_diagonal=True),
+        ]
+    )
+
+    result = run(circuit, IBMDevice.IBM_FEZ, provider_params=params)
+
+    assert isinstance(result, Result)
+    assert result.expectation_values == pytest.approx(-1.0)
+    assert result.job.id == "sampling-job-id"
 
 
 @pytest.mark.parametrize(
