@@ -15,8 +15,8 @@ theta, phi, k = symbols("θ φ k")
 
 c, s, e = cos(theta), sin(theta), exp(1.0 * I * theta)
 c2, s2, e2 = (
-    cos(theta / 2),  # pyright: ignore[reportOperatorIssue]
-    sin(theta / 2),  # pyright: ignore[reportOperatorIssue]
+    cos(theta / 2),
+    sin(theta / 2),
     exp(1.0 * I * theta / 2),
 )
 e_phi = exp(1.0 * I * phi)
@@ -59,8 +59,8 @@ def test_P(angle: float, result_matrix: Matrix):
             0,
             np.array(
                 [
-                    [c2, -1.0 * s2],  # pyright: ignore[reportOperatorIssue]
-                    [1.0 * s2, 1.0 * c2],  # pyright: ignore[reportOperatorIssue]
+                    [c2, -1.0 * s2],
+                    [1.0 * s2, 1.0 * c2],
                 ]
             ),
         ),
@@ -88,8 +88,8 @@ def test_U(theta: float, phi: float, gamma: float, result_matrix: Matrix):
             theta,
             np.array(
                 [
-                    [c2, -1j * s2],  # pyright: ignore[reportOperatorIssue]
-                    [-1j * s2, c2],  # pyright: ignore[reportOperatorIssue]
+                    [c2, -1j * s2],
+                    [-1j * s2, c2],
                 ]
             ),
         ),
@@ -150,10 +150,10 @@ def test_Rz(angle: float, result_matrix: Matrix):
             theta,
             np.array(
                 [
-                    [c2, 0, 0, -1j * s2],  # pyright: ignore[reportOperatorIssue]
-                    [0, c2, -1j * s2, 0],  # pyright: ignore[reportOperatorIssue]
-                    [0, -1j * s2, c2, 0],  # pyright: ignore[reportOperatorIssue]
-                    [-1j * s2, 0, 0, c2],  # pyright: ignore[reportOperatorIssue]
+                    [c2, 0, 0, -1j * s2],
+                    [0, c2, -1j * s2, 0],
+                    [0, -1j * s2, c2, 0],
+                    [-1j * s2, 0, 0, c2],
                 ]
             ),
         ),
@@ -182,10 +182,10 @@ def test_Rxx(angle: float, result_matrix: Matrix):
             theta,
             np.array(
                 [
-                    [c2, 0, 0, 1j * s2],  # pyright: ignore[reportOperatorIssue]
-                    [0, c2, -1j * s2, 0],  # pyright: ignore[reportOperatorIssue]
-                    [0, -1j * s2, c2, 0],  # pyright: ignore[reportOperatorIssue]
-                    [1j * s2, 0, 0, c2],  # pyright: ignore[reportOperatorIssue]
+                    [c2, 0, 0, 1j * s2],
+                    [0, c2, -1j * s2, 0],
+                    [0, -1j * s2, c2, 0],
+                    [1j * s2, 0, 0, c2],
                 ]
             ),
         ),
@@ -229,8 +229,8 @@ def test_Rzz(angle: float, result_matrix: Matrix):
             phi,
             np.array(
                 [
-                    [c2, -1j * s2 / e_phi],  # pyright: ignore[reportOperatorIssue]
-                    [-1j * s2 * e_phi, c2],  # pyright: ignore[reportOperatorIssue]
+                    [c2, -1j * s2 / e_phi],
+                    [-1j * s2 * e_phi, c2],
                 ]
             ),
         ),
@@ -271,7 +271,7 @@ def symbolic_circuits() -> list[tuple[QCircuit, dict[str, float], float]]:
     assumed_theta = symbols("assumed_theta", real=True)
     return [
         (
-            QCircuit([Ry(2 * theta + phi, 0)]),  # pyright: ignore[reportOperatorIssue]
+            QCircuit([Ry(2 * theta + phi, 0)]),
             {"θ": 0.2, "φ": 0.1},
             float(np.sin(0.25) ** 2),
         ),

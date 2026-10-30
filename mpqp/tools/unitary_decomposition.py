@@ -198,13 +198,7 @@ def _decompose(
         )
         circuit = _decompose(Vv, circuit, targets, position + 1)
 
-        circuit = _gray_code_decomposition(
-            thetas,
-            circuit,
-            targets,
-            position,
-            Ry,  # pyright: ignore[reportArgumentType]
-        )
+        circuit = _gray_code_decomposition(thetas, circuit, targets, position, Ry)
 
         circuit = _decompose(Wu, circuit, targets, position + 1)
         circuit = _gray_code_decomposition(
