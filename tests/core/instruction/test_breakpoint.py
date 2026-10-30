@@ -1,7 +1,21 @@
 import pytest
 from pytest import CaptureFixture
 
-from mpqp import CNOT, ATOSDevice, Breakpoint, H, QCircuit, Y, run
+from mpqp import (
+    CNOT,
+    ATOSDevice,
+    BasisMeasure,
+    Breakpoint,
+    ExpectationMeasure,
+    H,
+    Measure,
+    Observable,
+    QCircuit,
+    X,
+    Y,
+    pZ,
+    run,
+)
 from mpqp.execution.devices import (
     ATOSDevice,
     AvailableDevice,
@@ -79,6 +93,32 @@ DEBUG: After instruction 3, state is
 """,
     ),
 ]
+
+
+@pytest.mark.provider("qiskit")
+@pytest.mark.parametrize(
+    "measurement",
+    [BasisMeasure([0], shots=10), ExpectationMeasure(Observable(pZ))],
+)
+def test_breakpoints_after_measurement(
+    measurement: Measure, capsys: CaptureFixture[str]
+):
+    circuit = QCircuit([X(0), measurement, Breakpoint(), X(0), Breakpoint()])
+    original = repr(circuit)
+
+    result = run(circuit, IBMDevice.AER_SIMULATOR)
+
+    assert capsys.readouterr().out == (
+        "DEBUG: After instruction 1, state is\n"
+        "       |1⟩\n"
+        "DEBUG: After instruction 2, state is\n"
+        "       |0⟩\n"
+    )
+    if isinstance(measurement, BasisMeasure):
+        assert result.counts == [10, 0]
+    else:
+        assert result.expectation_values == pytest.approx(1)
+    assert repr(circuit) == original
 
 
 @pytest.mark.provider("qiskit")

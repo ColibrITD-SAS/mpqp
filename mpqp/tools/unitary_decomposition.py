@@ -218,21 +218,28 @@ def _decompose(
 def _optimize_circuit(circuit: QCircuit) -> QCircuit:
     """
     Optimize the circuit of the decomposition by removing useless CNOT gates.
+
+    Dimensions are not recomputed: :func:`_decompose` applies single-qubit
+    rotations on every target qubit and only CNOTs are removed here, so the
+    qubits used by the circuit cannot change.
     """
-    length = len(circuit.instructions)
+    instructions = circuit.instructions
+    length = len(instructions)
     i = 0
     while i < length - 2:
-        if isinstance(circuit.instructions[i], CNOT):
+        if isinstance(instructions[i], CNOT):
             j = i + 1
-            while isinstance(circuit.instructions[j], CNOT):
-                if circuit.instructions[i] == circuit.instructions[j]:
-                    circuit.instructions.pop(j)
-                    circuit.instructions.pop(i)
+            while isinstance(instructions[j], CNOT):
+                if instructions[i] == instructions[j]:
+                    circuit.pop(j, recompute_dimensions=False)
+                    circuit.pop(i, recompute_dimensions=False)
+                    del instructions[j], instructions[i]
                     length -= 2
                     i -= 1
                     break
                 j += 1
         i += 1
+
     return circuit
 
 

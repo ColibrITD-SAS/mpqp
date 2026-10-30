@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import random
+from numbers import Complex
 from typing import TYPE_CHECKING, Optional, Sequence
 
 import numpy as np
@@ -10,6 +11,7 @@ from qiskit import ClassicalRegister
 from qiskit import QuantumCircuit as QiskitCircuit
 from qiskit import QuantumRegister
 from qiskit.circuit.random import random_circuit as random_qiskit_circuit
+from sympy import symbols
 
 from mpqp.core.instruction.gates.custom_gate import CustomGate
 from mpqp.execution.devices import (
@@ -25,6 +27,7 @@ if TYPE_CHECKING:
     from cirq.circuits.circuit import Circuit as cirq_Circuit
     from cirq.circuits.moment import Moment
     from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
+    from sympy import Expr
 
 from mpqp import (
     CNOT,
@@ -77,6 +80,8 @@ from mpqp.tools.display import one_lined_repr
 from mpqp.tools.errors import NonReversibleWarning
 from mpqp.tools.generics import Matrix, OneOrMany
 from mpqp.tools.maths import matrix_eq
+
+theta, phi, alpha = symbols("theta phi alpha")
 
 
 @pytest.fixture
@@ -346,6 +351,241 @@ def test_add(
         assert str(init_circuit) == f.read()
 
 
+def test_remove_instructions():
+    circuit = QCircuit([X(0), H(1), CNOT(0, 1)])
+
+    circuit.remove(H(1))
+    assert circuit.instructions == [X(0), CNOT(0, 1)]
+
+    circuit.remove([X(0), CNOT(0, 1)])
+    assert circuit.instructions == []
+
+    with pytest.raises(ValueError):
+        circuit.remove(X(0))
+
+
+def test_pop_instructions_by_index():
+    first_h, second_h = H(0), H(0)
+    measurement = BasisMeasure([0, 1])
+    circuit = QCircuit([first_h, X(1), second_h, measurement])
+
+    assert circuit.pop(2) is second_h
+    assert circuit.instructions == [H(0), X(1), measurement]
+    assert circuit.measurements == [measurement]
+
+    assert circuit.pop(0) is first_h
+    assert circuit.instructions == [X(1), measurement]
+    assert circuit.measurements == [measurement]
+
+    assert circuit.pop() is measurement
+    assert circuit.instructions == [X(1)]
+    assert circuit.measurements == []
+    assert circuit.nb_qubits == 2
+    assert circuit.nb_cbits == 0
+
+    assert circuit.pop(-1) == X(1)
+    assert circuit.instructions == []
+    assert circuit.nb_qubits == 0
+
+
+def test_pop_keeps_measurement_indexes_consistent():
+    measurement = BasisMeasure([0], shots=10)
+    circuit = QCircuit([X(0), measurement, H(0)])
+
+    circuit.pop(0)
+
+    assert circuit.instructions == [measurement, H(0)]
+    assert circuit.measurements == [measurement]
+
+
+@pytest.mark.parametrize("index", [3, -4])
+def test_pop_out_of_range(index: int):
+    circuit = QCircuit([X(0), H(1), CNOT(0, 1)])
+
+    with pytest.raises(IndexError):
+        circuit.pop(index)
+
+    assert circuit.instructions == [X(0), H(1), CNOT(0, 1)]
+
+
+def test_pop_empty_circuit():
+    with pytest.raises(IndexError):
+        QCircuit(2).pop()
+
+
+def test_pop_preserves_explicit_dimensions():
+    circuit = QCircuit(
+        [X(0), BasisMeasure([0, 1], c_targets=[0, 1])], nb_qubits=4, nb_cbits=3
+    )
+
+    circuit.pop()
+    circuit.pop()
+
+    assert circuit.nb_qubits == 4
+    assert circuit.nb_cbits == 3
+
+
+def test_pop_without_recomputing_dimensions():
+    circuit = QCircuit([H(0), X(3), BasisMeasure([0, 1, 2, 3])])
+
+    circuit.pop(recompute_dimensions=False)
+    circuit.pop(recompute_dimensions=False)
+
+    assert circuit.instructions == [H(0)]
+    assert circuit.measurements == []
+    assert circuit.nb_qubits == 4
+    assert circuit.nb_cbits == 4
+
+    circuit.add(X(1))
+    circuit.pop()
+
+    assert circuit.nb_qubits == 1
+    assert circuit.nb_cbits == 0
+
+
+def test_variables_follow_pop():
+    theta = symbols("theta")
+    circuit = QCircuit([Rx(theta, 0), X(0)])
+
+    assert circuit.variables() == {theta}
+    circuit.pop(0)
+    assert circuit.variables() == set()
+
+
+def test_remove_recomputes_dynamic_dimensions():
+    measurement = BasisMeasure([0])
+    circuit = QCircuit([measurement])
+
+    circuit.remove(measurement)
+
+    assert circuit.nb_qubits == 0
+    assert circuit.nb_cbits == 0
+
+    replacement = BasisMeasure([0])
+    circuit.add(replacement)
+
+    assert replacement.c_targets == [0]
+    assert circuit.nb_qubits == 1
+    assert circuit.nb_cbits == 1
+
+
+def test_remove_recomputes_highest_used_qubit():
+    highest_gate = X(3)
+    circuit = QCircuit([highest_gate, X(0)])
+
+    circuit.remove(highest_gate)
+
+    assert circuit.nb_qubits == 1
+
+
+@pytest.mark.parametrize("dimension", [1, 2, 3])
+@pytest.mark.parametrize("with_measurement", [False, True])
+def test_remove_retains_noise_width(dimension: int, with_measurement: bool):
+    noises = [Depolarizing(0.1, dimension=dimension), BitFlip(0.1)]
+    circuit = QCircuit(noises)
+    assert circuit.nb_qubits == dimension
+    if with_measurement:
+        circuit.add(BasisMeasure())
+    circuit.add([X(0), X(4)])
+
+    circuit.remove(X(4))
+
+    assert circuit.gates == [X(0)]
+    assert circuit.nb_qubits == dimension
+    assert all(noise.targets == list(range(dimension)) for noise in noises)
+    if with_measurement:
+        assert circuit.measurements[0].targets == list(range(dimension))
+        assert circuit.nb_cbits == dimension
+
+    circuit.remove(X(0))
+    assert circuit.gates == []
+    assert circuit.nb_qubits == dimension
+
+
+def test_remove_retains_explicit_noise_targets():
+    noise = Depolarizing(0.1, targets=[1, 4], dimension=2)
+    circuit = QCircuit([X(6), noise])
+
+    circuit.remove(X(6))
+
+    assert circuit.nb_qubits == 5
+    assert noise.targets == [1, 4]
+
+
+@pytest.mark.parametrize(
+    "noise", [BitFlip(0.1), AmplitudeDamping(0.1), PhaseDamping(0.1)]
+)
+def test_remove_retains_single_qubit_noise_width(noise: NoiseModel):
+    circuit = QCircuit([X(3), noise])
+
+    circuit.remove(X(3))
+
+    assert circuit.nb_qubits == 1
+    assert noise.targets == [0]
+
+
+@pytest.mark.provider("qiskit")
+@pytest.mark.parametrize("nb_qubits", [1, 2])
+def test_remove_preserves_observable_width(nb_qubits: int):
+    observable = Observable(np.diag([1] + [-1] * (2**nb_qubits - 1)))
+    measurement = ExpectationMeasure(observable)
+    gate = X(nb_qubits - 1)
+    circuit = QCircuit([gate, measurement])
+
+    circuit.remove(gate)
+
+    assert circuit.nb_qubits == nb_qubits
+    assert measurement.targets == list(range(nb_qubits))
+    assert run(circuit, IBMDevice.AER_SIMULATOR).expectation_values == pytest.approx(1)
+
+    circuit.remove(measurement)
+    assert circuit.nb_qubits == 0
+
+
+def test_remove_preserves_explicit_dimensions():
+    gate = X(3)
+    measurement = BasisMeasure([3], [2])
+    circuit = QCircuit([gate, measurement], nb_qubits=5, nb_cbits=4)
+
+    circuit.remove([gate, measurement])
+
+    assert circuit.nb_qubits == 5
+    assert circuit.nb_cbits == 4
+
+
+def test_instructions_cannot_be_modified_directly():
+    circuit = QCircuit([X(0)])
+
+    circuit.instructions.append(H(0))
+
+    assert circuit.instructions == [X(0)]
+    with pytest.raises(AttributeError):
+        circuit.instructions = [H(0)]  # type: ignore[reportAttributeAccessIssue]
+
+
+@pytest.mark.parametrize(
+    "circuit, instructions, measurements, measurements_last",
+    [
+        (
+            QCircuit([X(0), BasisMeasure([0], shots=100), H(0)]),
+            [X(0), BasisMeasure([0], shots=100), H(0)],
+            [BasisMeasure([0], shots=100)],
+            [X(0), H(0), BasisMeasure([0], shots=100)],
+        )
+    ],
+)
+def test_instructions_and_measurements_are_exposed_separately(
+    circuit: QCircuit,
+    instructions: list[Instruction],
+    measurements: list[Measure],
+    measurements_last: list[Instruction],
+):
+    assert repr(circuit.instructions) == repr(instructions)
+    assert repr(circuit.measurements) == repr(measurements)
+    assert repr(circuit.with_measurement(deep_copy=False)) == repr(measurements_last)
+    assert repr(circuit.with_measurement()) == repr(measurements_last)
+
+
 @pytest.mark.parametrize(
     "instructions, result",
     [
@@ -489,6 +729,53 @@ def test_get_measurements(circuit: QCircuit, result_repr: str):
 
 
 @pytest.mark.parametrize(
+    "circuit, expected_indexes, expected_measurements",
+    [
+        (
+            QCircuit(
+                [X(0), BasisMeasure([0], shots=100), H(0), BasisMeasure([0], shots=200)]
+            ),
+            [1, 3],
+            [BasisMeasure([0], shots=100), BasisMeasure([0], shots=200)],
+        ),
+        (
+            QCircuit(
+                [BasisMeasure([0], shots=100), H(0), BasisMeasure([0], shots=200)]
+            ),
+            [0, 2],
+            [BasisMeasure([0], shots=100), BasisMeasure([0], shots=200)],
+        ),
+        (
+            QCircuit(
+                [
+                    X(0),
+                    H(1),
+                    BasisMeasure([0], shots=100),
+                    X(1),
+                    BasisMeasure([0], shots=100),
+                ]
+            )
+            + QCircuit([H(0), BasisMeasure([0], shots=100)]),
+            [2, 4, 6],
+            [
+                BasisMeasure([0], shots=100),
+                BasisMeasure([0], shots=100),
+                BasisMeasure([0], shots=100),
+            ],
+        ),
+    ],
+)
+def test_measurement_indexes_are_updated(
+    circuit: QCircuit, expected_indexes: list[int], expected_measurements: list[Measure]
+):
+    assert (
+        circuit._measurement_indexes  # pyright: ignore[reportPrivateUsage]
+        == expected_indexes
+    )
+    assert repr(circuit.measurements) == repr(expected_measurements)
+
+
+@pytest.mark.parametrize(
     "circuit, printed_result_filename",
     [
         (QCircuit([X(0), CNOT(0, 1), BasisMeasure([0, 1], shots=100)]), "all"),
@@ -501,6 +788,167 @@ def test_without_measurements(circuit: QCircuit, printed_result_filename: str):
         encoding="utf-8",
     ) as f:
         assert str(circuit.without_measurements(deep_copy=False)) == f.read()
+
+
+def test_variables_follow_add_and_remove():
+    theta_gate = Rx(theta, 0)
+    phi_gate = Rz(phi, 0)
+    circuit = QCircuit([theta_gate])
+
+    assert circuit.variables() == {theta}
+
+    circuit.add(phi_gate)
+    assert circuit.variables() == {theta, phi}
+
+    circuit.remove(theta_gate)
+    assert circuit.variables() == {phi}
+
+
+def test_variables_follow_shared_gate_mutation():
+    gate = Rx(theta, 0)
+    circuits = [QCircuit([gate]), QCircuit([gate])]
+    assert all(circuit.variables() == {theta} for circuit in circuits)
+
+    gate.parameters[0] = phi
+
+    assert all(circuit.variables() == {phi} for circuit in circuits)
+
+
+def test_variables_follow_parameter_list_replacement():
+    gate = Rx(0.5, 0)
+    circuit = QCircuit([gate])
+    assert circuit.variables() == set()
+
+    parameters: list[Expr | float] = [theta + phi]
+    gate.parameters = parameters
+    assert circuit.variables() == {theta, phi}
+
+    parameters[0] = alpha
+    assert circuit.variables() == {alpha}
+
+    parameters = [0.5]
+    gate.parameters = parameters
+    assert circuit.variables() == set()
+
+
+@pytest.mark.parametrize("deep_copy", [False, True])
+def test_variables_follow_copy_ownership(deep_copy: bool):
+    gate = Rx(theta, 0)
+    circuit = QCircuit([gate, BasisMeasure([0])])
+    copied = circuit.without_measurements(deep_copy=deep_copy)
+    assert circuit.variables() == copied.variables() == {theta}
+
+    gate.parameters[0] = phi
+
+    assert circuit.variables() == {phi}
+    assert copied.variables() == ({theta} if deep_copy else {phi})
+
+
+def test_variables_follow_shared_instruction_storage():
+    circuit = QCircuit([Rx(theta, 0), X(0)])
+    copied = circuit.without_noises(deep_copy=False)
+    assert circuit.variables() == copied.variables() == {theta}
+
+    copied.remove(copied.gates[0])
+    copied.add(Ry(phi, 0))
+
+    assert circuit.variables() == copied.variables() == {phi}
+
+
+def test_variables_follow_deep_copy_instruction_ownership():
+    circuit = QCircuit([Rx(theta, 0)])
+    assert circuit.variables() == {theta}
+    copied = circuit.without_noises(deep_copy=True)
+    copied_gate = copied.gates[0]
+    assert isinstance(copied_gate, Rx)
+
+    copied_gate.parameters[0] = phi
+
+    assert circuit.variables() == {theta}
+    assert copied.variables() == {phi}
+
+
+def test_variables_does_not_change_circuit_equality():
+    circuit = QCircuit([Rx(theta, 0)])
+    equivalent = QCircuit([Rx(theta, 0)])
+
+    assert circuit.variables() == {theta}
+
+    assert circuit == equivalent
+
+
+def test_variables_from_expressions():
+    circuit = QCircuit([Ry(theta, 0), Ry(phi, 0)])
+    assert circuit.variables() == {theta, phi}
+
+    circuit.add([X(0), Rz(theta + phi + alpha, 0)])
+    assert circuit.variables() == {theta, phi, alpha}
+
+
+def test_variables_same_variable_in_several_parameters():
+    circuit = QCircuit([U(theta, theta, phi, 0)])
+    assert circuit.variables() == {theta, phi}
+
+    circuit.remove(U(theta, theta, phi, 0))
+    assert circuit.variables() == set()
+
+
+def test_variables_follow_remove_and_insert():
+    circuit = QCircuit([Ry(theta, 0), X(0), Ry(phi, 0), Rz(theta, 0)])
+
+    circuit.remove(X(0))
+    assert circuit.variables() == {theta, phi}
+
+    circuit.remove(Ry(theta, 0))
+    assert circuit.variables() == {theta, phi}
+
+    circuit._insert_instruction(0, Rx(alpha, 0))  # pyright: ignore[reportPrivateUsage]
+    assert circuit.variables() == {theta, phi, alpha}
+
+    circuit.remove(Rz(theta, 0))
+    assert circuit.variables() == {phi, alpha}
+
+
+def test_variables_without_measurements():
+    circuit = QCircuit(
+        [Ry(theta, 0), BasisMeasure([0], shots=10), Ry(phi, 0)], nb_qubits=1
+    )
+    assert circuit.variables() == {theta, phi}
+
+    without = circuit.without_measurements()
+    assert without.variables() == {theta, phi}
+
+
+def test_variables_returns_independent_set():
+    circuit = QCircuit([Rx(theta, 0)])
+    variables = circuit.variables()
+
+    circuit.add(Ry(phi, 0))
+    assert variables == {theta}
+
+    variables.clear()
+    assert circuit.variables() == {theta, phi}
+
+
+@pytest.mark.parametrize(
+    "substitutions, expected_variables",
+    [
+        ({theta: 1}, {phi}),
+        ({theta: phi}, {phi}),
+        ({theta: 1, phi: 2}, set()),
+    ],
+)
+def test_variables_are_updated_after_substitution(
+    substitutions: dict[Expr | str, Complex],
+    expected_variables: set[Expr],
+):
+    circuit = QCircuit([Rx(theta + phi, 0), Rz(theta, 0)])
+    assert circuit.variables() == {theta, phi}
+
+    substituted = circuit.subs(substitutions)
+
+    assert substituted.variables() == expected_variables
+    assert circuit.variables() == {theta, phi}
 
 
 @pytest.mark.provider("qiskit")
@@ -526,6 +974,49 @@ def test_to_other_language_qiskit(
     converted_circuit = circuit.to_other_language(Language.QISKIT)
     assert type(converted_circuit) == result_type
     assert repr(converted_circuit.data) == result_repr
+
+
+def _circuit_with_intermediate_measurement() -> QCircuit:
+    return QCircuit([X(0), BasisMeasure([0], [0], shots=1)]) + QCircuit([X(0)])
+
+
+@pytest.mark.provider("qiskit")
+def test_qiskit_translation_keeps_measurements_terminal():
+    converted_circuit = _circuit_with_intermediate_measurement().to_other_language(
+        Language.QISKIT
+    )
+
+    assert [instruction.operation.name for instruction in converted_circuit.data] == [
+        "x",
+        "x",
+        "measure",
+    ]
+
+
+@pytest.mark.provider("cirq")
+def test_cirq_translation_keeps_measurements_terminal():
+    from cirq import MeasurementGate
+
+    converted_circuit = _circuit_with_intermediate_measurement().to_other_language(
+        Language.CIRQ
+    )
+    operations = list(converted_circuit.all_operations())
+
+    assert isinstance(operations[-1].gate, MeasurementGate)
+    assert not any(
+        isinstance(operation.gate, MeasurementGate) for operation in operations[:-1]
+    )
+
+
+@pytest.mark.provider("braket")
+def test_braket_translation_keeps_measurements_terminal():
+    converted_circuit = _circuit_with_intermediate_measurement().to_other_language(
+        Language.BRAKET
+    )
+
+    assert [
+        instruction.operator.name for instruction in converted_circuit.instructions
+    ] == ["X", "X", "Measure"]
 
 
 @pytest.fixture
@@ -955,7 +1446,12 @@ def exec_measure_no_target(measure: Measure, device: AvailableDevice):
     if isinstance(measure, ExpectationMeasure):
         isinstance(run(circuit, device).expectation_values, float)
     else:
-        assert run(circuit, device).job.measure.nb_qubits == circuit.nb_qubits  # type: ignore[AttributeAccessIssue]
+        assert (
+            run(
+                circuit, device
+            ).job.measure.nb_qubits  # pyright: ignore[reportOptionalMemberAccess]
+            == circuit.nb_qubits
+        )
 
 
 @pytest.mark.parametrize(
@@ -1091,7 +1587,8 @@ def test_inverse(circuit: QCircuit, expected_inverse: QCircuit):
     else:
         inverse_circuit = circuit.inverse()
     for inverse_inst, expected_inst in zip(
-        inverse_circuit.instructions, expected_inverse.instructions
+        inverse_circuit.instructions,
+        expected_inverse.instructions,
     ):
         if isinstance(expected_inst, Gate) and isinstance(inverse_inst, Gate):
             assert matrix_eq(
@@ -1109,7 +1606,8 @@ def test_inverse_random():
         qcircuit = random_circuit(nb_qubits=4)
         inverse_circuit = qcircuit.inverse()
         for inverse_inst, expected_inst in zip(
-            inverse_circuit.instructions, reversed(qcircuit.instructions)
+            inverse_circuit.instructions,
+            reversed(qcircuit.instructions),
         ):
             if isinstance(expected_inst, Gate) and isinstance(inverse_inst, Gate):
                 assert matrix_eq(

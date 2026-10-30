@@ -32,6 +32,7 @@ from mpqp.core.instruction.measurement.expectation_value import (
     ExpectationMeasure,
     Observable,
 )
+from mpqp.core.instruction.measurement.measure import Measure
 from mpqp.execution.devices import (
     ATOSDevice,
     AvailableDevice,
@@ -798,7 +799,8 @@ def display_kth_breakpoint(
         name_part = "" if bp.label is None else f", at breakpoint `{bp.label}`"
         relevant_instructions = list(
             filter(
-                lambda i: i is bp or not isinstance(i, Breakpoint), circuit.instructions
+                lambda i: i is bp or not isinstance(i, (Breakpoint, Measure)),
+                circuit._instructions,  # pyright: ignore[reportPrivateUsage]
             )
         )
         bp_instructions_index = find_index(relevant_instructions, lambda i: i is bp)

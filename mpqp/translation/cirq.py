@@ -134,6 +134,7 @@ if InstalledProviders.CIRQ in _INSTALLED_MPQP_PROVIDERS:
             Measure,
         )
         from mpqp.core.instruction.gates.gate import Gate
+
         from mpqp.core.languages import Language
 
         cirq_qubits = [NamedQubit(f"q_{i}") for i in range(circuit.nb_qubits)]
@@ -142,7 +143,8 @@ if InstalledProviders.CIRQ in _INSTALLED_MPQP_PROVIDERS:
         for qubit in cirq_qubits:
             cirq_circuit.append(I(qubit))
 
-        for instruction in circuit.instructions + circuit.measurements:
+        instructions = circuit.with_measurement(deep_copy=False)
+        for instruction in instructions:
             if not skip_pre_measure:
                 if isinstance(instruction, Measure):
                     for pre_measure in instruction.pre_measure:
