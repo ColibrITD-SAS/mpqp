@@ -1286,7 +1286,8 @@ class QCircuit:
 
         """
         new_circuit = self._clone_without(
-            ["instructions", "measurements", "_nb_cbits", "transpiled_circuit"], deep_copy=deep_copy
+            ["instructions", "measurements", "_nb_cbits", "transpiled_circuit"],
+            deep_copy=deep_copy,
         )
         instructions = self._non_measurement_instructions()
         new_circuit._instructions = (
