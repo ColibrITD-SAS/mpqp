@@ -111,6 +111,9 @@ def run_braket(
     Returns:
         The result of the job.
 
+    Raises:
+        ValueError: If a Braket Direct reservation is requested for a simulator.
+
     Note:
         This function is not meant to be used directly, please use
         :func:`~mpqp.execution.runner.run` instead.
@@ -122,6 +125,12 @@ def run_braket(
         raise ValueError(
             "`job` must correspond to an `AWSDevice`, but corresponds to a "
             f"{job.device} instead"
+        )
+
+    reservation_arn = provider_params.reservation_arn if provider_params else None
+    if reservation_arn and job.device.is_simulator():
+        raise ValueError(
+            "Braket Direct reservations can only be used with QPUs, not simulators."
         )
 
     import warnings
