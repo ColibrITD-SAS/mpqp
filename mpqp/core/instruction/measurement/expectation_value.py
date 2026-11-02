@@ -422,7 +422,9 @@ class ExpectationMeasure(Measure):
 
     Args:
         targets: List of indices referring to the qubits on which the measure
-            will be applied.
+            will be applied. Defaults to the first qubits matching the
+            observable's size. These targets stay fixed when the circuit is
+            resized. The number of targets must match the observable's size.
         observable: Observable used for the measure.
         shots: Number of shots to be performed.
         commuting_type: Type of commutation (grouped in an Enum) used for Pauli grouping when optimizing the observables measurement.
@@ -437,6 +439,10 @@ class ExpectationMeasure(Measure):
         UserWarning: If the ``targets`` are not sorted and contiguous, some
             additional swaps will be needed. This will change the performance if
             your circuit is run on noisy hardware.
+
+    Raises:
+        NumberQubitsError: If the number of targets does not match the
+            observable's size.
 
     Examples:
         >>> obs = Observable(np.diag([0.7, -1, 1, 1]))
@@ -512,6 +518,7 @@ class ExpectationMeasure(Measure):
 
         if targets is None:
             self.targets = list(range(self.observables[0].nb_qubits))
+        self._dynamic = False
         self._check_targets_order()
 
     @property
@@ -526,10 +533,6 @@ class ExpectationMeasure(Measure):
         """Ensures target qubits are ordered and contiguous, rearranging them if
         necessary (private)."""
 
-        if len(self.targets) == 0:
-            self._pre_measure: list[Gate] = []
-            return
-
         if self.nb_qubits != self.observables[0].nb_qubits:
             raise NumberQubitsError(
                 f"Target size {self.nb_qubits} doesn't match observable size "
@@ -539,6 +542,9 @@ class ExpectationMeasure(Measure):
         self._pre_measure: list[Gate] = []
         """List of Gates added before the expectation measurement to correctly swap
         target qubits when their are not ordered or contiguous."""
+        if len(self.targets) == 0:
+            return
+
         targets_is_ordered = all(
             [self.targets[i] > self.targets[i - 1] for i in range(1, len(self.targets))]
         )
