@@ -171,6 +171,13 @@ def run_pseudo_circuit_binding(
 
     So instead of running a ``ProgramSet`` it's going to unroll the
     CircuitBinding and execute iteratively the jobs.
+
+    Args:
+        job: Circuit-binding job to execute.
+        provider_params: AWS-specific execution parameters.
+
+    Returns:
+        The results of all submitted jobs.
     """
     from braket.circuits import Circuit as braket_Circuit
 
