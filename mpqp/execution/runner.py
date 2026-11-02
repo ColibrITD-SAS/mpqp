@@ -49,6 +49,7 @@ from mpqp.execution.providers.azure import run_azure, submit_job_azure
 from mpqp.execution.providers.google import run_google
 from mpqp.execution.providers.ibm import run_ibm, submit_remote_ibm
 from mpqp.execution.providers.providers_params import (
+    BraketParams,
     ProviderParams,
     QiskitParams,
     QuantinuumParams,
@@ -286,12 +287,13 @@ def _run_diagonal_observables(
     device: AvailableDevice,
     observable_job: Job,
     values: "Optional[dict[Expr | str, Complex]]" = None,
+    provider_params: Optional[ProviderParams] = None,
 ) -> Result:
 
     adapted_circuit = circuit.without_measurements(deep_copy=False)
     adapted_circuit.add(BasisMeasure(exp_measure.targets, shots=exp_measure.shots))
 
-    result = _run_single(adapted_circuit, device, values, False)
+    result = _run_single(adapted_circuit, device, values, False, provider_params)
 
     return _compute_result_diagonal_observables(result, exp_measure, observable_job)
 
@@ -384,6 +386,7 @@ def _run_single(
          Error: None
 
     """
+
     from mpqp.execution.simulated_devices import (
         SimulatedDevice,
         StaticIBMSimulatedDevice,
@@ -413,7 +416,7 @@ def _run_single(
                     )
                 else:
                     return _run_diagonal_observables(
-                        circuit, measure, device, job, values
+                        circuit, measure, device, job, values, provider_params
                     )
 
     if len(circuit.noises) != 0:
@@ -437,7 +440,14 @@ def _run_single(
     elif isinstance(device, ATOSDevice):
         return run_atos(job)
     elif isinstance(device, AWSDevice):
-        result = run_braket(job)
+        if provider_params is not None and not isinstance(
+            provider_params, BraketParams
+        ):
+            raise TypeError(
+                "`provider_params` must be a `BraketParams` instance, "
+                f"not `{type(provider_params).__name__}`."
+            )
+        result = run_braket(job, provider_params)
     elif isinstance(device, GOOGLEDevice):
         return run_google(job)
     elif isinstance(device, AZUREDevice):
@@ -518,7 +528,14 @@ def _run_circuit_binding(
         raise NotImplementedError(f"Device {device} not handled")
         result = run_atos(jobs)  # TODO
     elif isinstance(device, AWSDevice):
-        result = run_braket(job)
+        if provider_params is not None and not isinstance(
+            provider_params, BraketParams
+        ):
+            raise TypeError(
+                "`provider_params` must be a `BraketParams` instance, "
+                f"not `{type(provider_params).__name__}`."
+            )
+        result = run_braket(job, provider_params)
     elif isinstance(device, GOOGLEDevice):
         raise NotImplementedError(f"Device {device} not handled")
         result = run_google(jobs)  # TODO
@@ -740,6 +757,7 @@ def submit(
     Note:
         Unlike :func:`run`, you can only submit on one device at a time.
     """
+
     if values is None:
         values = {}
     if not device.is_remote():
@@ -761,7 +779,14 @@ def submit(
     elif isinstance(device, ATOSDevice):
         job_id, _ = submit_QLM(job)
     elif isinstance(device, AWSDevice):
-        job_id, _ = submit_job_braket(job)
+        if provider_params is not None and not isinstance(
+            provider_params, BraketParams
+        ):
+            raise TypeError(
+                "`provider_params` must be a `BraketParams` instance, "
+                f"not `{type(provider_params).__name__}`."
+            )
+        job_id, _ = submit_job_braket(job, provider_params)
     elif isinstance(device, AZUREDevice):
         job_id, _ = submit_job_azure(job)
     elif isinstance(device, QUANTINUUMDevice):
