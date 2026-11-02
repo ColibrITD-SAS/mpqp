@@ -137,8 +137,7 @@ def setup_local_storage(path: Optional[str] = None):
     ''')
 
     # Create the results table
-    cursor.execute(
-        '''
+    cursor.execute('''
     CREATE TABLE IF NOT EXISTS results (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         job_id INTEGER NOT NULL,
@@ -148,8 +147,7 @@ def setup_local_storage(path: Optional[str] = None):
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
         label TEXT
     )
-    '''
-    )
+    ''')
 
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS version (
