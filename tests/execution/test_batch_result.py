@@ -20,6 +20,7 @@ from mpqp import (
     Barrier,
     BasisMeasure,
     Breakpoint,
+    CircuitBinding,
     Depolarizing,
     ExpectationMeasure,
     H,
@@ -32,6 +33,7 @@ from mpqp import (
     run,
 )
 from mpqp.core._keys import Snapshot, object_key
+from mpqp.core.binding import BindingMode
 from mpqp.core.instruction.gates.custom_gate import CustomGate
 from mpqp.core.instruction.gates.native_gates import CP, PRX, SWAP, TOF, CRk, Rxx, U
 from mpqp.core.instruction.measurement.basis import HadamardBasis
@@ -495,6 +497,231 @@ def isolated_storage(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     return path
 
 
+@pytest.mark.provider("qiskit")
+def test_binding_matches_input_and_recorded_circuits():
+    circuits = [QCircuit([X(0)]), QCircuit([H(0)])]
+    measurement = ExpectationMeasure(Observable(pZ))
+    binding = CircuitBinding(circuits, measurements=measurement)
+    with patch(
+        "mpqp.core._keys.Snapshot.__call__",
+        side_effect=AssertionError("Unnecessary capture"),
+    ):
+        batch = run(binding, IBMDevice.AER_SIMULATOR)
+
+    assert len(batch) == 2
+    assert [r.expectation_values for r in batch] == pytest.approx([-1, 0])
+    for circuit, result in zip(circuits, batch):
+        assert isinstance(result.job.circuit, QCircuit)
+        assert result.input_circuit is circuit
+        assert batch.get_matching(circuit=deepcopy(circuit)).results == [result]
+        assert batch.get_matching(circuit=deepcopy(result.job.circuit)).results == [
+            result
+        ]
+        assert batch.get_matching(
+            circuit=circuit, device=result.device, measurement=result.job.measure
+        ).results == [result]
+        assert len(batch.get_matching(circuit=circuit, measurement=None)) == 0
+        assert len(circuit.measurements) == 0
+
+    selected = batch.get_matching(circuit=circuits[0])
+    original = deepcopy(circuits[0])
+    circuits[0].label = "edited input"
+    assert len(selected.get_matching(circuit=original)) == 0
+    assert selected.get_matching(circuit=deepcopy(circuits[0])).results == [batch[0]]
+
+
+@pytest.mark.provider("qiskit")
+@pytest.mark.parametrize("mode", [BindingMode.PRODUCT, BindingMode.ZIP])
+@pytest.mark.parametrize("embedded", [False, True])
+def test_binding_inputs_follow_nested_sweeps_and_repeated_circuits(
+    mode: BindingMode, embedded: bool
+):
+    theta = Symbol("theta")
+    first, second = QCircuit([Rx(theta, 0)]), QCircuit([Rx(theta, 0), X(0)])
+    if embedded:
+        first.add(ExpectationMeasure(Observable(pZ)))
+        second.add(ExpectationMeasure(Observable(pZ)))
+    values = (
+        [{"theta": 0.0}, {"theta": np.pi}]
+        if mode == BindingMode.PRODUCT
+        else [{"theta": 0.0}, {"theta": np.pi}, {"theta": np.pi / 2}]
+    )
+    binding = CircuitBinding(
+        [CircuitBinding(first), CircuitBinding(second), CircuitBinding(first)],
+        values=values,
+        measurements=None if embedded else ExpectationMeasure(Observable(pZ)),
+        mode=mode,
+    )
+    # The public unroll contract remains a sequence of three-item executions.
+    assert all(len(execution) == 3 for execution in binding.unroll())
+    batch = run(binding, IBMDevice.AER_SIMULATOR)
+    first_positions = [0, 1, 4, 5] if mode == BindingMode.PRODUCT else [0, 2]
+    second_positions = [2, 3] if mode == BindingMode.PRODUCT else [1]
+    assert batch.get_matching(circuit=deepcopy(first)).results == [
+        batch[i] for i in first_positions
+    ]
+    assert batch.get_matching(circuit=deepcopy(second)).results == [
+        batch[i] for i in second_positions
+    ]
+    expected = [1, -1, -1, 1, 1, -1] if mode == BindingMode.PRODUCT else [1, 1, 0]
+    assert [r.expectation_values for r in batch] == pytest.approx(expected, abs=1e-14)
+    assert len(first.measurements) == int(embedded)
+
+
+@pytest.mark.provider("qiskit")
+def test_binding_input_matching_survives_storage(isolated_storage: Path):
+    circuit = QCircuit([X(0)])
+    measured = QCircuit([X(0), ExpectationMeasure(Observable(pZ))])
+    binding = CircuitBinding(
+        [
+            CircuitBinding(measured),
+            CircuitBinding(circuit, measurements=ExpectationMeasure(Observable(pZ))),
+        ]
+    )
+    batch = run(binding, IBMDevice.AER_SIMULATOR)
+    restored = BatchResult.load_by_local_ids(batch.save())
+    assert isinstance(restored[0].job.circuit, QCircuit)
+    assert restored.get_matching(circuit=deepcopy(circuit)).results == [restored[1]]
+    assert restored.get_matching(circuit=deepcopy(measured)).results == list(restored)
+    assert restored.get_matching(
+        circuit=deepcopy(restored[0].job.circuit)
+    ).results == list(restored)
+    assert restored.get_matching(
+        circuit=circuit, measurement=deepcopy(batch[1].job.measure)
+    ).results == [restored[1]]
+    assert restored[0].input_circuit is not None
+    assert restored[1].input_circuit is not None
+    assert len(restored[0].input_circuit.measurements) == 1
+    assert len(restored[1].input_circuit.measurements) == 0
+
+
+@pytest.mark.parametrize(
+    "device,provider",
+    [
+        (IBMDevice.AER_SIMULATOR, "run_ibm"),
+        (AWSDevice.BRAKET_LOCAL_SIMULATOR, "run_braket"),
+    ],
+)
+def test_common_binding_runner_attaches_inputs(device: AvailableDevice, provider: str):
+    circuits = [QCircuit([X(0)]), QCircuit([H(0)])]
+    binding = CircuitBinding(circuits)
+    results = [make_result(deepcopy(circuit), device) for circuit in circuits]
+    with patch(f"mpqp.execution.runner.{provider}", return_value=BatchResult(results)):
+        batch = run(binding, device)
+    assert [result.input_circuit for result in batch] == circuits
+    assert all(
+        result.input_circuit is circuit for result, circuit in zip(batch, circuits)
+    )
+
+
+def test_binding_result_count_must_match_inputs():
+    binding = CircuitBinding(QCircuit([X(0)]))
+    with patch("mpqp.execution.runner.run_ibm", return_value=BatchResult([])):
+        with pytest.raises(ValueError, match="one result per resolved execution"):
+            run(binding, IBMDevice.AER_SIMULATOR)
+
+
+@pytest.mark.parametrize(
+    "device,kind",
+    [
+        pytest.param(
+            IBMDevice.AER_SIMULATOR, "observable", marks=pytest.mark.provider("qiskit")
+        ),
+        pytest.param(
+            IBMDevice.AER_SIMULATOR, "sample", marks=pytest.mark.provider("qiskit")
+        ),
+        pytest.param(
+            IBMDevice.AER_SIMULATOR, "state", marks=pytest.mark.provider("qiskit")
+        ),
+        pytest.param(
+            AWSDevice.BRAKET_LOCAL_SIMULATOR,
+            "observable",
+            marks=pytest.mark.provider("braket"),
+        ),
+        pytest.param(
+            AWSDevice.BRAKET_LOCAL_SIMULATOR,
+            "state",
+            marks=pytest.mark.provider("braket"),
+        ),
+    ],
+)
+def test_binding_resolves_once_per_run(device: AvailableDevice, kind: str):
+    if kind == "observable":
+        measurement = ExpectationMeasure(
+            Observable(pZ), shots=16 if isinstance(device, AWSDevice) else 0
+        )
+    elif kind == "sample":
+        measurement = BasisMeasure([0], shots=16)
+    else:
+        measurement = None
+    circuit = QCircuit([X(0)])
+    binding = CircuitBinding(circuit, measurements=measurement)
+    resolve = getattr(CircuitBinding, "_unroll_with_inputs")
+    calls = 0
+
+    def count_resolution(instance: CircuitBinding):
+        nonlocal calls
+        calls += 1
+        return resolve(instance)
+
+    with patch.object(CircuitBinding, "_unroll_with_inputs", new=count_resolution):
+        first = run(binding, device)
+        assert calls == 1
+        binding.circuits.append(QCircuit([H(0)]))
+        second = run(binding, device)
+        assert calls == 2
+    assert len(first) == 1
+    assert len(second) == 2
+    assert second.get_matching(circuit=circuit).results == [second[0]]
+
+
+def test_circuit_shape_rejection_avoids_structural_capture():
+    source = QCircuit([H(0)], label="input")
+    recorded = QCircuit([H(0), ExpectationMeasure(Observable(pZ))], label="prepared")
+    result = make_result(recorded)
+    result.input_circuit = source
+    query = deepcopy(recorded)
+    query.label = "unrelated"
+    with patch(
+        "mpqp.core._keys.Snapshot.__call__",
+        side_effect=AssertionError("Unnecessary structural capture"),
+    ):
+        assert len(BatchResult([result]).get_matching(circuit=query)) == 0
+
+
+def test_shared_inputs_are_serialized_once_per_save(isolated_storage: Path):
+    source = QCircuit(1)
+    independent = deepcopy(source)
+    recorded = QCircuit([BasisMeasure([0], shots=0)])
+    results = [make_result(recorded) for _ in range(3)]
+    for result, input_circuit in zip(results, [source, independent, source]):
+        result.input_circuit = input_circuit
+    batch = BatchResult(results)
+    represent = QCircuit.__repr__
+    calls = 0
+
+    def count_input_repr(circuit: QCircuit):
+        nonlocal calls
+        if circuit is source:
+            calls += 1
+        return represent(circuit)
+
+    with patch.object(QCircuit, "__repr__", new=count_input_repr):
+        first_ids = batch.save()
+        assert calls == 1
+        source.label = "edited input"
+        second_ids = batch.save()
+        assert calls == 2
+    first = BatchResult.load_by_local_ids(first_ids)
+    second = BatchResult.load_by_local_ids(second_ids)
+    assert len(first.get_matching(circuit=QCircuit(1))) == 3
+    assert second.get_matching(circuit=deepcopy(source)).results == [
+        second[0],
+        second[2],
+    ]
+    assert second.get_matching(circuit=deepcopy(independent)).results == [second[1]]
+
+
 def test_job_save_initializes_local_storage(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
@@ -585,8 +812,9 @@ def test_storage_preserves_explicit_result_labels(
 
 
 @pytest.mark.parametrize("entry_point", ["load", "save", "save_job", "setup"])
+@pytest.mark.parametrize("version", ["1.0", "1.1"])
 def test_storage_upgrades_legacy_result_labels(
-    isolated_storage: Path, entry_point: str
+    isolated_storage: Path, entry_point: str, version: str
 ):
     from mpqp.local_storage.load import results_local_storage_to_mpqp
     from mpqp.local_storage.save import insert_results
@@ -603,7 +831,8 @@ def test_storage_upgrades_legacy_result_labels(
         state,
     )
     with connect(isolated_storage) as connection:
-        connection.executescript("""
+        connection.executescript(
+            """
             DROP TABLE results;
             CREATE TABLE results (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -614,7 +843,12 @@ def test_storage_upgrades_legacy_result_labels(
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP
             );
             UPDATE version SET version = '1.0' WHERE id = 1;
-            """)
+            """
+        )
+        if version == "1.1":
+            original.label = "legacy display name"
+            connection.execute("ALTER TABLE results ADD COLUMN label TEXT")
+            connection.execute("UPDATE version SET version = '1.1' WHERE id = 1")
         connection.execute(
             "INSERT INTO jobs (id, type, circuit, device) VALUES (?, ?, ?, ?)",
             (7, "STATE_VECTOR", json.dumps(repr(circuit)), str(original.device)),
@@ -624,6 +858,10 @@ def test_storage_upgrades_legacy_result_labels(
             "VALUES (?, ?, ?, ?, ?)",
             (11, 7, json.dumps(repr(state)), 0, "2026-01-01 00:00:00"),
         )
+        if version == "1.1":
+            connection.execute(
+                "UPDATE results SET label = ? WHERE id = 11", (original.label,)
+            )
         cursor = connection.execute("SELECT * FROM results WHERE id = 11")
         legacy_record = dict(
             zip((column[0] for column in cursor.description), cursor.fetchone())
@@ -642,16 +880,20 @@ def test_storage_upgrades_legacy_result_labels(
 
     assert get_database_version() == DATABASE_VERSION
     restored = Result.load_by_local_id(11)
-    assert restored.label is None
+    assert restored.label == original.label
     assert str(restored) == str(original)
     np.testing.assert_array_equal(restored.amplitudes, [0, 1])
-    assert results_local_storage_to_mpqp(legacy_record)[0].label is None
+    assert results_local_storage_to_mpqp(legacy_record)[0].label == original.label
     with connect(isolated_storage) as connection:
         cursor = connection.execute("SELECT * FROM results WHERE id = 11")
         migrated_record = dict(
             zip((column[0] for column in cursor.description), cursor.fetchone())
         )
-    assert migrated_record == {**legacy_record, "label": None}
+    assert migrated_record == {
+        **legacy_record,
+        "label": original.label,
+        "input_circuit": None,
+    }
 
     # Reopening and writing again must work after the one-time upgrade.
     setup_local_storage(str(isolated_storage))

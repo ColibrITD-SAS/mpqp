@@ -546,6 +546,7 @@ def run_aer(job: Job) -> Result | BatchResult:
 
     if isinstance(job.circuit, CircuitBinding):
         binding = job.circuit
+        resolved = job._get_binding_executions()  # pyright: ignore[reportPrivateUsage]
         backend_sim = None
 
         if isinstance(job.device, StaticIBMSimulatedDevice):
@@ -561,7 +562,11 @@ def run_aer(job: Job) -> Result | BatchResult:
 
         if job.job_type == JobType.OBSERVABLE:
 
-            pubs_with_context = binding.to_other_device(job.device)
+            from mpqp.translation.qiskit import circuitbinding_to_pubs
+
+            pubs_with_context = circuitbinding_to_pubs(
+                binding, job.device, resolved=resolved
+            )
             if (
                 not isinstance(job.device, StaticIBMSimulatedDevice)
                 and binding.is_noisy
@@ -576,14 +581,14 @@ def run_aer(job: Job) -> Result | BatchResult:
             return compute_expectation_value(
                 job,
                 backend_sim,
-                pubs=pubs,  # pyright: ignore[reportArgumentType]
-                pubs_contexts=contexts,  # pyright: ignore[reportArgumentType]
+                pubs=pubs,
+                pubs_contexts=contexts,
                 shots=binding.shots,
             )
         elif job.job_type in (JobType.SAMPLE, JobType.STATE_VECTOR):
             from mpqp.tools.binding_utils import translate_binding_circuits
 
-            unrolled_items = binding.unroll()
+            unrolled_items = resolved
             bound_circuits = []
             context_jobs = []
             translated_circuits = translate_binding_circuits(

@@ -12,13 +12,16 @@ import math
 from collections.abc import Hashable
 from enum import Enum as PythonEnum
 from functools import lru_cache
-from typing import Any, Callable, Iterable, cast
+from typing import TYPE_CHECKING, Any, Callable, Iterable, cast
 
 import numpy as np
 from aenum import Enum
 from sympy import Basic, srepr
 
 ObjectKey = tuple[Hashable, ...]
+
+if TYPE_CHECKING:
+    from mpqp.core.circuit import QCircuit
 
 
 class Snapshot:
@@ -43,6 +46,23 @@ class Snapshot:
         key = encoder(value, self)
         self._memo[id(value)] = (value, key)
         return key
+
+
+def circuits_match(candidate: object, query: QCircuit, snapshot: Snapshot) -> bool:
+    """Reject cheap circuit differences before capturing immutable structural keys."""
+    if type(candidate) is not type(query):
+        return False
+    circuit = candidate
+    if (
+        circuit.label != query.label
+        or circuit.nb_qubits != query.nb_qubits
+        or circuit.nb_cbits != query.nb_cbits
+        or len(circuit.instructions) != len(query.instructions)
+        or len(circuit.measurements) != len(query.measurements)
+        or len(circuit.noises) != len(query.noises)
+    ):
+        return False
+    return snapshot(circuit) == snapshot(query)
 
 
 @lru_cache(maxsize=None)

@@ -505,7 +505,10 @@ def _run_circuit_binding(
         ):
             raise NotImplementedError(f"Noisy simulations not supported on {device}.")
 
+    # Only references are retained; structural comparisons remain lazy.
+    plan = circuit_binding._unroll_with_inputs()  # pyright: ignore[reportPrivateUsage]
     job = generate_job(circuit_binding, device)
+    job._binding_executions = plan.executions  # pyright: ignore[reportPrivateUsage]
 
     if isinstance(device, (IBMDevice, StaticIBMSimulatedDevice)):
         if not (provider_params is None or isinstance(provider_params, QiskitParams)):
@@ -532,7 +535,14 @@ def _run_circuit_binding(
     #        result[i], exp_measure, job
     #    )
 
-    return result if isinstance(result, BatchResult) else BatchResult([result])
+    batch = result if isinstance(result, BatchResult) else BatchResult([result])
+    if len(batch) != len(plan.executions):
+        raise ValueError(
+            "Binding results must contain one result per resolved execution."
+        )
+    for item, input_circuit in zip(batch, plan.input_circuits):
+        item.input_circuit = input_circuit
+    return batch
 
 
 @overload

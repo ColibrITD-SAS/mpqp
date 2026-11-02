@@ -16,7 +16,7 @@ from mpqp.environment.env_manager import get_env_variable, save_env_variable
 from mpqp.tools.generics import T
 
 DictDB = dict[str, Any]
-DATABASE_VERSION = "1.1"
+DATABASE_VERSION = "1.2"
 
 
 def get_database_version() -> str:
@@ -41,7 +41,7 @@ def _ensure_database_version() -> None:
     from sqlite3 import connect
 
     db_version = get_database_version()
-    if db_version == "1.0":
+    if db_version in ("1.0", "1.1"):
         connection = connect(get_env_variable("DB_PATH"))
         try:
             with connection:
@@ -50,8 +50,12 @@ def _ensure_database_version() -> None:
                 version = connection.execute(
                     "SELECT version FROM version WHERE id = 1"
                 ).fetchone()
-                if version is not None and version[0] == "1.0":
-                    connection.execute("ALTER TABLE results ADD COLUMN label TEXT")
+                if version is not None and version[0] in ("1.0", "1.1"):
+                    if version[0] == "1.0":
+                        connection.execute("ALTER TABLE results ADD COLUMN label TEXT")
+                    connection.execute(
+                        "ALTER TABLE results ADD COLUMN input_circuit TEXT"
+                    )
                     connection.execute(
                         "UPDATE version SET version = ? WHERE id = 1",
                         (DATABASE_VERSION,),
@@ -105,9 +109,10 @@ def setup_local_storage(path: Optional[str] = None):
         >>> setup_local_storage()
 
     Note:
-        Existing version 1.0 databases are upgraded automatically, preserving
-        stored jobs and results. Older results retain their circuit's display
-        label until a separate result label is assigned.
+        Existing version 1.0 and 1.1 databases are upgraded automatically,
+        preserving stored jobs and results. Older results retain their circuit's
+        display label and match only their recorded circuit when input metadata
+        is unavailable.
 
     """
     from sqlite3 import connect
@@ -145,7 +150,8 @@ def setup_local_storage(path: Optional[str] = None):
         error TEXT,                    -- Optional, stored as JSON text
         shots INTEGER DEFAULT 0,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        label TEXT
+        label TEXT,
+        input_circuit TEXT
     )
     ''')
 

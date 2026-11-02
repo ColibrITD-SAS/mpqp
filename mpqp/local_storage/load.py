@@ -81,35 +81,25 @@ def results_local_storage_to_mpqp(
     if results is None:
         return []
     results_mpqp = []
-    if isinstance(results, dict):
-        error = eval(eval(results['error'])) if results['error'] is not None else None
-        job = fetch_jobs_with_id(results['job_id'])
+    stored_results = [results] if isinstance(results, dict) else results
+    for result in stored_results:
+        error = None if result['error'] is None else eval(eval(result['error']))
+        job = fetch_jobs_with_id(result['job_id'])
         if len(job) == 0:
             raise ValueError("Job not found for result, can not be instantiated.")
+        input_circuit = result.get('input_circuit')
         results_mpqp.append(
             Result(
                 jobs_local_storage_to_mpqp(job)[0],
-                eval(eval(results['data'])),
+                eval(eval(result['data'])),
                 error,
-                results['shots'],
-                label=results.get('label'),
+                result['shots'],
+                label=result.get('label'),
+                input_circuit=(
+                    None if input_circuit is None else eval(eval(input_circuit))
+                ),
             )
         )
-    else:
-        for result in results:
-            error = None if result['error'] is None else eval(eval(result['error']))
-            job = fetch_jobs_with_id(result['job_id'])
-            if len(job) == 0:
-                raise ValueError("Job not found for result, can not be instantiated.")
-            results_mpqp.append(
-                Result(
-                    jobs_local_storage_to_mpqp(job)[0],
-                    eval(eval(result['data'])),
-                    error,
-                    result['shots'],
-                    label=result.get('label'),
-                )
-            )
 
     return results_mpqp
 

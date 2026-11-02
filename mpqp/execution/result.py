@@ -31,7 +31,7 @@ from typing import TYPE_CHECKING, Any, Optional, Union, overload
 import numpy as np
 import numpy.typing as npt
 
-from mpqp.core._keys import Snapshot
+from mpqp.core._keys import Snapshot, circuits_match
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
 from mpqp.core.instruction.measurement.measure import Measure
@@ -305,6 +305,9 @@ class Result:
         label: Display label for this result. When omitted, the recorded circuit's
             label is used. Batch execution may assign an automatic display name
             without changing the circuit label.
+        input_circuit: Circuit supplied to a binding for this run, before its
+            measurements are extracted or execution is prepared. Retained by
+            reference. ``None`` when this association is unavailable.
 
     Examples:
         >>> job = Job(JobType.STATE_VECTOR, QCircuit(2), ATOSDevice.MYQLM_CLINALG)
@@ -348,6 +351,8 @@ class Result:
         shots: int = 0,
         g_phase_handling: bool = True,
         label: Optional[str] = None,
+        *,
+        input_circuit: Optional[QCircuit] = None,
     ):
         from mpqp.core.binding import CircuitBinding
 
@@ -366,6 +371,8 @@ class Result:
         """See parameter description."""
         self._data = data
         self.label = label
+        self.input_circuit = input_circuit
+        """See parameter description."""
         if isinstance(job.circuit, CircuitBinding):
             if len(job.circuit.circuits) == 1:
                 if TYPE_CHECKING:
@@ -815,7 +822,8 @@ class Result:
         """Save a result to the local storage and returns the corresponding
         local ``id`` to be used when the result needs to be retrieved.
 
-        The result's display label is preserved when it is saved and loaded.
+        The result's display label and associated binding input circuit are
+        preserved when it is saved and loaded.
 
         Uses :func:`~mpqp.local_storage.save.insert_results`."""
         from mpqp.local_storage.save import insert_results
@@ -970,13 +978,13 @@ class BatchResult:
         device: Optional[AvailableDevice] = None,
         measurement: Optional[Measure] | _Unset = _UNSET,
     ) -> BatchResult:
-        """Retrieve runs whose recorded metadata matches every supplied criterion.
+        """Retrieve runs whose input or recorded metadata matches supplied criteria.
 
         Criteria combine with AND. Comparisons happen only when this method is
         called, and only for the supplied criteria. Constructing or executing a
-        batch does not capture its inputs for filtering. A device-only query
-        does not inspect circuits or measurements. Repeated circuits and runs
-        on multiple devices retain every individual result.
+        batch does not build structural snapshots for filtering. A device-only
+        query does not inspect circuits or measurements. Repeated circuits and
+        runs on multiple devices retain every individual result.
 
         Circuit matching includes dimensions, ordered instructions, parameters,
         measurements, noise, input global phase, and the labels of all objects.
@@ -989,8 +997,10 @@ class BatchResult:
         methods are unchanged.
 
         Args:
-            circuit: Complete recorded circuit, including its measurements.
-                ``None`` leaves the circuit unrestricted.
+            circuit: Complete circuit supplied to a binding or recorded on the
+                result's job, including any measurements in that circuit. A
+                structural match against either selects the run. ``None``
+                leaves the circuit unrestricted.
             device: Recorded device. ``None`` leaves the device unrestricted.
             measurement: Recorded job measurement. Omission leaves measurements
                 unrestricted; ``None`` selects runs without an explicit measure.
@@ -1047,6 +1057,19 @@ class BatchResult:
             >>> batch.get_matching(measurement=measurement).results == matches.results  # doctest: +QISKIT
             True
 
+            Binding inputs can be queried without adding separately supplied
+            measurements to their circuits:
+
+            >>> from mpqp import CircuitBinding, ExpectationMeasure, Observable, pZ
+            >>> inputs = [QCircuit([X(0)]), QCircuit([H(0)])]
+            >>> binding = CircuitBinding(inputs,
+            ...     measurements=ExpectationMeasure(Observable(pZ)))
+            >>> bound = run(binding, device)  # doctest: +QISKIT
+            >>> len(bound.get_matching(circuit=deepcopy(inputs[0])))  # doctest: +QISKIT
+            1
+            >>> len(bound.get_matching(circuit=bound[0].job.circuit))  # doctest: +QISKIT
+            1
+
             Labels must match as well as the computation:
 
             >>> renamed = deepcopy(other)
@@ -1086,12 +1109,19 @@ class BatchResult:
             independent copies instead. Filtered batches share the same results,
             so metadata changes are visible through every selection.
 
+            Binding results also retain their supplied circuit by reference.
+            Circuit queries match either this input or the recorded circuit,
+            so separately supplied binding measurements need not be added to
+            the input circuit to query its results. Editing that input can
+            change subsequent matches. This association survives saving and
+            loading; older stored results only have their recorded circuit.
+
             Recorded circuits and measurements may reflect parameter
             substitution or preparation for execution. They can therefore differ
             from the original inputs. Inspect ``result.job.circuit`` and
             ``result.job.measure`` when constructing a query. Circuit matching
-            includes the complete recorded circuit: omitting its measurements
-            does not act as a wildcard for those measurements.
+            compares complete circuits: omitting measurements from a query does
+            not act as a wildcard for measurements embedded in either circuit.
         """
         _validate_matching_criteria(circuit, device, measurement)
         if circuit is None and device is None and isinstance(measurement, _Unset):
@@ -1109,7 +1139,11 @@ class BatchResult:
                         return False
                 elif snapshot(recorded_measurement) != snapshot(measurement):
                     return False
-            return circuit is None or snapshot(result.job.circuit) == snapshot(circuit)
+            if circuit is None:
+                return True
+            return circuits_match(
+                result.input_circuit, circuit, snapshot
+            ) or circuits_match(result.job.circuit, circuit, snapshot)
 
         return BatchResult([result for result in self._results if matches(result)])
 
