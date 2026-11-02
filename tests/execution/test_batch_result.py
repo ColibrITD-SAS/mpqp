@@ -831,8 +831,7 @@ def test_storage_upgrades_legacy_result_labels(
         state,
     )
     with connect(isolated_storage) as connection:
-        connection.executescript(
-            """
+        connection.executescript("""
             DROP TABLE results;
             CREATE TABLE results (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -843,8 +842,7 @@ def test_storage_upgrades_legacy_result_labels(
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP
             );
             UPDATE version SET version = '1.0' WHERE id = 1;
-            """
-        )
+            """)
         if version == "1.1":
             original.label = "legacy display name"
             connection.execute("ALTER TABLE results ADD COLUMN label TEXT")
