@@ -34,6 +34,7 @@ from mpqp.core.binding import CircuitBinding
 from mpqp.execution.job import Job, JobType
 from mpqp.execution.providers.aws import (
     optional_reservation_arn,
+    run_braket,
     submit_job_braket,
 )
 from mpqp.execution.providers.providers_params import BraketParams
@@ -76,6 +77,31 @@ def test_direct_reservation_uses_submitting_device(monkeypatch: pytest.MonkeyPat
 
 
 @pytest.mark.provider("braket")
+@pytest.mark.parametrize(
+    "device",
+    [
+        AWSDevice.BRAKET_LOCAL_SIMULATOR,
+        AWSDevice.BRAKET_SV1_SIMULATOR,
+        AWSDevice.BRAKET_DM1_SIMULATOR,
+        AWSDevice.BRAKET_TN1_SIMULATOR,
+    ],
+)
+def test_direct_reservation_rejects_simulators(device: AWSDevice):
+    """Prevent Braket Direct reservations from targeting local or remote simulators."""
+    circuit = QCircuit([H(0), BasisMeasure([0], shots=10)])
+    job = runner.generate_job(circuit, device)
+
+    with patch("mpqp.execution.providers.aws.get_braket_device") as get_device:
+        with pytest.raises(
+            ValueError,
+            match="Braket Direct reservations can only be used with QPUs",
+        ):
+            run_braket(job, BraketParams(reservation_arn="reservation-arn"))
+
+    get_device.assert_not_called()
+
+
+@pytest.mark.provider("braket")
 def test_submit_job_uses_direct_reservation_context():
     """Run the remote submission path inside the requested reservation context."""
     import mpqp.execution.providers.aws as aws_provider
@@ -83,13 +109,10 @@ def test_submit_job_uses_direct_reservation_context():
     circuit = QCircuit([H(0), BasisMeasure([0], shots=10)])
     job = runner.generate_job(circuit, AWSDevice.IQM_GARNET)
     assert isinstance(job.circuit, QCircuit)
-    job.circuit.transpiled_circuit = Mock()
     braket_device = Mock()
     task = Mock(id="task-id")
     braket_device.run.return_value = task
     entered_contexts = []
-    fake_circuits_module = ModuleType("braket.circuits")
-    fake_circuits_module.__dict__["Circuit"] = object
 
     @contextmanager
     def capture_reservation(device: object, reservation_arn: str | None):
@@ -97,7 +120,6 @@ def test_submit_job_uses_direct_reservation_context():
         yield
 
     with (
-        patch.dict(sys.modules, {"braket.circuits": fake_circuits_module}),
         patch.object(aws_provider, "get_braket_device", return_value=braket_device),
         patch.object(
             aws_provider, "optional_reservation_arn", side_effect=capture_reservation
