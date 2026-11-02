@@ -507,10 +507,9 @@ def run_braket_observable(
 ) -> Result:
     """Returns the result of an ``OBSERVABLE`` job.
 
-    TODO: check that the link bellow is correctly generated.
     If :attr:`~mpqp.execution.job.Job.measure.optimize_measurement`, this
     function will run based on the grouping of the pauli monomials (Read
-    :ref:`TODO here` for more information).
+    :ref:`Pauli Grouping <pauli-grouping>` for more information).
 
     Otherwise each observable will be ran one by one.
 
