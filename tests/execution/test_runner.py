@@ -135,7 +135,7 @@ def test_run_batch_order_is_circuit_major():
     batch = run([c1, c2], devices)
     order = [
         (r.job.circuit.label, r.device)  # pyright: ignore[reportAttributeAccessIssue]
-        for r in batch.results  # pyright: ignore[reportAttributeAccessIssue]
+        for r in batch.results
     ]
     assert order == [
         ("c1", devices[0]),

@@ -140,6 +140,8 @@ Observable decomposition
 
 .. automodule:: mpqp.tools.obs_decomposition
 
+.. _pauli-grouping:
+
 Pauli Grouping
 --------------
 
