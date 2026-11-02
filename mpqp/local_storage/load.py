@@ -92,6 +92,7 @@ def results_local_storage_to_mpqp(
                 eval(eval(results['data'])),
                 error,
                 results['shots'],
+                label=results.get('label'),
             )
         )
     else:
@@ -106,6 +107,7 @@ def results_local_storage_to_mpqp(
                     eval(eval(result['data'])),
                     error,
                     result['shots'],
+                    label=result.get('label'),
                 )
             )
 

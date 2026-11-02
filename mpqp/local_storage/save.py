@@ -10,8 +10,10 @@ from __future__ import annotations
 from mpqp.environment.env_manager import get_env_variable
 from mpqp.execution import BatchResult, Job, Result
 from mpqp.local_storage.queries import fetch_jobs_with_job
+from mpqp.local_storage.setup import ensure_local_storage
 
 
+@ensure_local_storage
 def insert_jobs(jobs: Job | list[Job]) -> list[int]:
     """Insert a job in the database.
 
@@ -94,6 +96,7 @@ def insert_jobs(jobs: Job | list[Job]) -> list[int]:
     return job_ids
 
 
+@ensure_local_storage
 def insert_results(
     result: Result | BatchResult | list[Result], reuse_similar_job: bool = True
 ) -> list[int]:
@@ -149,10 +152,10 @@ def _insert_result(result: Result, reuse_similar_job: bool = True):
 
             cursor.execute(
                 '''
-                INSERT INTO results (job_id, data, error, shots)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO results (job_id, data, error, shots, label)
+                VALUES (?, ?, ?, ?, ?)
             ''',
-                (job_id, data_json, error_json, result.shots),
+                (job_id, data_json, error_json, result.shots, result.label),
             )
 
             result_id = cursor.lastrowid

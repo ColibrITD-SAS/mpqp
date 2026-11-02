@@ -495,6 +495,27 @@ def isolated_storage(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     return path
 
 
+def test_job_save_initializes_local_storage(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    from mpqp.environment import env_manager
+    from mpqp.local_storage.setup import setup_local_storage
+
+    monkeypatch.setattr(env_manager, "MPQP_ENV", tmp_path / "mpqp.env")
+    monkeypatch.setenv("DB_PATH", "")
+    path = tmp_path / "results.db"
+    monkeypatch.setattr(
+        "mpqp.local_storage.setup.setup_local_storage",
+        lambda: setup_local_storage(str(path)),
+    )
+
+    job = Job(JobType.STATE_VECTOR, QCircuit([X(0)]), IBMDevice.AER_SIMULATOR)
+    job_id = job.save()
+
+    assert path.is_file()
+    assert Job.load_by_local_id(job_id) == job
+
+
 def test_save_and_load_do_not_capture_inputs(isolated_storage: Path):
     original = QCircuit([Rx(Symbol("theta"), 0)])
     values: dict[Expr | str, Complex] = {"theta": cast(Complex, 0.5)}
@@ -523,6 +544,135 @@ def test_legacy_storage_falls_back_to_job_circuit(isolated_storage: Path):
     restored = BatchResult.load_by_local_ids(ids)
     assert restored.get_matching(circuit=circuit).results == [restored[0]]
     assert len(restored) == 1
+
+
+def test_storage_preserves_generated_result_labels(isolated_storage: Path):
+    circuit = QCircuit([X(0)])
+    with patch(
+        "mpqp.execution.runner._run_single",
+        side_effect=lambda circ, *args: make_result(circ),
+    ):
+        batch = run([circuit, circuit], IBMDevice.AER_SIMULATOR)
+    assert isinstance(batch, BatchResult)
+    restored = BatchResult.load_by_local_ids(batch.save())
+
+    assert [result.label for result in restored] == ["circuit 1", "circuit 2"]
+    assert str(restored) == str(batch)
+    assert circuit.label is None
+    for result in restored:
+        assert isinstance(result.job.circuit, QCircuit)
+        assert result.job.circuit.label is None
+    assert len(restored.get_matching(circuit=deepcopy(circuit))) == 2
+
+
+@pytest.mark.parametrize("label", [None, "", "Alice's result"])
+def test_storage_preserves_explicit_result_labels(
+    isolated_storage: Path, label: Optional[str]
+):
+    from mpqp.local_storage.load import results_local_storage_to_mpqp
+    from mpqp.local_storage.queries import fetch_results_with_id
+
+    result = make_result(QCircuit([X(0)], label="circuit label"))
+    result.label = label
+    result_id = result.save()
+    restored = Result.load_by_local_id(result_id)
+    restored_record = results_local_storage_to_mpqp(
+        fetch_results_with_id(result_id)[0]
+    )[0]
+
+    assert restored.label == restored_record.label == label
+    assert str(restored) == str(restored_record) == str(result)
+
+
+@pytest.mark.parametrize("entry_point", ["load", "save", "save_job", "setup"])
+def test_storage_upgrades_legacy_result_labels(
+    isolated_storage: Path, entry_point: str
+):
+    from mpqp.local_storage.load import results_local_storage_to_mpqp
+    from mpqp.local_storage.save import insert_results
+    from mpqp.local_storage.setup import (
+        DATABASE_VERSION,
+        get_database_version,
+        setup_local_storage,
+    )
+
+    circuit = QCircuit([X(0)], label="legacy circuit")
+    state = StateVector(np.array([0, 1], dtype=np.complex128))
+    original = Result(
+        Job(JobType.STATE_VECTOR, circuit, IBMDevice.AER_SIMULATOR),
+        state,
+    )
+    with connect(isolated_storage) as connection:
+        connection.executescript("""
+            DROP TABLE results;
+            CREATE TABLE results (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                job_id INTEGER NOT NULL,
+                data TEXT NOT NULL,
+                error TEXT,
+                shots INTEGER DEFAULT 0,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            );
+            UPDATE version SET version = '1.0' WHERE id = 1;
+            """)
+        connection.execute(
+            "INSERT INTO jobs (id, type, circuit, device) VALUES (?, ?, ?, ?)",
+            (7, "STATE_VECTOR", json.dumps(repr(circuit)), str(original.device)),
+        )
+        connection.execute(
+            "INSERT INTO results (id, job_id, data, shots, created_at) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (11, 7, json.dumps(repr(state)), 0, "2026-01-01 00:00:00"),
+        )
+        cursor = connection.execute("SELECT * FROM results WHERE id = 11")
+        legacy_record = dict(
+            zip((column[0] for column in cursor.description), cursor.fetchone())
+        )
+
+    new_result = make_result(circuit)
+    new_result.label = "new display name"
+    if entry_point == "load":
+        Result.load_by_local_id(11)
+    elif entry_point == "save":
+        insert_results(new_result, reuse_similar_job=False)
+    elif entry_point == "save_job":
+        original.job.save()
+    else:
+        setup_local_storage(str(isolated_storage))
+
+    assert get_database_version() == DATABASE_VERSION
+    restored = Result.load_by_local_id(11)
+    assert restored.label is None
+    assert str(restored) == str(original)
+    np.testing.assert_array_equal(restored.amplitudes, [0, 1])
+    assert results_local_storage_to_mpqp(legacy_record)[0].label is None
+    with connect(isolated_storage) as connection:
+        cursor = connection.execute("SELECT * FROM results WHERE id = 11")
+        migrated_record = dict(
+            zip((column[0] for column in cursor.description), cursor.fetchone())
+        )
+    assert migrated_record == {**legacy_record, "label": None}
+
+    # Reopening and writing again must work after the one-time upgrade.
+    setup_local_storage(str(isolated_storage))
+    assert Result.load_by_local_id(new_result.save()).label == new_result.label
+
+
+@pytest.mark.parametrize("entry_point", ["load", "save_job"])
+def test_storage_rejects_unsupported_database_version(
+    isolated_storage: Path, entry_point: str
+):
+    from mpqp.local_storage.setup import get_database_version
+
+    with connect(isolated_storage) as connection:
+        connection.execute("UPDATE version SET version = '2.0' WHERE id = 1")
+
+    with pytest.raises(RuntimeError, match="Database version 2.0 is not supported"):
+        if entry_point == "save_job":
+            Job(JobType.STATE_VECTOR, QCircuit([X(0)]), IBMDevice.AER_SIMULATOR).save()
+        else:
+            Result.load_by_local_id(1)
+    assert get_database_version() == "2.0"
 
 
 @pytest.mark.parametrize("with_old_metadata", [False, True])

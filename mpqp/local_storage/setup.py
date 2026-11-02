@@ -16,7 +16,7 @@ from mpqp.environment.env_manager import get_env_variable, save_env_variable
 from mpqp.tools.generics import T
 
 DictDB = dict[str, Any]
-DATABASE_VERSION = "1.0"
+DATABASE_VERSION = "1.1"
 
 
 def get_database_version() -> str:
@@ -36,6 +36,38 @@ def get_database_version() -> str:
         connection.close()
 
 
+def _ensure_database_version() -> None:
+    """Upgrade supported schemas and reject incompatible database versions."""
+    from sqlite3 import connect
+
+    db_version = get_database_version()
+    if db_version == "1.0":
+        connection = connect(get_env_variable("DB_PATH"))
+        try:
+            with connection:
+                # Serialize upgrades and recheck after acquiring the write lock.
+                connection.execute("BEGIN IMMEDIATE")
+                version = connection.execute(
+                    "SELECT version FROM version WHERE id = 1"
+                ).fetchone()
+                if version is not None and version[0] == "1.0":
+                    connection.execute("ALTER TABLE results ADD COLUMN label TEXT")
+                    connection.execute(
+                        "UPDATE version SET version = ? WHERE id = 1",
+                        (DATABASE_VERSION,),
+                    )
+        finally:
+            connection.close()
+        db_version = get_database_version()
+    if db_version != DATABASE_VERSION:
+        raise RuntimeError(
+            f"Database version {db_version} is not supported. "
+            f"Current supported version: {DATABASE_VERSION}. "
+            "No automatic migration is available for this version; "
+            "please contact library authors for help."
+        )
+
+
 def ensure_local_storage(func: Callable[..., T]) -> Callable[..., T]:
     """Decorator for functions needing the database to be present.
 
@@ -47,12 +79,7 @@ def ensure_local_storage(func: Callable[..., T]) -> Callable[..., T]:
         if get_env_variable("DB_PATH") == "":
             setup_local_storage()
 
-        db_version = get_database_version()
-        if db_version != DATABASE_VERSION:
-            raise RuntimeError(f"""\
-Database version {db_version} is outdated. Current supported version: {DATABASE_VERSION}.
-Automated migration is not yet supported, please contact library authors to get\
- help for the migration.""")
+        _ensure_database_version()
 
         return func(*args, **kwargs)
 
@@ -67,12 +94,20 @@ def setup_local_storage(path: Optional[str] = None):
     Args:
         path: Directory to save the database file. Defaults to the current working directory.
 
+    Raises:
+        RuntimeError: If the database version has no supported upgrade path.
+
     Example:
         >>> setup_local_storage("~/documents/my_database.db")
         >>> os.remove(Path("~/documents/my_database.db").expanduser())
         >>> setup_local_storage("my_database.db")
         >>> os.remove("my_database.db")
         >>> setup_local_storage()
+
+    Note:
+        Existing version 1.0 databases are upgraded automatically, preserving
+        stored jobs and results. Older results retain their circuit's display
+        label until a separate result label is assigned.
 
     """
     from sqlite3 import connect
@@ -102,16 +137,19 @@ def setup_local_storage(path: Optional[str] = None):
     ''')
 
     # Create the results table
-    cursor.execute('''
+    cursor.execute(
+        '''
     CREATE TABLE IF NOT EXISTS results (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         job_id INTEGER NOT NULL,
         data TEXT NOT NULL,            -- Store JSON as text
         error TEXT,                    -- Optional, stored as JSON text
         shots INTEGER DEFAULT 0,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        label TEXT
     )
-    ''')
+    '''
+    )
 
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS version (
@@ -127,3 +165,4 @@ def setup_local_storage(path: Optional[str] = None):
     cursor.close()
     connection.commit()
     connection.close()
+    _ensure_database_version()

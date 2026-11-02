@@ -815,6 +815,8 @@ class Result:
         """Save a result to the local storage and returns the corresponding
         local ``id`` to be used when the result needs to be retrieved.
 
+        The result's display label is preserved when it is saved and loaded.
+
         Uses :func:`~mpqp.local_storage.save.insert_results`."""
         from mpqp.local_storage.save import insert_results
 
