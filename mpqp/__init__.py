@@ -1,4 +1,5 @@
 # pyright: reportUnusedImport=false
+from mpqp.core.binding import BindingMode, CircuitBinding
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction import Instruction
 from mpqp.core.instruction.barrier import Barrier
@@ -21,8 +22,6 @@ from .execution import (
     run,
     submit,
 )
-from .core.circuitbinding import BindingMode as BindingMode
-from .core.circuitbinding import CircuitBinding as CircuitBinding
 from .execution.devices import (
     ATOSDevice,
     AWSDevice,

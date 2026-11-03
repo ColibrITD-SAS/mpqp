@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from sympy import Expr, I, pi, symbols
+from sympy import Abs, Expr, I, Pow, Rational, acos, asin, atan, pi, sqrt, symbols
 
 from mpqp.core.circuit import QCircuit
 from mpqp.core.languages import Language
@@ -57,7 +57,12 @@ def test_P(angle: float, result_matrix: Matrix):
             theta,
             0,
             0,
-            np.array([[c2, -1.0 * s2], [1.0 * s2, 1.0 * c2]]),
+            np.array(
+                [
+                    [c2, -1.0 * s2],
+                    [1.0 * s2, 1.0 * c2],
+                ]
+            ),
         ),
     ],
 )
@@ -81,7 +86,12 @@ def test_U(theta: float, phi: float, gamma: float, result_matrix: Matrix):
         ),
         (
             theta,
-            np.array([[c2, -1j * s2], [-1j * s2, c2]]),
+            np.array(
+                [
+                    [c2, -1j * s2],
+                    [-1j * s2, c2],
+                ]
+            ),
         ),
     ],
 )
@@ -258,6 +268,7 @@ def test_CRk(angle_bin_pow: int, result_matrix: Matrix):
 
 @pytest.fixture
 def symbolic_circuits() -> list[tuple[QCircuit, dict[str, float], float]]:
+    assumed_theta = symbols("assumed_theta", real=True)
     return [
         (
             QCircuit([Ry(2 * theta + phi, 0)]),
@@ -279,6 +290,11 @@ def symbolic_circuits() -> list[tuple[QCircuit, dict[str, float], float]]:
             QCircuit([Ry(sin(theta), 0), Ry(theta, 0)]),
             {"θ": 0.2},
             float(np.sin((np.sin(0.2) + 0.2) / 2) ** 2),
+        ),
+        (
+            QCircuit([Ry(assumed_theta, 0)]),
+            {"assumed_theta": 0.2},
+            float(np.sin(0.1) ** 2),
         ),
     ]
 
@@ -302,6 +318,33 @@ def test_qiskit_symbolic_expressions(
         assert len(translated.parameters) == len(values)
 
 
+@pytest.mark.provider("qiskit")
+@pytest.mark.parametrize(
+    "angle, expected_angle",
+    [
+        (asin(theta), np.arcsin(-0.25)),
+        (acos(theta), np.arccos(-0.25)),
+        (atan(theta), np.arctan(-0.25)),
+        (Abs(theta), 0.25),
+    ],
+)
+def test_qiskit_symbolic_function_names(angle: Expr, expected_angle: float):
+    translated = QCircuit([Ry(angle, 0)]).to_other_language(Language.QISKIT)
+    bound = translated.assign_parameters({"θ": -0.25})
+    assert float(bound.data[0].operation.params[0]) == pytest.approx(expected_angle)
+
+
+@pytest.mark.provider("qiskit")
+@pytest.mark.parametrize(
+    "angle, expected_angle",
+    [(sqrt(theta), 0.5), (Pow(theta, Rational(-1, 2)), 2.0)],
+)
+def test_qiskit_symbolic_square_roots(angle: Expr, expected_angle: float):
+    translated = QCircuit([Ry(angle, 0)]).to_other_language(Language.QISKIT)
+    bound = translated.assign_parameters({"θ": 0.25})
+    assert float(bound.data[0].operation.params[0]) == pytest.approx(expected_angle)
+
+
 @pytest.mark.provider("braket")
 def test_braket_symbolic_expressions(
     symbolic_circuits: list[tuple[QCircuit, dict[str, float], float]],
@@ -314,14 +357,14 @@ def test_braket_symbolic_expressions(
         assert {str(parameter) for parameter in translated.parameters} == set(values)
         assert len(translated.parameters) == len(values)
         bound = translated.make_bound_circuit(
-            values
-        )  # pyright: ignore[reportArgumentType]
+            values  # pyright: ignore[reportArgumentType]
+        )
         result = simulator.run(
-            bound.probability(), shots=0
-        ).result()  # pyright: ignore[reportAttributeAccessIssue]
-        assert result.values[0][1] == pytest.approx(
-            expected_probability
-        )  # pyright: ignore[reportAttributeAccessIssue]
+            bound.probability(), shots=0  # pyright: ignore[reportAttributeAccessIssue]
+        ).result()
+        assert result.values[0][  # pyright: ignore[reportAttributeAccessIssue]
+            1
+        ] == pytest.approx(expected_probability)
         assert len(translated.parameters) == len(values)
 
 
@@ -336,8 +379,8 @@ def test_cirq_symbolic_expressions(
         translated = circuit.to_other_language(Language.CIRQ)
         assert cirq.parameter_names(translated) == set(values)
         bound = cirq.resolve_parameters(
-            translated, values
-        )  # pyright: ignore[reportArgumentType]
+            translated, values  # pyright: ignore[reportArgumentType]
+        )
         assert not cirq.is_parameterized(bound)
         result = simulator.simulate(bound)
         assert abs(result.final_state_vector[1]) ** 2 == pytest.approx(

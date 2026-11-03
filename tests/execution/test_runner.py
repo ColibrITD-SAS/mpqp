@@ -1,11 +1,62 @@
 import numpy as np
 import pytest
 
-from mpqp import ExpectationMeasure, H, Observable, QCircuit, Rx, pI, pX, pY, pZ
+from mpqp import (
+    ExpectationMeasure,
+    BasisMeasure,
+    X,
+    H,
+    Observable,
+    QCircuit,
+    Rx,
+    pI,
+    pX,
+    pY,
+    pZ,
+    run,
+    IBMDevice,
+    AWSDevice,
+)
 from mpqp.core.instruction.measurement import PauliString
 from mpqp.execution import adjust_measure
+from mpqp.execution.job import Job, JobStatus, JobType
+from mpqp.execution.providers.providers_params import QiskitParams
+from mpqp.execution.result import Result, Sample
 from mpqp.tools.errors import NumberQubitsError
 from mpqp.tools.maths import matrix_eq
+
+
+def test_diagonal_optimization_preserves_provider_parameters(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    params = QiskitParams(
+        instance="selected-instance",
+        options={"environment": {"private": True, "job_tags": ["experiment"]}},
+    )
+    monkeypatch.setattr(params, "qctrl_function", object())
+
+    def execute(job: Job, qiskit_params: QiskitParams | None = None) -> Result:
+        assert qiskit_params is params
+        assert job.job_type == JobType.SAMPLE
+        assert isinstance(job.measure, BasisMeasure)
+        assert job.measure.shots == 100
+        job.id = "sampling-job-id"
+        job.status = JobStatus.DONE
+        return Result(job, [Sample(1, index=1, count=100)], shots=100)
+
+    monkeypatch.setattr("mpqp.execution.runner.run_ibm", execute)
+    circuit = QCircuit(
+        [
+            X(0),
+            ExpectationMeasure(Observable(pZ), shots=100, optim_diagonal=True),
+        ]
+    )
+
+    result = run(circuit, IBMDevice.IBM_FEZ, provider_params=params)
+
+    assert isinstance(result, Result)
+    assert result.expectation_values == pytest.approx(-1.0)
+    assert result.job.id == "sampling-job-id"
 
 
 @pytest.mark.parametrize(
@@ -110,3 +161,21 @@ def test_adjust_measure_targets_mismatch():
         NumberQubitsError, match="Target size 2 doesn't match observable size 1"
     ):
         ExpectationMeasure(Observable(pX), targets=[0, 1])
+
+
+@pytest.mark.provider("qiskit", "braket")
+def test_run_batch_order_is_circuit_major():
+    c1 = QCircuit([X(0), BasisMeasure([0], shots=10)], label="c1")
+    c2 = QCircuit([BasisMeasure([0], shots=10)], label="c2")
+    devices = [IBMDevice.AER_SIMULATOR, AWSDevice.BRAKET_LOCAL_SIMULATOR]
+    batch = run([c1, c2], devices)
+    order = [
+        (r.job.circuit.label, r.device)  # pyright: ignore[reportAttributeAccessIssue]
+        for r in batch.results
+    ]
+    assert order == [
+        ("c1", devices[0]),
+        ("c1", devices[1]),
+        ("c2", devices[0]),
+        ("c2", devices[1]),
+    ]

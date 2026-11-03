@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from copy import copy, deepcopy
 from dataclasses import dataclass, field
-from numbers import Number, Real
+from numbers import Complex, Real
 from typing import Any, Callable, Optional, Sequence, cast
 
 import numpy as np
@@ -15,7 +15,7 @@ from scipy.optimize import minimize as scipy_minimize
 from sympy import Basic, default_sort_key
 
 from mpqp.core import QCircuit
-from mpqp.core.circuitbinding import (
+from mpqp.core.binding import (
     BindingExecution,
     BindingMode,
     CircuitBinding,
@@ -46,7 +46,7 @@ ResidualFunction = Callable[
 ]
 
 
-def _real_parameter_value(value: Number) -> float:
+def _real_parameter_value(value: Complex | float) -> float:
     """Normalize a binding value while rejecting complex VQA parameters."""
     if not isinstance(value, Real):
         raise ValueError("VQA binding values must be real numbers.")

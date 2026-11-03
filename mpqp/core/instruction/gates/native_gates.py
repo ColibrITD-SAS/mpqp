@@ -51,9 +51,15 @@ def _apply_qiskit_function(
     name: str, value: "ParameterExpression"
 ) -> "ParameterExpression":
     """Apply a supported symbolic function to a Qiskit expression."""
-    operation = getattr(value, name, None)
+    function_names = {
+        "asin": "arcsin",
+        "acos": "arccos",
+        "atan": "arctan",
+        "Abs": "abs",
+    }
+    operation = getattr(value, function_names.get(name, name), None)
     if not callable(operation):
-        raise ValueError(f"Qiskit parameters do not support the function {name!r}.")
+        raise ValueError(f"Qiskit parameters do not support the function `{name}`.")
     return cast("ParameterExpression", operation())
 
 
@@ -76,11 +82,11 @@ def _qiskit_parameter_adder(
         The memoized parameter
     """
     from qiskit.circuit import Parameter as ParameterConstructor
-    from sympy import Expr, Function, default_sort_key, lambdify
+    from sympy import Expr, Function, Symbol, default_sort_key, lambdify
 
     if isinstance(param, Expr):
         if not param.free_symbols:
-            return float(param.evalf())  # pyright: ignore[reportArgumentType]
+            return float(param.evalf())
 
         symbols = tuple(sorted(param.free_symbols, key=default_sort_key))
         parameters: list["ParameterExpression"] = []
@@ -88,7 +94,11 @@ def _qiskit_parameter_adder(
             name = str(symbol)
             matches = [item for item in qiskit_parameters if item.name == name]
             if len(matches) > 1:
-                raise ReferenceError(f"Several Qiskit parameters are named {name!r}.")
+                raise ReferenceError(
+                    "Somehow two parameter got the same name, this shouldn't be "
+                    "possible. For help on this error please contact the authors of"
+                    " this library"
+                )
             if matches:
                 parameters.append(matches[0])
             else:
@@ -96,13 +106,21 @@ def _qiskit_parameter_adder(
                 qiskit_parameters.add(created)
                 parameters.append(created)
 
+        if isinstance(param, Symbol):
+            return parameters[0]
+
         functions = {
             function.func.__name__: partial(
                 _apply_qiskit_function, function.func.__name__
             )
             for function in param.atoms(Function)
         }
-        evaluator = lambdify(symbols, param, modules=[functions, "math"], dummify=True)
+        evaluator = lambdify(
+            symbols,
+            param,
+            modules=[{"sqrt": lambda value: value**0.5}, functions, "math"],
+            dummify=True,
+        )
         return cast("ParameterExpression | float", evaluator(*parameters))
     return float(param)
 
@@ -111,16 +129,19 @@ def _sympy_to_braket_param(
     val: Expr | float,
 ) -> "FreeParameterExpression | float":
     from braket.circuits import FreeParameterExpression
-    from sympy import Expr
+    from sympy import Expr, Symbol
 
     if isinstance(val, Expr):
         if val.free_symbols:
-            return FreeParameterExpression(val)
+            normalized_symbols = {
+                symbol: Symbol(str(symbol)) for symbol in val.free_symbols
+            }
+            return FreeParameterExpression(val.xreplace(normalized_symbols))
         else:
             try:
-                return float(val.evalf())  # pyright: ignore[reportArgumentType]
+                return float(val.evalf())
             except Exception as e:
-                raise ValueError(f"Failed to evaluate sympy expression '{val}': {e}")
+                raise ValueError(f"Failed to evaluate sympy expression `{val}`: {e}")
     else:
         return float(val)
 
@@ -1202,8 +1223,8 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
         )
         return np.array(
             [
-                [c, -eg * s],  # pyright: ignore[reportOperatorIssue]
-                [ep * s, eg * ep * c],  # pyright: ignore[reportOperatorIssue]
+                [c, -eg * s],
+                [ep * s, eg * ep * c],
             ]
         )
 
@@ -1346,7 +1367,7 @@ class Rz(RotationGate, SingleQubitGate):
 
     def to_canonical_matrix(self):
         e = exp(symbolic_product(-0.5j, self.parameters[0]))
-        return np.array([[e, 0], [0, 1 / e]])  # pyright: ignore[reportOperatorIssue]
+        return np.array([[e, 0], [0, 1 / e]])
 
 
 class Rxx(RotationGate, ComposedGate):

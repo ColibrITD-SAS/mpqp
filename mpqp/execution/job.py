@@ -23,12 +23,13 @@ from mpqp.tools.generics import MessageEnum
 # is a class (probably because Enum does weird things to the Enum class)
 if TYPE_CHECKING:
     from enum import Enum
-    from mpqp.execution.runner import ValuesDict
 
+    from mpqp.core.binding import CircuitBinding
+    from mpqp.core.circuit import QCircuit
+
+from mpqp.core._types import BindingParameters
 from mpqp.core.instruction.measurement import BasisMeasure, ExpectationMeasure, Measure
 
-from ..core.circuit import QCircuit
-from ..core.circuitbinding import CircuitBinding
 from ..tools.errors import IBMRemoteExecutionError, QLMRemoteExecutionError
 from .connection.azure_connection import get_jobs_by_id
 from .connection.ibm_connection import get_QiskitRuntimeService
@@ -134,7 +135,7 @@ class Job:
         circuit: QCircuit | CircuitBinding,
         device: AvailableDevice,
         measurement: Optional[Measure] = None,
-        values: Optional["ValuesDict"] = None,
+        values: Optional[BindingParameters] = None,
         *,
         mode: ExecutionMode = ExecutionMode.JOB,
     ):
@@ -154,7 +155,7 @@ class Job:
         while before it is set to the right value (For instance, a job
         submission can require handshake protocols to conclude before
         attributing an id to the job)."""
-        self.values: Optional["ValuesDict"] = None
+        self.values: Optional[BindingParameters] = None
         """Parameter bindings for circuits containing symbolic variables.
 
         For local execution, parameters are typically substituted directly into the
@@ -165,20 +166,22 @@ class Job:
         """Optional message associated with the current job status, especially
         for execution errors."""
 
-        """Store the measurement of a circuit."""
-        self.measurement = measurement
+        self._measurement = measurement
+        """Store the measurement of a circuit, used mostly for ``CircuitBinding`` execution."""
 
-        """Store parameters in case the original circuit was parametrized."""
         self.values = values
+        """Store parameters in case the original circuit was parametrized."""
 
     @property
     def measure(self) -> Optional[Measure]:
         """Returns the first measurement from the circuit's measurements."""
+        from ..core.binding import CircuitBinding
+
         if isinstance(self.circuit, CircuitBinding):
-            return None
+            return self._measurement
 
         return (
-            None
+            self._measurement
             if len(self.circuit.measurements) == 0
             else self.circuit.measurements[0]
         )
