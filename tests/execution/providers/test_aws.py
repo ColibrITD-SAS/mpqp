@@ -1,11 +1,14 @@
 import sys
+from contextlib import contextmanager
+from types import ModuleType
 from typing import TYPE_CHECKING
-from unittest.mock import Mock
+from unittest.mock import MagicMock, Mock, patch
 
 import numpy as np
 import pytest
 from sympy import Symbol
 
+import mpqp.execution.runner as runner
 from mpqp import (
     CNOT,
     AWSDevice,
@@ -20,15 +23,18 @@ from mpqp import (
     run,
 )
 from mpqp.core.binding import CircuitBinding
+from mpqp.execution.job import Job, JobType
 from mpqp.execution.providers.aws import (
     _ordered_measurement_probabilities,  # pyright: ignore[reportPrivateUsage]
 )
 from mpqp.execution.providers.aws import (
+    optional_reservation_arn,
     run_braket,
     submit_job_braket,
 )
+from mpqp.execution.providers.providers_params import BraketParams
 from mpqp.execution.remote_handler import get_remote_result
-from mpqp.execution.result import BatchResult
+from mpqp.execution.result import BatchResult, Sample
 from mpqp.execution.runner import generate_job
 from mpqp.measures import pI, pX, pZ
 from mpqp.noise import BitFlip
@@ -82,6 +88,123 @@ def local_braket_remote(monkeypatch: pytest.MonkeyPatch) -> Mock:
     )
     monkeypatch.setattr("braket.aws.AwsQuantumTask", Mock(return_value=remote_task))
     return remote_task
+
+
+@pytest.mark.provider("braket")
+def test_direct_reservation_uses_submitting_device(monkeypatch: pytest.MonkeyPatch):
+    """Forward the exact Braket device and ARN to ``DirectReservation``."""
+    braket_device = Mock()
+    direct_reservation = Mock()
+    reservation_context = MagicMock()
+    direct_reservation.return_value = reservation_context
+    fake_aws_module = ModuleType("braket.aws")
+    fake_aws_module.__dict__["DirectReservation"] = direct_reservation
+    monkeypatch.setitem(sys.modules, "braket.aws", fake_aws_module)
+
+    with optional_reservation_arn(braket_device, "reservation-arn"):
+        pass
+
+    direct_reservation.assert_called_once_with(
+        braket_device, reservation_arn="reservation-arn"
+    )
+    reservation_context.__enter__.assert_called_once_with()
+    reservation_context.__exit__.assert_called_once()
+
+
+@pytest.mark.provider("braket")
+@pytest.mark.parametrize(
+    "device",
+    [
+        AWSDevice.BRAKET_LOCAL_SIMULATOR,
+        AWSDevice.BRAKET_SV1_SIMULATOR,
+        AWSDevice.BRAKET_DM1_SIMULATOR,
+        AWSDevice.BRAKET_TN1_SIMULATOR,
+    ],
+)
+def test_direct_reservation_rejects_simulators(device: AWSDevice):
+    """Prevent Braket Direct reservations from targeting simulators."""
+    circuit = QCircuit([H(0), BasisMeasure([0], shots=10)])
+    job = runner.generate_job(circuit, device)
+
+    with patch("mpqp.execution.providers.aws.get_braket_device") as get_device:
+        with pytest.raises(
+            ValueError,
+            match="Braket Direct reservations can only be used with QPUs",
+        ):
+            run_braket(job, BraketParams(reservation_arn="reservation-arn"))
+
+    get_device.assert_not_called()
+
+
+@pytest.mark.provider("braket")
+def test_submit_job_uses_direct_reservation_context():
+    """Run remote submission inside the requested reservation context."""
+    import mpqp.execution.providers.aws as aws_provider
+
+    circuit = QCircuit([H(0), BasisMeasure([0], shots=10)])
+    job = runner.generate_job(circuit, AWSDevice.IQM_GARNET)
+    assert isinstance(job.circuit, QCircuit)
+    braket_device = Mock()
+    task = Mock(id="task-id")
+    braket_device.run.return_value = task
+    entered_contexts = []
+
+    @contextmanager
+    def capture_reservation(device: object, reservation_arn: str | None):
+        entered_contexts.append((device, reservation_arn))
+        yield
+
+    with (
+        patch.object(aws_provider, "get_braket_device", return_value=braket_device),
+        patch.object(
+            aws_provider, "optional_reservation_arn", side_effect=capture_reservation
+        ),
+    ):
+        job_id, submitted_task = submit_job_braket(
+            job, BraketParams(reservation_arn="reservation-arn")
+        )
+
+    assert entered_contexts == [(braket_device, "reservation-arn")]
+    assert job_id == "task-id"
+    assert submitted_task is task
+
+
+@pytest.mark.provider("braket")
+def test_binding_forwards_braket_params():
+    """Forward the original ``BraketParams`` through the binding runner."""
+    params = BraketParams(reservation_arn="reservation-arn")
+    binding = CircuitBinding(QCircuit(1))
+    expected = BatchResult([])
+
+    with patch("mpqp.execution.runner.run_braket", return_value=expected) as execute:
+        result = runner._run_circuit_binding(  # pyright: ignore[reportPrivateUsage]
+            binding,
+            AWSDevice.IQM_GARNET,
+            provider_params=params,
+        )
+
+    assert result is expected
+    assert execute.call_args.args[1] is params
+
+
+@pytest.mark.provider("braket")
+def test_diagonal_observable_forwards_braket_params():
+    """Preserve reservation parameters when reducing an observable to sampling."""
+    params = BraketParams(reservation_arn="reservation-arn")
+    circuit = QCircuit(
+        [ExpectationMeasure(Observable(pZ), shots=100, optim_diagonal=True)]
+    )
+
+    def execute(job: Job, provider_params: BraketParams | None = None) -> Result:
+        assert provider_params is params
+        assert job.job_type == JobType.SAMPLE
+        return Result(job, [Sample(1, index=0, count=100)], None, 100)
+
+    with patch("mpqp.execution.runner.run_braket", side_effect=execute) as execute_job:
+        result = run(circuit, AWSDevice.IQM_GARNET, provider_params=params)
+
+    execute_job.assert_called_once()
+    assert result.expectation_values == 1.0
 
 
 @pytest.mark.provider("braket")
