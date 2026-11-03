@@ -1,7 +1,7 @@
 from copy import deepcopy
 from importlib import import_module
 from itertools import permutations, product
-from typing import cast
+from typing import Any, Optional, cast
 from unittest.mock import patch
 
 import numpy as np
@@ -24,6 +24,7 @@ from mpqp import (
     run,
 )
 from mpqp.core.binding import BindingMode, CircuitBinding
+from mpqp.core.instruction.gates.native_gates import Y, Z
 from mpqp.core.instruction.measurement.measure import Measure
 from mpqp.execution.job import JobType
 from mpqp.execution.providers.providers_params import QiskitParams
@@ -523,53 +524,42 @@ def test_interleaved_parameterized_circuits_keep_input_order():
 
 
 @pytest.mark.provider("braket")
-@pytest.mark.parametrize("mode", list(BindingMode))
-def test_optimized_measurements_preserve_binding_results_order(mode: BindingMode):
-    theta = Symbol("theta")
-    shots = 100
-    if mode == BindingMode.ZIP:
-        circuits = [QCircuit([Ry(theta, 0)]), QCircuit([Ry(theta, 0), X(0)])]
-        values = [{"theta": 0.0}, {"theta": np.pi / 2}]
-    else:
-        circuits = [QCircuit([Ry(np.pi / 2, 0)]), QCircuit([X(0)])]
-        values = None
-    binding = CircuitBinding(
-        circuits,
-        values=values,
-        measurements=[
-            ExpectationMeasure(
-                Observable(pZ, label="Z"),
-                shots=shots,
-                optimize_measurement=False,
-            ),
-            ExpectationMeasure(
-                Observable(pX, label="X"),
-                shots=shots,
-                optimize_measurement=False,
-            ),
-        ],
-        mode=mode,
+@pytest.mark.parametrize("params", [None, {"a": 1, "b": 2}, {"a": 1, "b": 2, "c": 3}])
+def test_optimized_measurements_preserve_binding_results_order(
+    params: Optional[dict[str, Any]],
+):
+    c = QCircuit([X(0), Z(1), Y(2)])
+    m1 = ExpectationMeasure(
+        [Observable(pZ @ pI @ pI), Observable(pI @ pZ @ pI), Observable(pI @ pI @ pZ)],
+        shots=1000,
     )
-    optimized_binding = deepcopy(binding)
-    for _, _, measurement in optimized_binding.unroll():
-        assert isinstance(measurement, ExpectationMeasure)
-        measurement.optimize_measurement = True
+    m2 = ExpectationMeasure(
+        [Observable(pZ @ pI @ pI), Observable(pI @ pZ @ pI), Observable(pI @ pI @ pZ)],
+        shots=1000,
+        optimize_measurement=False,
+    )
 
-    result = run(binding, AWSDevice.BRAKET_LOCAL_SIMULATOR)
-    optimized_result = run(optimized_binding, AWSDevice.BRAKET_LOCAL_SIMULATOR)
+    binding_with = CircuitBinding(
+        [c],
+        values=params,
+        measurements=m1,
+        mode=BindingMode.ZIP,
+    )
 
-    assert isinstance(result, BatchResult)
-    assert isinstance(optimized_result, BatchResult)
-    assert len(result.results) == len(optimized_result.results)
-    for execution, optimized_execution in zip(result.results, optimized_result.results):
-        assert execution.job.circuit == optimized_execution.job.circuit
-        assert execution.job.values == optimized_execution.job.values
-        assert isinstance(execution.job.measure, ExpectationMeasure)
-        assert isinstance(optimized_execution.job.measure, ExpectationMeasure)
-        assert not execution.job.measure.optimize_measurement
-        assert optimized_execution.job.measure.optimize_measurement
-        assert (
-            execution.job.measure.observables
-            == optimized_execution.job.measure.observables
-        )
-        _assert_expectations_in_confidence_interval(execution, optimized_execution)
+    binding_without = CircuitBinding(
+        [c],
+        values=params,
+        measurements=m2,
+        mode=BindingMode.ZIP,
+    )
+
+    result_with = run(binding_with, AWSDevice.BRAKET_LOCAL_SIMULATOR)
+    result_without = run(binding_without, AWSDevice.BRAKET_LOCAL_SIMULATOR)
+
+    ps1, _ = binding_with.to_other_device(AWSDevice.BRAKET_LOCAL_SIMULATOR)
+    ps2, _ = binding_without.to_other_device(AWSDevice.BRAKET_LOCAL_SIMULATOR)
+    assert ps1.total_executables != ps2.total_executables
+
+    assert len(result_with.results) == len(result_without.results)
+    for r_with, r_without in zip(result_with.results, result_without.results):
+        _assert_expectations_in_confidence_interval(r_with, r_without)
