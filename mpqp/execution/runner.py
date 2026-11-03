@@ -19,7 +19,6 @@ return the corresponding job id and :class:`~mpqp.execution.job.Job` object.
 from __future__ import annotations
 
 from itertools import pairwise
-from numbers import Complex
 from textwrap import indent
 from typing import TYPE_CHECKING, Iterable, Optional, Sequence, overload
 
@@ -59,10 +58,9 @@ from mpqp.execution.result import BatchResult, Result
 from mpqp.tools.display import state_vector_ket_shape
 from mpqp.tools.errors import DeviceJobIncompatibleError, RemoteExecutionError
 from mpqp.tools.generics import OneOrMany, find_index, flatten
+from mpqp.core._types import BindingParameters
 
 if TYPE_CHECKING:
-    from sympy import Expr
-
     from mpqp.core.binding import CircuitBinding
 
 
@@ -219,7 +217,7 @@ def adjust_measure(
 def generate_job(
     circuit: QCircuit | CircuitBinding,
     device: AvailableDevice,
-    values: "Optional[dict[Expr | str, Complex]]" = None,
+    values: Optional[BindingParameters] = None,
 ) -> Job:
     """Creates the Job of appropriate type and containing the information needed
     for the execution of the circuit.
@@ -288,7 +286,7 @@ def _run_diagonal_observables(
     exp_measure: ExpectationMeasure,
     device: AvailableDevice,
     observable_job: Job,
-    values: "Optional[dict[Expr | str, Complex]]" = None,
+    values: Optional[BindingParameters] = None,
     provider_params: Optional[ProviderParams] = None,
 ) -> Result:
 
@@ -350,7 +348,7 @@ def _compute_result_diagonal_observables(
 def _run_single(
     circuit: QCircuit,
     device: AvailableDevice,
-    values: "Optional[dict[Expr | str, Complex]]" = None,
+    values: Optional[BindingParameters] = None,
     display_breakpoints: bool = True,
     provider_params: Optional[ProviderParams] = None,
 ) -> Result:
@@ -559,7 +557,7 @@ def _run_circuit_binding(
 def run(
     circuit: CircuitBinding | OneOrMany[QCircuit],
     device: Sequence[AvailableDevice],
-    values: "Optional[dict[Expr | str, Complex]]" = None,
+    values: Optional[BindingParameters] = None,
     display_breakpoints: bool = True,
     provider_params: Optional[ProviderParams] = None,
 ) -> BatchResult: ...
@@ -569,7 +567,7 @@ def run(
 def run(
     circuit: CircuitBinding,
     device: OneOrMany[AvailableDevice],
-    values: "Optional[dict[Expr | str, Complex]]" = None,
+    values: Optional[BindingParameters] = None,
     display_breakpoints: bool = True,
     provider_params: Optional[ProviderParams] = None,
 ) -> BatchResult: ...
@@ -579,7 +577,7 @@ def run(
 def run(
     circuit: OneOrMany[QCircuit],
     device: AvailableDevice,
-    values: "Optional[dict[Expr | str, Complex]]" = None,
+    values: Optional[BindingParameters] = None,
     display_breakpoints: bool = True,
     provider_params: Optional[ProviderParams] = None,
 ) -> Result: ...
@@ -588,7 +586,7 @@ def run(
 def run(
     circuit: OneOrMany[QCircuit] | CircuitBinding,
     device: OneOrMany[AvailableDevice],
-    values: "Optional[dict[Expr | str, Complex]]" = None,
+    values: Optional[BindingParameters] = None,
     display_breakpoints: bool = True,
     provider_params: Optional[ProviderParams] = None,
 ) -> Result | BatchResult:
@@ -724,7 +722,7 @@ def run(
 def submit(
     circuit: QCircuit,
     device: AvailableDevice,
-    values: Optional[dict[Expr | str, Complex]] = None,
+    values: Optional[BindingParameters] = None,
     provider_params: Optional[ProviderParams] = None,
 ) -> tuple[str, Job]:
     """Submit the job related to the circuit on the remote backend provided in

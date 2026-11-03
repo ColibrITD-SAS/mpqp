@@ -389,8 +389,11 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                         apply_noise_to_braket_circuit,
                     )
 
+                    transpiled_circuit = circuit.transpiled_circuit[device]
+                    if TYPE_CHECKING:
+                        assert isinstance(transpiled_circuit, braket_Circuit)
                     translated_circuit = apply_noise_to_braket_circuit(
-                        circuit.transpiled_circuit[device],
+                        transpiled_circuit,
                         noises=binding.noises if binding.noises is not None else [],
                         nb_qubits=circuit.nb_qubits,
                     )

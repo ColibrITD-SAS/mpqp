@@ -891,19 +891,12 @@ def submit_remote_ibm(
         estimator = Runtime_Estimator(mode=backend, options=runtime_options)
         qiskit_observables = [
             (
-                obs.to_other_language(Language.QISKIT)
+                obs.to_other_language(Language.QISKIT).apply_layout(qiskit_circ.layout)
                 if job.device not in obs.pre_transpiled
                 else obs.pre_transpiled[job.device]
             )
             for obs in meas.observables
         ]
-        if TYPE_CHECKING:
-            assert all(isinstance(obs, SparsePauliOp) for obs in qiskit_observables)
-
-        qiskit_observables = [
-            obs.apply_layout(qiskit_circ.layout) for obs in qiskit_observables
-        ]
-
         # We have to disable all the twirling options and set manually the number of circuits and shots per circuits
         twirling = getattr(estimator.options, "twirling", None)
         if twirling is not None:
@@ -978,19 +971,12 @@ def submit_remote_ibm_pubs(jobs: list[Job]):
 
             qiskit_observables = [
                 (
-                    obs.to_other_language(Language.QISKIT)
+                    obs.to_other_language(Language.QISKIT).apply_layout(qiskit_circ.layout)
                     if job.device not in obs.pre_transpiled
                     else obs.pre_transpiled[job.device]
                 )
                 for obs in meas.observables
             ]
-            if TYPE_CHECKING:
-                assert all(isinstance(obs, SparsePauliOp) for obs in qiskit_observables)
-
-            qiskit_observables = [
-                obs.apply_layout(qiskit_circ.layout) for obs in qiskit_observables
-            ]
-
             pubs.append((qiskit_circ, qiskit_observables))
 
         else:

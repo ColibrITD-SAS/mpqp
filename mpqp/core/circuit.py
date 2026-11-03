@@ -34,7 +34,6 @@ could be used to add CNOT gates to your circuit, using the two registers
 from __future__ import annotations
 
 from copy import deepcopy
-from numbers import Complex, Number
 from typing import (
     TYPE_CHECKING,
     Literal,
@@ -49,6 +48,7 @@ from warnings import warn
 import numpy as np
 import numpy.typing as npt
 
+from mpqp.core._types import BindingParameters
 from mpqp.core.instruction import Instruction
 from mpqp.core.instruction.barrier import Barrier
 from mpqp.core.instruction.breakpoint import Breakpoint
@@ -2181,7 +2181,7 @@ class QCircuit:
         """
         return len(self.noises) > 0
 
-    def subs(self, values: dict[Expr | str, Complex]) -> QCircuit:
+    def subs(self, values: BindingParameters) -> QCircuit:
         r"""Substitute the parameters of the circuit with values for each of the
         specified parameters. Optionally also remove all symbolic variables such
         as `\pi` (needed for example for circuit execution).
@@ -2360,7 +2360,7 @@ class QCircuit:
         return self._variables.copy()
 
     def bind_parameters(
-        self, device: AvailableDevice, values: dict[Expr | str, Number]
+        self, device: AvailableDevice, values: BindingParameters
     ) -> None:
         """Bind values in the provider circuit cached for ``device``.
 
@@ -2405,7 +2405,7 @@ class QCircuit:
 
             assert isinstance(transpiled, braket_Circuit)
             self.transpiled_circuit[device] = transpiled.make_bound_circuit(
-                param_values
+                param_values  # pyright: ignore[reportArgumentType]
             )
 
         elif isinstance(device, QUANTINUUMDevice):

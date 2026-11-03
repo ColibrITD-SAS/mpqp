@@ -156,7 +156,6 @@ def run_cirq_observable(
     Returns:
         A result containing the expectation values of the observables.
     """
-    from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
     from cirq.ops.pauli_string import PauliString as CirqPauliString
     from cirq.work.observable_measurement import (
         RepetitionsStoppingCriteria,
@@ -256,8 +255,6 @@ def run_cirq_observable(
                 obs.pre_transpiled[job.device] = cirq_obs
             else:
                 cirq_obs = obs.pre_transpiled[job.device]
-                if TYPE_CHECKING:
-                    assert type(cirq_obs) in (CirqPauliSum, CirqPauliString)
             job.status = JobStatus.RUNNING
             from cirq_google.engine.simulated_local_engine import SimulatedLocalEngine
 
@@ -291,7 +288,7 @@ def run_cirq_observable(
                 results = measure_observables(
                     circuit,
                     observables=(
-                        [cirq_obs]
+                        [cirq_obs] # pyright: ignore[reportArgumentType]
                         if isinstance(cirq_obs, CirqPauliString)
                         else cirq_obs
                     ),

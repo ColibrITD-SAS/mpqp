@@ -6,7 +6,6 @@ the measure."""
 from __future__ import annotations
 
 import copy
-from numbers import Real
 from typing import TYPE_CHECKING, Literal, Optional, Union, overload
 from warnings import warn
 
@@ -28,6 +27,7 @@ from mpqp.tools.display import one_lined_repr
 from mpqp.tools.errors import NumberQubitsError
 from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import is_diagonal, is_hermitian, is_power_of_two
+from mpqp.core._types import BindingParameters
 
 if TYPE_CHECKING:
     from braket.circuits import Circuit as braket_Circuit
@@ -297,7 +297,7 @@ class Observable:
 
         return not np.any(self.matrix.dot(obs.matrix) - obs.matrix.dot(self.matrix))
 
-    def subs(self, values: dict[Expr | str, Real]) -> Observable:
+    def subs(self, values: BindingParameters) -> Observable:
         """3M-TODO"""
         ...
 

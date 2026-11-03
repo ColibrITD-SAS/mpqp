@@ -957,6 +957,7 @@ def test_transpiled_for_device_reuses_template_for_multiple_values():
     device = IBMDevice.AER_SIMULATOR_STATEVECTOR
     template = circuit.transpiled_for_device(device)
 
+    assert isinstance(template, QiskitCircuit)
     assert circuit.transpiled_for_device(device) is template
 
     for value in (0.5, 1.0, 0.5):
@@ -979,6 +980,7 @@ def test_bind_parameters_updates_cached_provider_circuit():
     assert circuit.bind_parameters(device, {theta: 0.5}) is None
     bound = circuit.transpiled_circuit[device]
 
+    assert isinstance(bound, QiskitCircuit)
     assert Statevector(bound).probabilities()[1] == pytest.approx(np.sin(0.25) ** 2)
 
 
