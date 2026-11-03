@@ -2414,7 +2414,7 @@ class QCircuit:
             assert isinstance(transpiled, tket_Circuit)
             bound = transpiled.copy()
             bound.symbol_substitution(
-                {
+                {  # pyright: ignore[reportArgumentType]
                     symbol: param_values[str(symbol)]
                     for symbol in bound.free_symbols()
                     if str(symbol) in param_values

@@ -544,8 +544,7 @@ def run_braket_observable(
 
     results, errors = {}, {}
     if job.measure.optimize_measurement:
-        if job.device not in job.measure.translated_pre_measures:
-            job.measure.pre_transpile_observables(job.device)
+        job.measure.pre_transpile_observables(job.device)
         eigenvalues, transpiled_pre_measures = job.measure.translated_pre_measures[
             job.device
         ]

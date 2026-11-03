@@ -57,6 +57,21 @@ def test_prepared_circuit_cache_is_per_device():
 
 
 @pytest.mark.provider("qiskit")
+@pytest.mark.parametrize("mutation", ["pop", "remove"])
+def test_prepared_circuit_cache_is_cleared_by_removal(mutation: str):
+    circuit = QCircuit([X(0), X(0)])
+    device = IBMDevice.AER_SIMULATOR_STATEVECTOR
+    circuit.transpiled_for_device(device)
+
+    if mutation == "pop":
+        circuit.pop()
+    else:
+        circuit.remove(X(0))
+
+    assert circuit.transpiled_circuit == {}
+
+
+@pytest.mark.provider("qiskit")
 def test_shallow_copy_has_independent_preparation_cache():
     circuit = QCircuit([X(0)])
     device = IBMDevice.AER_SIMULATOR_STATEVECTOR
