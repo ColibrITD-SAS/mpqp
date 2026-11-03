@@ -12,7 +12,6 @@ if TYPE_CHECKING:
     from qiskit_ibm_runtime import QiskitRuntimeService, Session
 
 
-Runtime_Service = None
 _ibm_sessions: dict[str, "Session"] = {}
 Runtime_Service: dict[Optional[str], "QiskitRuntimeService"] = {}
 """Dictionary regrouping QiskitRuntimeServices related to specific instances (key)."""
@@ -249,7 +248,7 @@ def get_backend(device: IBMDevice, instance: Optional[str] = None) -> "BackendV2
 
     Args:
         device: The device to get from the qiskit Runtime service.
-        instance: IBM Quantum instance used to retrive the backend.
+        instance: IBM Quantum instance used to retrieve the backend.
 
     Returns:
         The requested backend.

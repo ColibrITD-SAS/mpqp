@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from sympy import Expr, I, pi, symbols
+from sympy import Abs, Expr, I, Pow, Rational, acos, asin, atan, pi, sqrt, symbols
 
 from mpqp.core.circuit import QCircuit
 from mpqp.core.languages import Language
@@ -57,7 +57,12 @@ def test_P(angle: float, result_matrix: Matrix):
             theta,
             0,
             0,
-            np.array([[c2, -1.0 * s2], [1.0 * s2, 1.0 * c2]]),
+            np.array(
+                [
+                    [c2, -1.0 * s2],
+                    [1.0 * s2, 1.0 * c2],
+                ]
+            ),
         ),
     ],
 )
@@ -81,7 +86,12 @@ def test_U(theta: float, phi: float, gamma: float, result_matrix: Matrix):
         ),
         (
             theta,
-            np.array([[c2, -1j * s2], [-1j * s2, c2]]),
+            np.array(
+                [
+                    [c2, -1j * s2],
+                    [-1j * s2, c2],
+                ]
+            ),
         ),
     ],
 )
@@ -306,6 +316,33 @@ def test_qiskit_symbolic_expressions(
             expected_probability
         )
         assert len(translated.parameters) == len(values)
+
+
+@pytest.mark.provider("qiskit")
+@pytest.mark.parametrize(
+    "angle, expected_angle",
+    [
+        (asin(theta), np.arcsin(-0.25)),
+        (acos(theta), np.arccos(-0.25)),
+        (atan(theta), np.arctan(-0.25)),
+        (Abs(theta), 0.25),
+    ],
+)
+def test_qiskit_symbolic_function_names(angle: Expr, expected_angle: float):
+    translated = QCircuit([Ry(angle, 0)]).to_other_language(Language.QISKIT)
+    bound = translated.assign_parameters({"θ": -0.25})
+    assert float(bound.data[0].operation.params[0]) == pytest.approx(expected_angle)
+
+
+@pytest.mark.provider("qiskit")
+@pytest.mark.parametrize(
+    "angle, expected_angle",
+    [(sqrt(theta), 0.5), (Pow(theta, Rational(-1, 2)), 2.0)],
+)
+def test_qiskit_symbolic_square_roots(angle: Expr, expected_angle: float):
+    translated = QCircuit([Ry(angle, 0)]).to_other_language(Language.QISKIT)
+    bound = translated.assign_parameters({"θ": 0.25})
+    assert float(bound.data[0].operation.params[0]) == pytest.approx(expected_angle)
 
 
 @pytest.mark.provider("braket")

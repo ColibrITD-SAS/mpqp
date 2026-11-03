@@ -70,6 +70,11 @@ class AWSBraketRemoteExecutionError(RemoteExecutionError):
     job(s) on the remote Amazon Braket."""
 
 
+class IBMAccountInitializationMissing(RemoteExecutionError):
+    """Raised when the IBM account is not setup while
+    information about it is required."""
+
+
 class UnsupportedBraketFeaturesWarning(UserWarning):
     """Warning for potential compatibility issues with Braket."""
 

@@ -6,7 +6,6 @@ the measure."""
 from __future__ import annotations
 
 import copy
-from numbers import Real
 from typing import TYPE_CHECKING, Literal, Optional, Union, overload
 from warnings import warn
 
@@ -28,10 +27,11 @@ from mpqp.tools.display import one_lined_repr
 from mpqp.tools.errors import NumberQubitsError
 from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import is_diagonal, is_hermitian, is_power_of_two
+from mpqp.core._types import BindingParameters
 
 if TYPE_CHECKING:
-    from braket.circuits.observables import Hermitian, Sum
     from braket.circuits import Circuit as braket_Circuit
+    from braket.circuits.observables import Hermitian, Sum
     from cirq.circuits.circuit import Circuit as CirqCircuit
     from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
     from cirq.ops.pauli_string import PauliString as CirqPauliString
@@ -40,6 +40,7 @@ if TYPE_CHECKING:
     from qiskit._accelerate.circuit import Parameter
     from qiskit.quantum_info import SparsePauliOp
     from sympy import Expr
+
     from mpqp.execution.devices import AvailableDevice
 
 
@@ -82,16 +83,22 @@ class Observable:
         self._pauli_string = None
         self._is_diagonal = None
         self._diag_elements: Optional[npt.NDArray[np.float64]] = None
+        self._translation_revision = 0
+        """Revision incremented when the observable representation changes."""
         self.label = label
         """See parameter description."""
         self.pre_transpiled: dict[
             AvailableDevice,
             Union[
-                SparsePauliOp, QLMObservable, CirqPauliSum, CirqPauliString, Hermitian
+                SparsePauliOp,
+                QLMObservable,
+                CirqPauliSum,
+                CirqPauliString,
+                Hermitian,
+                Sum,
             ],
-        ] = {}  # TODO: do we put None, or empty dict ?
-        # TODO: docstring
-        """TODO: documentation"""
+        ] = {}
+        """Provider-native representations cached by target device."""
 
         if isinstance(observable, PauliString):
             self.nb_qubits = observable.nb_qubits
@@ -190,6 +197,8 @@ class Observable:
         self._pauli_string = None
         self._diag_elements = None
         self._is_diagonal = None
+        self.pre_transpiled.clear()
+        self._translation_revision += 1
 
     @pauli_string.setter
     def pauli_string(self, pauli_string: PauliString):
@@ -197,6 +206,8 @@ class Observable:
         self._matrix = None
         self._diag_elements = None
         self._is_diagonal = None
+        self.pre_transpiled.clear()
+        self._translation_revision += 1
 
     @diagonal_elements.setter
     def diagonal_elements(self, diag_elements: list[float] | npt.NDArray[np.float64]):
@@ -211,6 +222,8 @@ class Observable:
         self._is_diagonal = True
         self._pauli_string = None
         self._matrix = None
+        self.pre_transpiled.clear()
+        self._translation_revision += 1
 
     def is_matrix_set(self):
         """Returns if the matrix is already set in the observable."""
@@ -284,7 +297,7 @@ class Observable:
 
         return not np.any(self.matrix.dot(obs.matrix) - obs.matrix.dot(self.matrix))
 
-    def subs(self, values: dict[Expr | str, Real]) -> Observable:
+    def subs(self, values: BindingParameters) -> Observable:
         """3M-TODO"""
         ...
 
@@ -431,7 +444,9 @@ class ExpectationMeasure(Measure):
 
     Args:
         targets: List of indices referring to the qubits on which the measure
-            will be applied.
+            will be applied. Defaults to the first qubits matching the
+            observable's size. These targets stay fixed when the circuit is
+            resized. The number of targets must match the observable's size.
         observable: Observable used for the measure.
         shots: Number of shots to be performed.
         commuting_type: Type of commutation (grouped in an Enum) used for Pauli grouping when optimizing the observables measurement.
@@ -446,6 +461,10 @@ class ExpectationMeasure(Measure):
         UserWarning: If the ``targets`` are not sorted and contiguous, some
             additional swaps will be needed. This will change the performance if
             your circuit is run on noisy hardware.
+
+    Raises:
+        NumberQubitsError: If the number of targets does not match the
+            observable's size.
 
     Examples:
         >>> obs = Observable(np.diag([0.7, -1, 1, 1]))
@@ -470,10 +489,9 @@ class ExpectationMeasure(Measure):
         optimize_measurement: Optional[bool] = True,
         optim_diagonal: Optional[bool] = False,
     ):
-
         super().__init__(targets, shots, label)
-        self.observables: list[Observable] = []
-        """See parameter description."""
+        self._observables: list[Observable] = []
+        """Private observable storage exposed through :attr:`observables`."""
         self.optim_diagonal = optim_diagonal
         """See parameter description."""
         self.commuting_type = commuting_type
@@ -482,77 +500,118 @@ class ExpectationMeasure(Measure):
         """See parameter description."""
         self.optimize_measurement = optimize_measurement
         """See parameter description."""
-        self.pre_transpiled = None
-        """See parameter description."""
         self.current_grouping: Optional[
             tuple[list[list[PauliStringMonomial]], GroupingMethods, CommutingTypes]
         ] = None
         """Stores the last computed Pauli grouping to avoid recomputing it."""
+        self._grouping_observable_revisions: Optional[list[tuple[int, int]]] = None
+        """Observable revisions used to compute ``current_grouping``."""
         self.translated_pre_measures: dict[
             AvailableDevice,
             tuple[list[dict[str, npt.NDArray[np.float64]]], list[braket_Circuit]],
         ] = {}
         """Prepared measurement rotations and eigenvalues per device."""
+        self._translated_pre_measure_keys: dict[
+            AvailableDevice,
+            tuple[
+                list[int],
+                int,
+                GroupingMethods,
+                CommutingTypes,
+                list[tuple[int, int]],
+            ],
+        ] = {}
+        """Inputs used for each prepared AWS measurement."""
 
         if isinstance(observable, Observable):
             observable = [observable]
-        else:
-            if not all(
-                observable[0].nb_qubits == obs.nb_qubits for obs in observable[1:]
-            ):
-                raise ValueError(
-                    "All observables in ExpectationMeasure must have the same size. Sizes: "
-                    + str([o.nb_qubits for o in observable])
-                )
-
-        # Fill observables labels if not set
-        label_defined = set([obs.label for obs in observable])
-        label_counter = 0
-        default_label = self.label if self.label is not None else "observable"
-        for obs in observable:
-            new_obs = obs
-            if obs.label is None:
-                while f"{default_label}_{label_counter}" in label_defined:
-                    label_counter += 1
-
-                # Create a new instance of Observable with the new label
-                new_obs = Observable.__new__(Observable)
-                for attr, val in obs.__dict__.items():
-                    setattr(new_obs, attr, val)
-                new_obs.label = f"{default_label}_{label_counter}"
-
-                label_counter += 1
-            self.observables.append(new_obs)
+        self.observables = observable
 
         if targets is None:
-            self.targets = list(range(self.observables[0].nb_qubits))
+            self.targets = list(range(self._observables[0].nb_qubits))
+        self._dynamic = False
         self._check_targets_order()
 
     @property
+    def observables(self) -> list[Observable]:
+        """Observables measured by this instruction.
+
+        A copy is returned so the collection cannot be modified without cache
+        invalidation. Assign a complete observable list to replace it.
+        """
+        return self._observables.copy()
+
+    @observables.setter
+    def observables(self, observables: list[Observable]) -> None:
+        if not observables:
+            raise ValueError("ExpectationMeasure requires at least one observable.")
+        if not all(
+            observables[0].nb_qubits == observable.nb_qubits
+            for observable in observables[1:]
+        ):
+            raise ValueError(
+                "All observables in ExpectationMeasure must have the same size. "
+                f"Sizes: {[observable.nb_qubits for observable in observables]}"
+            )
+        if (
+            hasattr(self, "_pre_measure")
+            and len(self.targets) != observables[0].nb_qubits
+        ):
+            raise NumberQubitsError(
+                f"Target size {len(self.targets)} doesn't match observable size "
+                f"{observables[0].nb_qubits}."
+            )
+
+        label_defined = {observable.label for observable in observables}
+        label_counter = 0
+        default_label = self.label if self.label is not None else "observable"
+        prepared_observables = []
+        for observable in observables:
+            prepared_observable = observable
+            if observable.label is None:
+                while f"{default_label}_{label_counter}" in label_defined:
+                    label_counter += 1
+                prepared_observable = Observable.__new__(Observable)
+                prepared_observable.__dict__.update(observable.__dict__)
+                prepared_observable.label = f"{default_label}_{label_counter}"
+                label_counter += 1
+            prepared_observables.append(prepared_observable)
+
+        self._observables = prepared_observables
+        if hasattr(self, "current_grouping"):
+            self.current_grouping = None
+            self._grouping_observable_revisions = None
+            self.translated_pre_measures.clear()
+            self._translated_pre_measure_keys.clear()
+
+    @property
     def nb_observables(self) -> int:
-        return len(self.observables)
+        return len(self._observables)
 
     @property
     def observables_labels(self) -> list[str]:
-        return [o.label for o in self.observables if o.label is not None]
+        return [
+            observable.label
+            for observable in self._observables
+            if observable.label is not None
+        ]
 
     def _check_targets_order(self):
         """Ensures target qubits are ordered and contiguous, rearranging them if
         necessary (private)."""
 
-        if len(self.targets) == 0:
-            self._pre_measure: list[Gate] = []
-            return
-
-        if self.nb_qubits != self.observables[0].nb_qubits:
+        if self.nb_qubits != self._observables[0].nb_qubits:
             raise NumberQubitsError(
                 f"Target size {self.nb_qubits} doesn't match observable size "
-                f"{self.observables[0].nb_qubits}."
+                f"{self._observables[0].nb_qubits}."
             )
 
         self._pre_measure: list[Gate] = []
         """List of Gates added before the expectation measurement to correctly swap
         target qubits when their are not ordered or contiguous."""
+        if len(self.targets) == 0:
+            return
+
         targets_is_ordered = all(
             [self.targets[i] > self.targets[i - 1] for i in range(1, len(self.targets))]
         )
@@ -591,17 +650,25 @@ class ExpectationMeasure(Measure):
         The grouping is done according to the grouping method of the expectation
         measure and the chosen commutativity type."""
 
+        observable_revisions = [
+            (
+                id(observable),
+                observable._translation_revision,  # pyright: ignore[reportPrivateUsage]
+            )
+            for observable in self._observables
+        ]
         if (
             self.current_grouping is not None
             and self.current_grouping[1] == self.grouping_method
             and self.current_grouping[2] == self.commuting_type
+            and self._grouping_observable_revisions == observable_revisions
         ):
             return self.current_grouping[0]
 
         unique_monos = list(
             {
                 mono / mono.coef
-                for obs in self.observables
+                for obs in self._observables
                 for mono in obs.pauli_string.monomials
             }
         )
@@ -615,6 +682,7 @@ class ExpectationMeasure(Measure):
                 GroupingMethods.GREEDY,
                 self.commuting_type,
             )
+            self._grouping_observable_revisions = observable_revisions
             return pauli_grouping
 
         elif self.grouping_method == GroupingMethods.QISKIT_COLORING_GREEDY:
@@ -647,6 +715,7 @@ class ExpectationMeasure(Measure):
                 GroupingMethods.QISKIT_COLORING_GREEDY,
                 self.commuting_type,
             )
+            self._grouping_observable_revisions = observable_revisions
             return grouped_monomials  # pyright: ignore[reportReturnType]
 
         else:
@@ -654,14 +723,14 @@ class ExpectationMeasure(Measure):
 
     def only_diagonal_observables(self) -> bool:
         """Returns True if all the observables in the ExpectationMeasure are diagonal."""
-        return all([o.is_diagonal for o in self.observables])
+        return all(observable.is_diagonal for observable in self._observables)
 
     def __repr__(self) -> str:
         args = []
         observables = (
-            f"{self.observables[0]}"
-            if len(self.observables) == 1
-            else f"{self.observables}"
+            f"{self._observables[0]}"
+            if len(self._observables) == 1
+            else f"{self._observables}"
         )
         args.append(observables)
         if not self._dynamic and len(self.targets) != 0:
@@ -703,11 +772,46 @@ class ExpectationMeasure(Measure):
             and not callable(getattr(self, attr_name))
         }
 
-    # TODO: double check this method
-    def pre_transpile_observables(self, device: AvailableDevice):
+    def pre_transpile_observables(self, device: AvailableDevice) -> None:
+        """Cache provider-specific observable preparation for ``device``.
+
+        AWS preparation stores the grouped basis-change circuits and associated
+        eigenvalues on this measure. IBM preparation stores each translated
+        observable on the corresponding :class:`Observable`.
+
+        Args:
+            device: Device for which the observables are prepared.
+
+        Raises:
+            NotImplementedError: If preparation is not implemented for the
+                device's provider.
+        """
         from mpqp.execution.devices import AWSDevice, IBMDevice
+        from mpqp.execution.simulated_devices import StaticIBMSimulatedDevice
 
         if isinstance(device, AWSDevice):
+            observable_revisions = [
+                (
+                    id(observable),
+                    observable._translation_revision,  # pyright: ignore[reportPrivateUsage]
+                )
+                for observable in self._observables
+            ]
+            preparation_key = (
+                self.targets.copy(),
+                self.shots,
+                self.grouping_method,
+                self.commuting_type,
+                observable_revisions,
+            )
+            if (
+                device in self.translated_pre_measures
+                and self._translated_pre_measure_keys.get(device) == preparation_key
+            ):
+                return
+            self.translated_pre_measures.pop(device, None)
+            self._translated_pre_measure_keys.pop(device, None)
+
             from mpqp.core.circuit import QCircuit
             from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
             from mpqp.tools.pauli_grouping import (
@@ -731,9 +835,10 @@ class ExpectationMeasure(Measure):
                 eigenvalues,
                 transpiled_pre_measures,
             )
+            self._translated_pre_measure_keys[device] = preparation_key
 
-        elif isinstance(device, IBMDevice):
-            for observable in self.observables:
+        elif isinstance(device, (IBMDevice, StaticIBMSimulatedDevice)):
+            for observable in self._observables:
                 if device not in observable.pre_transpiled:
                     observable.pre_transpiled[device] = observable.to_other_language(
                         language=Language.QISKIT

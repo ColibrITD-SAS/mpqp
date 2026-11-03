@@ -26,8 +26,8 @@ if TYPE_CHECKING:
 
     from mpqp.core.binding import CircuitBinding
     from mpqp.core.circuit import QCircuit
-    from mpqp.execution.runner import ValuesDict
 
+from mpqp.core._types import BindingParameters
 from mpqp.core.instruction.measurement import BasisMeasure, ExpectationMeasure, Measure
 
 from ..tools.errors import IBMRemoteExecutionError, QLMRemoteExecutionError
@@ -135,7 +135,7 @@ class Job:
         circuit: QCircuit | CircuitBinding,
         device: AvailableDevice,
         measurement: Optional[Measure] = None,
-        values: Optional["ValuesDict"] = None,
+        values: Optional[BindingParameters] = None,
         *,
         mode: ExecutionMode = ExecutionMode.JOB,
     ):
@@ -155,7 +155,7 @@ class Job:
         while before it is set to the right value (For instance, a job
         submission can require handshake protocols to conclude before
         attributing an id to the job)."""
-        self.values: Optional["ValuesDict"] = None
+        self.values: Optional[BindingParameters] = None
         """Parameter bindings for circuits containing symbolic variables.
 
         For local execution, parameters are typically substituted directly into the

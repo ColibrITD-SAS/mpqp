@@ -111,6 +111,13 @@ class NoiseModel(ABC):
         """Qubits to which this is connected (applied to)."""
         return set(self.targets)
 
+    @property
+    def min_nb_qubits(self) -> int:
+        """Minimum number of qubits required by this noise channel,
+        independently of its target selection.
+        """
+        return 1
+
     @abstractmethod
     def to_kraus_operators(self) -> list[npt.NDArray[np.complex128]]:
         r"""Noise models can be represented by Kraus operators. They represent how the
@@ -291,6 +298,11 @@ class DimensionalNoiseModel(NoiseModel, ABC):
         self.dimension = dimension
         """Dimension of the depolarizing noise model."""
         self.check_dimension()
+
+    @property
+    def min_nb_qubits(self) -> int:
+        """Minimum number of qubits required by this noise channel."""
+        return self.dimension
 
     def check_dimension(self):
         if 0 < len(self.targets) < self.dimension:
