@@ -53,9 +53,7 @@ def test_pre_transpile_observables_caches_translation_per_device():
 
 @pytest.mark.provider("braket")
 def test_pre_transpile_observables_caches_aws_measurement_preparation():
-    measurement = ExpectationMeasure(
-        Observable(pX @ pZ), targets=[1, 3], shots=100
-    )
+    measurement = ExpectationMeasure(Observable(pX @ pZ), targets=[1, 3], shots=100)
     device = AWSDevice.BRAKET_LOCAL_SIMULATOR
 
     assert measurement.pre_transpile_observables(device) is None
