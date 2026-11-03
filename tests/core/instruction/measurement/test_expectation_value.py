@@ -146,6 +146,18 @@ def test_pre_transpile_observables_invalidates_stale_aws_cache(
     assert measurement.translated_pre_measures[device] is not cached
 
 
+@pytest.mark.provider("braket")
+def test_pre_transpile_observables_caches_aws_measurement_preparation():
+    measurement = ExpectationMeasure(Observable(pX @ pZ), targets=[1, 3], shots=100)
+    device = AWSDevice.BRAKET_LOCAL_SIMULATOR
+
+    assert measurement.pre_transpile_observables(device) is None
+    cached = measurement.translated_pre_measures[device]
+
+    measurement.pre_transpile_observables(device)
+    assert measurement.translated_pre_measures[device] is cached
+
+
 @pytest.mark.parametrize("targets", [[], [0, 1]])
 def test_expectation_measure_rejects_wrong_target_count(targets: list[int]):
     with pytest.raises(
