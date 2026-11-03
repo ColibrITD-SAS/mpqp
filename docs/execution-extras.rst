@@ -40,6 +40,14 @@ __________
 
 .. automodule:: mpqp.execution.providers.ibm
 
+Catalog functions
+_________________
+
+IBM Catalog functions provide managed extensions to Qiskit Runtime, such as
+Q-CTRL Performance Management, that can be loaded and used for remote execution.
+
+.. autofunction:: mpqp.tools.qiskit.get_qiskit_function
+
 Atos/Eviden
 ^^^^^^^^^^^
 

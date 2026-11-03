@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 import warnings
 from copy import deepcopy
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from mpqp import QCircuit
 from mpqp.core.binding import CircuitBinding
@@ -12,6 +12,7 @@ from mpqp.core.instruction.gates.native_gates import NativeGate
 from mpqp.core.instruction.measurement import BasisMeasure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
 from mpqp.core.languages import Language
+from mpqp.environment.env_manager import get_env_variable
 from mpqp.execution._execution_context import ExecutionContext
 from mpqp.execution.connection.ibm_connection import (
     get_backend,
@@ -63,6 +64,8 @@ def run_ibm(
         This function is not meant to be used directly, please use
         :func:`~mpqp.execution.runner.run` instead.
     """
+    if qiskit_params is not None and qiskit_params.qctrl_function is not None:
+        return run_qctrl_function(job, qiskit_params)
     if job.device.is_remote() and isinstance(job.circuit, CircuitBinding):
         raise NotImplementedError(
             "CircuitBinding is not currently supported for remote runs in MPQP."
@@ -72,6 +75,44 @@ def run_ibm(
         if not job.device.is_remote()
         else run_remote_ibm(job, qiskit_params)
     )
+
+
+def _prepare_estimator_pubs(
+    pubs: list["EstimatorPubLike"],
+) -> list["EstimatorPubLike"]:
+    """Align each binding observable with its parameter values in a flat PUB."""
+    pubs_to_run = []
+    for pub in pubs:
+        circ = pub[0]  # pyright: ignore[reportIndexIssue]
+        obs_array = pub[1] if len(pub) > 1 else None  # pyright: ignore
+        params = pub[2] if len(pub) > 2 else None  # pyright: ignore
+
+        if obs_array is not None:
+            if params is not None:
+                params = [
+                    values
+                    for observables, values in zip(
+                        obs_array, params  # pyright: ignore[reportArgumentType]
+                    )
+                    for _ in observables
+                ]
+            obs_array = [
+                obs
+                for observables in obs_array  # pyright: ignore[reportGeneralTypeIssues]
+                for obs in observables
+            ]
+
+        if obs_array is not None and circ.layout is not None:
+            obs_array = [obs.apply_layout(circ.layout) for obs in obs_array]
+
+        if params is not None:
+            pubs_to_run.append((circ, obs_array, params))
+        elif obs_array is not None:
+            pubs_to_run.append((circ, obs_array))
+        else:
+            pubs_to_run.append((circ,))
+
+    return pubs_to_run
 
 
 def compute_expectation_value(
@@ -114,8 +155,6 @@ def compute_expectation_value(
         This function is not meant to be used directly, please use
         :func:`~mpqp.execution.runner.run` instead.
     """
-    from qiskit.primitives import PubResult
-    from qiskit.primitives.containers import DataBin
     from qiskit.quantum_info import SparsePauliOp
 
     from mpqp.execution.simulated_devices import StaticIBMSimulatedDevice
@@ -136,35 +175,7 @@ def compute_expectation_value(
         nb_shots = shots
         context_jobs_to_run = pubs_contexts
 
-        for pub in pubs:
-            circ = pub[0]  # pyright: ignore[reportIndexIssue]
-            obs_array = pub[1] if len(pub) > 1 else None  # pyright: ignore
-            params = pub[2] if len(pub) > 2 else None  # pyright: ignore
-
-            if obs_array is not None:
-                if params is not None:
-                    params = [
-                        values
-                        for observables, values in zip(
-                            obs_array, params  # pyright: ignore[reportArgumentType]
-                        )
-                        for _ in observables
-                    ]
-                obs_array = [
-                    obs
-                    for observables in obs_array  # pyright: ignore[reportGeneralTypeIssues]
-                    for obs in observables
-                ]
-
-            if obs_array is not None and circ.layout is not None:
-                obs_array = [obs.apply_layout(circ.layout) for obs in obs_array]
-
-            if params is not None:
-                pubs_to_run.append((circ, obs_array, params))
-            elif obs_array is not None:
-                pubs_to_run.append((circ, obs_array))
-            else:
-                pubs_to_run.append((circ,))
+        pubs_to_run = _prepare_estimator_pubs(pubs)
 
     else:
         # Exécution classique 1:1 (sans CircuitBinding)
@@ -228,15 +239,51 @@ def compute_expectation_value(
         assert isinstance(job.device, (IBMDevice, StaticIBMSimulatedDevice))
         assert isinstance(estimator_result, list)
 
-    extracted_items: list[tuple[int, Result | BatchResult]] = []
+    return _extract_estimator_pubs_result(
+        estimator_result,
+        job,
+        context_jobs_to_run,
+        split_contexts=pubs is not None,
+    )
 
-    for i, contexts in enumerate(context_jobs_to_run):
+
+def _extract_estimator_pubs_result(
+    estimator_result: Any,
+    job: Job,
+    pubs_contexts: list[list[ExecutionContext]],
+    split_contexts: bool = True,
+    fallback_shots: Optional[int] = None,
+) -> Result | BatchResult:
+    """Rebuild MPQP results from Estimator PUB results and their contexts.
+
+    If shot metadata is absent, ``fallback_shots`` records the requested count.
+    In some cases, this number may differ from the actual number of shots used
+    by the provider, and in those cases, the actual number takes precedence.
+    """
+    from qiskit.primitives import PubResult
+    from qiskit.primitives.containers import DataBin
+
+    if TYPE_CHECKING:
+        assert isinstance(job.device, (IBMDevice, StaticIBMSimulatedDevice))
+
+    if len(estimator_result) != len(pubs_contexts):
+        raise ValueError(
+            "Estimator result count does not match the submitted PUB count: "
+            f"{len(estimator_result)} != {len(pubs_contexts)}."
+        )
+
+    extracted_items: list[tuple[int, Result | BatchResult]] = []
+    for i, contexts in enumerate(pubs_contexts):
         offset = 0
         for context in contexts:
             context_job = context.job
             pub_result = estimator_result[i]
-            if pubs is not None:
-                assert isinstance(context_job.measure, ExpectationMeasure)
+            if split_contexts:
+                if not isinstance(context_job.measure, ExpectationMeasure):
+                    raise ValueError(
+                        "Estimator execution contexts must contain expectation "
+                        "measurements."
+                    )
                 count = len(context_job.measure.observables)
                 data = pub_result.data
                 pub_result = PubResult(
@@ -245,7 +292,11 @@ def compute_expectation_value(
                         stds=data.stds[offset : offset + count],
                         shape=(count,),
                     ),
-                    metadata=pub_result.metadata,
+                    metadata=(
+                        {"shots": fallback_shots, **pub_result.metadata}
+                        if fallback_shots is not None
+                        else pub_result.metadata
+                    ),
                 )
                 offset += count
             extracted_items.append(
@@ -257,16 +308,59 @@ def compute_expectation_value(
                 )
             )
 
-    final_flat_results = []
-    # Restore occurrence order before flattening multi-observable results.
+    final_flat_results: list[Result] = []
     for _, item in sorted(extracted_items, key=lambda indexed: indexed[0]):
         if isinstance(item, BatchResult):
             final_flat_results.extend(item.results)
         else:
             final_flat_results.append(item)
+
+    if not final_flat_results:
+        raise ValueError("Cannot extract an empty Estimator result.")
     if isinstance(job.circuit, QCircuit):
         return final_flat_results[0]
     return BatchResult(final_flat_results)
+
+
+def _extract_sampler_pubs_result(
+    sampler_result: Any,
+    job: Job,
+    pubs_contexts: list[list[ExecutionContext]],
+) -> Result | BatchResult:
+    """Rebuild MPQP sampling results in binding unroll order."""
+    if TYPE_CHECKING:
+        assert isinstance(job.device, IBMDevice)
+
+    if len(sampler_result) != len(pubs_contexts):
+        raise ValueError(
+            "Sampler result count does not match the submitted PUB count: "
+            f"{len(sampler_result)} != {len(pubs_contexts)}."
+        )
+
+    extracted_items: list[tuple[int, Result | BatchResult]] = []
+    for index, contexts in enumerate(pubs_contexts):
+        if len(contexts) != 1:
+            raise ValueError("Each sampler PUB must map to one execution context.")
+        context = contexts[0]
+        extracted_items.append(
+            (
+                context.index,
+                extract_result(sampler_result[index], context.job, job.device),
+            )
+        )
+
+    final_results: list[Result] = []
+    for _, item in sorted(extracted_items, key=lambda indexed: indexed[0]):
+        if isinstance(item, BatchResult):
+            final_results.extend(item.results)
+        else:
+            final_results.append(item)
+
+    if not final_results:
+        raise ValueError("Cannot extract an empty Sampler result.")
+    if isinstance(job.circuit, QCircuit):
+        return final_results[0]
+    return BatchResult(final_results)
 
 
 def check_job_compatibility(job: Job):
@@ -770,11 +864,18 @@ def submit_remote_ibm(
     if TYPE_CHECKING:
         assert isinstance(job.device, IBMDevice)
         assert isinstance(job.circuit, QCircuit)
+    if qiskit_params is None:
+        qiskit_params = QiskitParams()
 
-    instance = qiskit_params.instance if qiskit_params is not None else None
+    instance = (
+        qiskit_params.instance
+        if qiskit_params.instance is not None
+        else get_env_variable("IBM_INSTANCE") or None
+    )
 
     backend = get_backend(job.device, instance)
     job.device = IBMDevice(backend.name)
+    runtime_options = qiskit_params.get_options()
 
     if job.circuit.transpiled_circuit is None:
         qiskit_circ = job.circuit.to_other_device(job.device)
@@ -787,7 +888,7 @@ def submit_remote_ibm(
     if job.job_type == JobType.OBSERVABLE:
         if TYPE_CHECKING:
             assert isinstance(meas, ExpectationMeasure)
-        estimator = Runtime_Estimator(mode=backend)
+        estimator = Runtime_Estimator(mode=backend, options=runtime_options)
         qiskit_observables = [
             (
                 obs.to_other_language(Language.QISKIT)
@@ -818,7 +919,7 @@ def submit_remote_ibm(
     elif job.job_type == JobType.SAMPLE:
         if TYPE_CHECKING:
             assert isinstance(meas, BasisMeasure)
-        sampler = Runtime_Sampler(mode=backend)
+        sampler = Runtime_Sampler(mode=backend, options=runtime_options)
         ibm_job = sampler.run([qiskit_circ], shots=meas.shots)
     else:
         raise NotImplementedError(
@@ -945,6 +1046,128 @@ def run_remote_ibm(
         assert isinstance(job.device, IBMDevice)
 
     return extract_result(ibm_result, job, job.device)
+
+
+def run_qctrl_function(job: Job, qiskit_params: QiskitParams) -> Result | BatchResult:
+    """Run a circuit or circuit binding through a Q-CTRL Qiskit Function.
+
+    For expectation results without shot metadata, ``Result.shots`` reports
+    the submitted shot count, which may differ from the count actually used.
+    Provider-reported shot counts take precedence when available.
+
+    Raises:
+        TypeError: If a completed function returns an unsupported result type.
+            The job retains its successful execution status.
+    """
+    from qiskit.primitives import PrimitiveResult
+
+    if TYPE_CHECKING:
+        assert qiskit_params.qctrl_function
+        assert isinstance(job.device, IBMDevice)
+
+    if job.device.is_simulator():
+        raise ValueError(
+            "Cannot run QiskitFunctions on local simulator please pick a real hardware to run on."
+        )
+
+    if job.job_type == JobType.STATE_VECTOR:
+        raise ValueError(
+            "Cannot run a STATEVECTOR or an ideal Observable job with a QiskitFunction"
+        )
+    check_job_compatibility(job)
+
+    func = qiskit_params.qctrl_function
+    if func.provider != "q-ctrl":
+        raise ValueError(
+            "Only the q-ctrl QiskitFunctions are available through MPQP at the moment."
+        )
+    primitive = "estimator" if job.job_type == JobType.OBSERVABLE else "sampler"
+    jobs: list[list[ExecutionContext]] = []
+    qctrl_options = qiskit_params.get_options()
+
+    if job.job_type == JobType.OBSERVABLE:
+        from mpqp.translation.qiskit import circuitbinding_to_pubs
+
+        if isinstance(job.circuit, QCircuit):
+            circuit = CircuitBinding(job.circuit)
+        else:
+            circuit = job.circuit
+        pubs_with_context = circuitbinding_to_pubs(circuit, job.device, transpile=False)
+        pubs = _prepare_estimator_pubs([item[0] for item in pubs_with_context])
+        jobs = [item[1] for item in pubs_with_context]
+
+        options = deepcopy(qctrl_options)
+        if circuit.shots is not None:
+            nb_shots = circuit.shots
+        else:
+            measure = jobs[0][0].job.measure
+            assert isinstance(measure, ExpectationMeasure)
+            nb_shots = measure.shots
+    else:
+        options = deepcopy(qctrl_options)
+        if isinstance(job.circuit, CircuitBinding):
+            from mpqp.translation.qiskit import circuitbinding_to_sampler_pubs
+
+            pubs_with_context = circuitbinding_to_sampler_pubs(job.circuit, job.device)
+            pubs = [item[0] for item in pubs_with_context]
+            jobs = [item[1] for item in pubs_with_context]
+            if job.circuit.shots is not None:
+                nb_shots = job.circuit.shots
+            else:
+                measure = jobs[0][0].job.measure
+                assert isinstance(measure, BasisMeasure)
+                nb_shots = measure.shots
+        else:
+            nb_shots = job.measure.shots if job.measure else 0
+            pubs = [(job.circuit.to_other_language(Language.QISKIT),)]
+
+    options["default_shots"] = nb_shots
+    job.status = JobStatus.RUNNING
+    run = func.run(
+        primitive=primitive,
+        options=options,
+        pubs=pubs,
+        backend_name=job.device.value,
+    )
+
+    job.id = run.job_id
+    try:
+        result = run.result()
+    except Exception as err:
+        job.status = JobStatus.ERROR
+        raise IBMRemoteExecutionError(
+            f"Q-CTRL function job {job.id} failed while retrieving its result."
+        ) from err
+
+    status = str(run.status()).upper()
+    if status == "ERROR":
+        job.status = JobStatus.ERROR
+        raise IBMRemoteExecutionError(f"Q-CTRL function job {job.id} failed.")
+    if status in {"CANCELED", "CANCELLED"}:
+        job.status = JobStatus.CANCELLED
+        raise IBMRemoteExecutionError(f"Q-CTRL function job {job.id} was cancelled.")
+    if status != "DONE":
+        job.status = JobStatus.ERROR
+        raise IBMRemoteExecutionError(
+            f"Q-CTRL function job {job.id} returned a result in unexpected "
+            f"status {status}."
+        )
+    job.status = JobStatus.DONE
+
+    if not isinstance(result, PrimitiveResult):
+        raise TypeError(
+            f"Q-CTRL function job {job.id} completed successfully but returned "
+            f"unsupported result type {type(result).__name__}; "
+            "expected PrimitiveResult."
+        )
+
+    if job.job_type == JobType.OBSERVABLE:
+        return _extract_estimator_pubs_result(
+            result, job, jobs, fallback_shots=nb_shots
+        )
+    if isinstance(job.circuit, CircuitBinding):
+        return _extract_sampler_pubs_result(result, job, jobs)
+    return extract_result(result, job, job.device)
 
 
 def extract_result(
@@ -1181,7 +1404,6 @@ def extract_result(
                 )
                 exp_values_dict[label] = result.values[qiskit_order]
                 errors_dict[label] = variance
-
             return Result(job, exp_values_dict, errors_dict, shots)
 
         elif isinstance(
