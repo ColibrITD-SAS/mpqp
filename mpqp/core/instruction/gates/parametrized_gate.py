@@ -10,12 +10,12 @@ from __future__ import annotations
 
 from abc import ABC
 from copy import deepcopy
-from numbers import Complex
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from sympy import Expr
 
+from mpqp.core._types import BindingParameters
 from mpqp.core.instruction.gates.gate import Gate
 from mpqp.core.instruction.gates.gate_definition import GateDefinition
 
@@ -60,7 +60,7 @@ class ParametrizedGate(Gate, ABC):
             if isinstance(param, Expr):
                 self.symbols.extend(param.free_symbols)
 
-    def subs(self, values: dict[Expr | str, Complex]) -> ParametrizedGate:
+    def subs(self, values: BindingParameters) -> ParametrizedGate:
         from sympy import Expr
 
         concrete_gate = deepcopy(self)

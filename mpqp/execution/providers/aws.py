@@ -529,10 +529,10 @@ def run_braket_observable(
 
     assert isinstance(job.circuit, QCircuit)
     circuit = job.circuit.without_measurements()
-    if circuit.transpiled_circuit is None:
+    if job.device not in circuit.transpiled_circuit:
         transpiled_circuit = circuit.to_other_device(job.device)
     else:
-        transpiled_circuit = circuit.transpiled_circuit
+        transpiled_circuit = circuit.transpiled_circuit[job.device]
         if TYPE_CHECKING:
             assert isinstance(transpiled_circuit, Circuit)
 
@@ -544,43 +544,10 @@ def run_braket_observable(
 
     results, errors = {}, {}
     if job.measure.optimize_measurement:
-        from mpqp.tools.pauli_grouping import (
-            find_qubitwise_rotations,
-            pauli_monomial_eigenvalues,
-        )
-
-        if job.measure.pre_transpiled is None:
-            grouping = job.measure.get_pauli_grouping()
-            pre_measure = [
-                QCircuit(
-                    find_qubitwise_rotations(group, job.measure.targets)
-                    + (
-                        [BasisMeasure(targets=job.measure.targets)]
-                        if job.measure.shots != 0
-                        else []
-                    )
-                )
-                for group in grouping
-            ]
-            for circuit in pre_measure:
-                for (
-                    instr
-                ) in circuit._instructions:  # pyright: ignore[reportPrivateUsage]
-                    instr.targets = [job.measure.targets[t] for t in instr.targets]
-            transpiled_pre_measures = [
-                pre_m.to_other_language(Language.BRAKET) for pre_m in pre_measure
-            ]
-            eigenvalues = [
-                {
-                    monomial.name: pauli_monomial_eigenvalues(monomial)
-                    for monomial in group
-                }
-                for group in grouping
-            ]
-        else:
-            eigenvalues, transpiled_pre_measures = (
-                job.measure.pre_transpiled
-            )  # pyright: ignore[reportGeneralTypeIssues]
+        job.measure.pre_transpile_observables(job.device)
+        eigenvalues, transpiled_pre_measures = job.measure.translated_pre_measures[
+            job.device
+        ]
 
         expectation_values = {}
         for eigenvalues, pre_measure in zip(eigenvalues, transpiled_pre_measures):
@@ -778,10 +745,10 @@ def submit_job_braket(
     device = get_braket_device(job.device, is_noisy=is_noisy)
     reservation_arn = provider_params.reservation_arn if provider_params else None
 
-    if job.circuit.transpiled_circuit is None:
+    if job.device not in job.circuit.transpiled_circuit:
         braket_circuit = job.circuit.to_other_device(job.device)
     else:
-        braket_circuit = job.circuit.transpiled_circuit
+        braket_circuit = job.circuit.transpiled_circuit[job.device]
     if TYPE_CHECKING:
         assert isinstance(braket_circuit, Circuit)
 
@@ -824,10 +791,10 @@ def submit_job_braket(
         if TYPE_CHECKING:
             assert isinstance(job.measure, ExpectationMeasure)
 
-        if job.measure.observables[0].pre_transpiled is None:
+        if job.device not in job.measure.observables[0].pre_transpiled:
             herm_op = job.measure.observables[0].to_other_language(Language.BRAKET)
         else:
-            herm_op = job.measure.observables[0].pre_transpiled
+            herm_op = job.measure.observables[0].pre_transpiled[job.device]
         braket_circuit.expectation(  # pyright: ignore[reportAttributeAccessIssue]
             observable=herm_op, target=job.measure.targets
         )
