@@ -288,7 +288,7 @@ def run_cirq_observable(
                 results = measure_observables(
                     circuit,
                     observables=(
-                        [cirq_obs] # pyright: ignore[reportArgumentType]
+                        [cirq_obs]  # pyright: ignore[reportArgumentType]
                         if isinstance(cirq_obs, CirqPauliString)
                         else cirq_obs
                     ),

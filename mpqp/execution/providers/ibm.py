@@ -971,7 +971,9 @@ def submit_remote_ibm_pubs(jobs: list[Job]):
 
             qiskit_observables = [
                 (
-                    obs.to_other_language(Language.QISKIT).apply_layout(qiskit_circ.layout)
+                    obs.to_other_language(Language.QISKIT).apply_layout(
+                        qiskit_circ.layout
+                    )
                     if job.device not in obs.pre_transpiled
                     else obs.pre_transpiled[job.device]
                 )

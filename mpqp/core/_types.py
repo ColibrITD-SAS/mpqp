@@ -5,7 +5,6 @@ from typing import Mapping, Union
 
 from sympy import Expr
 
-
 BindingParameters = Union[
     Mapping[str, Complex | float],
     Mapping[Expr, Complex | float],

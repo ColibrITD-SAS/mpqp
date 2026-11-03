@@ -279,9 +279,7 @@ def product_values(
             keep_child_parameters = True
             continue
         elif bind_same_parameters(child_parameters, parent_parameters):
-            parameter_set = {
-                key: value for key, value in parent_parameters.items()
-            }
+            parameter_set = {key: value for key, value in parent_parameters.items()}
             keep_child_parameters = True
         else:
             parameter_set = merge_values(child_parameters, parent_parameters)
