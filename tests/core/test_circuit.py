@@ -952,6 +952,94 @@ def test_variables_are_updated_after_substitution(
 
 
 @pytest.mark.provider("qiskit")
+def test_transpiled_for_device_reuses_template_for_multiple_values():
+    circuit = QCircuit([Ry(theta, 0)])
+    device = IBMDevice.AER_SIMULATOR_STATEVECTOR
+    template = circuit.transpiled_for_device(device)
+
+    assert circuit.transpiled_for_device(device) is template
+
+    for value in (0.5, 1.0, 0.5):
+        result = run(circuit, device, values={theta: value})
+        assert abs(result.state_vector.vector[1]) ** 2 == pytest.approx(
+            np.sin(value / 2) ** 2
+        )
+        assert circuit.transpiled_circuit[device] is template
+        assert len(template.parameters) == 1
+
+
+@pytest.mark.provider("qiskit")
+def test_bind_parameters_updates_cached_provider_circuit():
+    from qiskit.quantum_info import Statevector
+
+    circuit = QCircuit([Ry(theta, 0)])
+    device = IBMDevice.AER_SIMULATOR_STATEVECTOR
+    circuit.transpiled_for_device(device)
+
+    assert circuit.bind_parameters(device, {theta: 0.5}) is None
+    bound = circuit.transpiled_circuit[device]
+
+    assert Statevector(bound).probabilities()[1] == pytest.approx(np.sin(0.25) ** 2)
+
+
+@pytest.mark.provider("qiskit")
+def test_transpiled_circuit_cache_is_per_device():
+    circuit = QCircuit([X(0)])
+    devices = (
+        IBMDevice.AER_SIMULATOR_STATEVECTOR,
+        IBMDevice.AER_SIMULATOR,
+    )
+    templates = [circuit.transpiled_for_device(device) for device in devices]
+
+    assert set(circuit.transpiled_circuit) == set(devices)
+    assert templates[0] is not templates[1]
+
+    circuit.add(X(0))
+    assert circuit.transpiled_circuit == {}
+
+
+@pytest.mark.provider("qiskit")
+@pytest.mark.parametrize("mutation", ["pop", "remove"])
+def test_transpiled_circuit_cache_is_cleared_by_removal(mutation: str):
+    circuit = QCircuit([X(0), X(0)])
+    device = IBMDevice.AER_SIMULATOR_STATEVECTOR
+    circuit.transpiled_for_device(device)
+
+    if mutation == "pop":
+        circuit.pop()
+    else:
+        circuit.remove(X(0))
+
+    assert circuit.transpiled_circuit == {}
+
+
+@pytest.mark.provider("qiskit")
+def test_shallow_copy_has_independent_transpilation_cache():
+    circuit = QCircuit([X(0)])
+    device = IBMDevice.AER_SIMULATOR_STATEVECTOR
+    template = circuit.transpiled_for_device(device)
+    clone = circuit.without_measurements(deep_copy=False)
+
+    clone.add(X(0))
+
+    assert clone.transpiled_circuit == {}
+    assert circuit.transpiled_circuit[device] is template
+
+
+@pytest.mark.provider("qiskit")
+def test_without_measurements_invalidates_only_clone_transpilation_cache():
+    circuit = QCircuit([X(0), BasisMeasure([0], shots=100)])
+    device = IBMDevice.AER_SIMULATOR
+    template = circuit.transpiled_for_device(device)
+
+    clone = circuit.without_measurements(deep_copy=False)
+
+    assert clone.measurements == []
+    assert clone.transpiled_circuit == {}
+    assert circuit.transpiled_circuit[device] is template
+
+
+@pytest.mark.provider("qiskit")
 @pytest.mark.parametrize(
     "circuit, result_type, result_repr",
     [
