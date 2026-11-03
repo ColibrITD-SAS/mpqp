@@ -98,7 +98,9 @@ def test_observables_collection_cannot_be_mutated_through_property():
 def test_replacing_observables_clears_measurement_caches(
     monkeypatch: pytest.MonkeyPatch,
 ):
-    monkeypatch.setattr(QCircuit, "to_other_language", lambda *_args, **_kwargs: object())
+    monkeypatch.setattr(
+        QCircuit, "to_other_language", lambda *_args, **_kwargs: object()
+    )
     measurement = ExpectationMeasure(
         Observable(pZ), grouping_method=GroupingMethods.GREEDY
     )
@@ -119,7 +121,9 @@ def test_replacing_observables_clears_measurement_caches(
 def test_pre_transpile_observables_invalidates_stale_aws_cache(
     monkeypatch: pytest.MonkeyPatch, mutation: str
 ):
-    monkeypatch.setattr(QCircuit, "to_other_language", lambda *_args, **_kwargs: object())
+    monkeypatch.setattr(
+        QCircuit, "to_other_language", lambda *_args, **_kwargs: object()
+    )
     measurement = ExpectationMeasure(
         Observable(pX @ pZ),
         targets=[1, 3],
