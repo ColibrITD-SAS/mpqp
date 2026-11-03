@@ -171,8 +171,11 @@ class Job:
             # in the remote case, we need to check the current status of the job.
             # in the local case, it is updated automatically after each step
             if self.device.is_remote():
+                if self.id is None:
+                    return self._status
+
                 job_ids = self.id if isinstance(self.id, list) else [self.id]
-                if not job_ids or job_ids[0] is None:
+                if len(job_ids) == 0:
                     return self._status
 
                 statuses: list[JobStatus] = []
