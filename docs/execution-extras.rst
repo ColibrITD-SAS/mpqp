@@ -12,6 +12,7 @@ for you are most likely:
 - AWS's :func:`~mpqp.execution.connection.aws_connection.get_all_task_ids`;
 - IonQ's :func:`~mpqp.execution.connection.ionq_connection.get_ionq_job_ids`;
 - Azure's :func:`~mpqp.execution.connection.azure_connection.get_all_job_ids`;
+- Quantinuum's :func:`~mpqp.execution.connection.quantinuum_connection.get_all_job_ids`;
 - The :ref:`con-setup` section.
 
 To setup your access to remote QPUs, see the :ref:`Remote setup` section.
@@ -102,6 +103,19 @@ __________
 IonQ's hardware is accessible through cirq, so see Circ's :ref:`cirq-exec` 
 section for the functions used for IonQ's hardware.
 
+Quantinuum
+^^^^^^^^^^
+
+Connection
+__________
+
+.. automodule:: mpqp.execution.connection.quantinuum_connection
+
+Execution
+_________
+
+.. automodule:: mpqp.execution.providers.quantinuum
+
 .. _con-setup:
 
 Connection setup
@@ -126,4 +140,3 @@ through the ``provider_params`` argument of
 :func:`~mpqp.execution.runner.run`.
 
 .. automodule:: mpqp.execution.providers.providers_params
-

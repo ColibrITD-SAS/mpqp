@@ -29,3 +29,4 @@ from mpqp.gates import *
 )
 def test_gate_repr(gate: Gate, expected_repr: str) -> None:
     assert repr(gate) == expected_repr
+    assert eval(repr(gate)) == gate

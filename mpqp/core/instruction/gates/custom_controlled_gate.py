@@ -73,10 +73,8 @@ class CustomControlledGate(ControlledGate):
         return CustomControlledGate(self.controls, self.non_controlled_gate.inverse())
 
     def to_custom_gate(self) -> CustomGate:
-        "returns the CustomGate equivalent of this gate."
-        import numpy as np
-
-        targets = list(np.sort(self.targets + self.controls))
+        "Returns the CustomGate equivalent of this gate."
+        targets = sorted(self.targets + self.controls)
 
         return CustomGate(self.to_matrix(), targets)
 
@@ -84,8 +82,26 @@ class CustomControlledGate(ControlledGate):
         self,
         language: Language = Language.QISKIT,
         qiskit_parameters: Optional[set["Parameter"]] = None,
+        printing: bool = False,
     ) -> Any:
+        if isinstance(self.non_controlled_gate, CustomGate):
+            if language == Language.QISKIT and printing:
+                from qiskit.circuit import Gate as QiskitGate
+
+                gate = self.non_controlled_gate.to_other_language(
+                    language,
+                    qiskit_parameters,
+                    printing=True,
+                )
+                if not isinstance(gate, QiskitGate):
+                    raise TypeError(
+                        "Expected CustomGate translation to return a Qiskit Gate."
+                    )
+                return gate.control(len(self.controls))
+            return self.to_custom_gate().to_other_language(language)
+
         if language == Language.QISKIT:
+
             from qiskit.quantum_info import Operator
 
             gate = self.non_controlled_gate.to_other_language(Language.QISKIT)
@@ -93,13 +109,26 @@ class CustomControlledGate(ControlledGate):
                 gate = gate.to_instruction()
             gate = gate.control(len(self.controls))
             return gate
-        elif language == Language.QASM2:
-            if isinstance(self.non_controlled_gate, CustomGate):
-                targets = self.targets + self.controls
-                targets.sort()
-                gate = CustomGate(self.to_matrix(), targets)
 
-                return gate.to_other_language(Language.QASM2)
+        elif language == Language.CIRQ:
+
+            from cirq import ControlledGate as cirqControlledGate
+
+            return cirqControlledGate(
+                sub_gate=self.non_controlled_gate.to_other_language(Language.CIRQ),
+                num_controls=len(self.controls),
+            )
+
+        elif language == Language.BRAKET:
+            from braket.circuits import Instruction as BraketInstruction
+
+            return BraketInstruction(
+                operator=self.non_controlled_gate.to_other_language(language).operator,
+                target=self.targets,
+                control=self.controls,
+            )
+
+        elif language == Language.QASM2:
 
             from qiskit import QuantumCircuit, qasm2
 

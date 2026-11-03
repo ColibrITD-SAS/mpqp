@@ -203,8 +203,8 @@ def configure_account_iam() -> tuple[str, list[Any]]:
 
 def delete_aws_braket_account() -> tuple[str, list[Any]]:
     """Deletes the locally stored AWS Braket configuration."""
-    from pathlib import Path
     import configparser
+    from pathlib import Path
 
     decision = input(
         colored(

@@ -3,14 +3,15 @@ from .devices import (
     ATOSDevice,
     AvailableDevice,
     AWSDevice,
+    AZUREDevice,
     GOOGLEDevice,
     IBMDevice,
-    AZUREDevice,
+    QUANTINUUMDevice,
 )
-from .simulated_devices import IBMSimulatedDevice
 from .job import Job, JobStatus, JobType
 from .result import BatchResult, Result, Sample, StateVector
 from .runner import adjust_measure, run, submit
+from .simulated_devices import IBMSimulatedDevice
 
 # This import has to be done after the loading of result to work, `pass` is a
 # trick to avoid isort to move this line above

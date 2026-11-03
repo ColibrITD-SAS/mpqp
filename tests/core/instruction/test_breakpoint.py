@@ -3,11 +3,11 @@ from pytest import CaptureFixture
 
 from mpqp import CNOT, ATOSDevice, Breakpoint, H, QCircuit, Y, run
 from mpqp.execution.devices import (
-    AvailableDevice,
-    IBMDevice,
-    GOOGLEDevice,
     ATOSDevice,
+    AvailableDevice,
     AWSDevice,
+    GOOGLEDevice,
+    IBMDevice,
 )
 
 list_circuit_expected_out = [
@@ -41,8 +41,7 @@ DEBUG: After instruction 2, state is
        q_0: ┤ H ├┤ Y ├
             └───┘└───┘
        q_1: ──────────
-               
-""",
+""" + "               \n",
     ),
     (
         QCircuit([H(0), CNOT(0, 1), Breakpoint(enabled=False), Y(1)]),

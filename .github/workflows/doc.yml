@@ -11,18 +11,17 @@ on:
 jobs:
   build_publish_docs:
     # Deploy to cloudflare
-    if: github.event_name == 'release' || github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Build Document
+        env:
+          SPHINX_GITHUB_CHANGELOG_TOKEN: ${{ secrets.DOC_GH_API_TOKEN || github.token }}
         run: |
           pip install -r requirements-dev.txt
           sudo apt update
           sudo apt install -y pandoc
-          touch .env
-          echo "SPHINX_GITHUB_CHANGELOG_TOKEN=${{secrets.DOC_GH_API_TOKEN}}" > .env
           sphinx-build -b html docs build
       - name: Publish
         uses: cloudflare/pages-action@1

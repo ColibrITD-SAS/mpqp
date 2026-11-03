@@ -18,6 +18,7 @@ __pycache__/
 benchmark-results.json
 benchmark-histogram*.svg
 .ipynb_checkpoints/
+venv/
 
 # IDE
 .vscode/
@@ -27,6 +28,7 @@ benchmark-histogram*.svg
 # private files
 .dockerenv
 .env
+venv/
 
 # results of tests
 examples/notebooks/latex_error.log

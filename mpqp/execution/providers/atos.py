@@ -47,7 +47,8 @@ def job_pre_processing(job: Job) -> "Circuit":
     Returns:
           The myQLM Circuit translated from the circuit of the job in parameter.
     """
-
+    if TYPE_CHECKING:
+        assert isinstance(job.circuit, QCircuit)
     if (
         job.job_type == JobType.STATE_VECTOR
         and job.measure is not None
@@ -126,6 +127,8 @@ def get_remote_qpu(device: ATOSDevice, job: Job):
         raise ValueError(
             f"Excepted a remote device, but got a local myQLM simulator {device}"
         )
+    if TYPE_CHECKING:
+        assert isinstance(job.circuit, QCircuit)
 
     if len(job.circuit.noises) > 0:
         if not device.is_noisy_simulator():
@@ -143,7 +146,7 @@ def get_remote_qpu(device: ATOSDevice, job: Job):
             qpu = NoisyQProc(
                 hw_model,
                 sim_method="stochastic",
-                n_samples=job.measure.shots if job.measure is not None else 0,
+                n_samples=(job.measure.shots if job.measure is not None else 0),
             )
             if job.job_type == JobType.OBSERVABLE:
                 from qlmaas.plugins import (  # pyright: ignore[reportMissingImports]
@@ -181,7 +184,7 @@ def get_remote_qpu(device: ATOSDevice, job: Job):
 
             qpu = NoisyQProc(
                 sim_method="stochastic",
-                n_samples=job.measure.shots if job.measure is not None else 0,
+                n_samples=(job.measure.shots if job.measure is not None else 0),
             )
             if job.job_type == JobType.OBSERVABLE:
                 from qlmaas.plugins import (  # pyright: ignore[reportMissingImports]

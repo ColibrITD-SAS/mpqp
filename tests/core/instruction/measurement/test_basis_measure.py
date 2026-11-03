@@ -1,14 +1,14 @@
 import pytest
 
 from mpqp import (
-    BasisMeasure,
-    ComputationalBasis,
-    run,
-    QCircuit,
-    IBMDevice,
     ATOSDevice,
     AWSDevice,
+    BasisMeasure,
+    ComputationalBasis,
     GOOGLEDevice,
+    IBMDevice,
+    QCircuit,
+    run,
 )
 from mpqp.core.instruction.gates.native_gates import X
 from mpqp.execution.devices import AvailableDevice

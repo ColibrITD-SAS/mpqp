@@ -14,6 +14,7 @@ In addition, Cirq does not handle user defined gates. So an important part of
 """
 
 from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
