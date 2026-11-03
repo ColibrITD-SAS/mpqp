@@ -41,7 +41,7 @@ def test_extracting_measurements_does_not_clear_source_transpilation_cache():
     assert isinstance(inner_binding, CircuitBinding)
     extracted_circuit = inner_binding.circuits[0]
     assert isinstance(extracted_circuit, QCircuit)
-    assert extracted_circuit.transpiled_circuit is None
+    assert extracted_circuit.transpiled_circuit == {}
 
 
 def test_zip_keeps_observables_on_their_own_register():
@@ -224,6 +224,26 @@ def test_zip_broadcast_execution_order_and_values(
 
 
 @pytest.mark.provider("qiskit")
+def test_mixed_register_ibm_pubs_validate_without_submission():
+    from mpqp.execution.providers.ibm import _normalize_estimator_pubs
+    from qiskit.primitives.containers.estimator_pub import EstimatorPub
+
+    binding = CircuitBinding(
+        [QCircuit([X(0)], nb_qubits=3), QCircuit([X(0)], nb_qubits=4)],
+        measurements=[
+            ExpectationMeasure(Observable(pI @ pI @ pZ)),
+            ExpectationMeasure(Observable(pI @ pI @ pI @ pZ)),
+        ],
+        mode=BindingMode.ZIP,
+    )
+    translated = binding.to_other_device(IBMDevice.AER_SIMULATOR)
+    pubs = _normalize_estimator_pubs([pub for pub, _ in translated])
+    assert [pub[0].num_qubits for pub in pubs] == [3, 4]
+    for pub in pubs:
+        EstimatorPub.coerce(pub)  # Validate shapes locally; never submit a job.
+
+
+@pytest.mark.provider("qiskit")
 @pytest.mark.parametrize("mode", list(BindingMode))
 @pytest.mark.parametrize("symbol_keys", [False, True])
 def test_parameter_order_and_observable_association(
@@ -286,7 +306,9 @@ def test_provider_parameters_forwarded(many_circuits: bool, many_devices: bool):
     assert execute.call_count == (2 if many_circuits else 1) * (
         2 if many_devices else 1
     )
-    assert all(call.args[4] is params for call in execute.call_args_list)
+    assert all(
+        call.kwargs["provider_params"] is params for call in execute.call_args_list
+    )
 
 
 def test_binding_runs_on_every_device():
