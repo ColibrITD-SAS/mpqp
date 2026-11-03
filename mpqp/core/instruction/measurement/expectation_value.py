@@ -30,8 +30,8 @@ from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import is_diagonal, is_hermitian, is_power_of_two
 
 if TYPE_CHECKING:
-    from braket.circuits.observables import Hermitian, Sum
     from braket.circuits import Circuit as braket_Circuit
+    from braket.circuits.observables import Hermitian, Sum
     from cirq.circuits.circuit import Circuit as CirqCircuit
     from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
     from cirq.ops.pauli_string import PauliString as CirqPauliString
@@ -40,6 +40,7 @@ if TYPE_CHECKING:
     from qiskit._accelerate.circuit import Parameter
     from qiskit.quantum_info import SparsePauliOp
     from sympy import Expr
+
     from mpqp.execution.devices import AvailableDevice
 
 
@@ -87,11 +88,15 @@ class Observable:
         self.pre_transpiled: dict[
             AvailableDevice,
             Union[
-                SparsePauliOp, QLMObservable, CirqPauliSum, CirqPauliString, Hermitian
+                SparsePauliOp,
+                QLMObservable,
+                CirqPauliSum,
+                CirqPauliString,
+                Hermitian,
+                Sum,
             ],
-        ] = {}  # TODO: do we put None, or empty dict ?
-        # TODO: docstring
-        """TODO: documentation"""
+        ] = {}
+        """Provider-native representations cached by target device."""
 
         if isinstance(observable, PauliString):
             self.nb_qubits = observable.nb_qubits
@@ -488,8 +493,6 @@ class ExpectationMeasure(Measure):
         """See parameter description."""
         self.optimize_measurement = optimize_measurement
         """See parameter description."""
-        self.pre_transpiled = None
-        """See parameter description."""
         self.current_grouping: Optional[
             tuple[list[list[PauliStringMonomial]], GroupingMethods, CommutingTypes]
         ] = None
@@ -709,11 +712,27 @@ class ExpectationMeasure(Measure):
             and not callable(getattr(self, attr_name))
         }
 
-    # TODO: double check this method
-    def pre_transpile_observables(self, device: AvailableDevice):
+    def pre_transpile_observables(self, device: AvailableDevice) -> None:
+        """Cache provider-specific observable preparation for ``device``.
+
+        AWS preparation stores the grouped basis-change circuits and associated
+        eigenvalues on this measure. IBM preparation stores each translated
+        observable on the corresponding :class:`Observable`.
+
+        Args:
+            device: Device for which the observables are prepared.
+
+        Raises:
+            NotImplementedError: If preparation is not implemented for the
+                device's provider.
+        """
         from mpqp.execution.devices import AWSDevice, IBMDevice
+        from mpqp.execution.simulated_devices import StaticIBMSimulatedDevice
 
         if isinstance(device, AWSDevice):
+            if device in self.translated_pre_measures:
+                return
+
             from mpqp.core.circuit import QCircuit
             from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
             from mpqp.tools.pauli_grouping import (
@@ -738,7 +757,7 @@ class ExpectationMeasure(Measure):
                 transpiled_pre_measures,
             )
 
-        elif isinstance(device, IBMDevice):
+        elif isinstance(device, (IBMDevice, StaticIBMSimulatedDevice)):
             for observable in self.observables:
                 if device not in observable.pre_transpiled:
                     observable.pre_transpiled[device] = observable.to_other_language(

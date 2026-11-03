@@ -544,43 +544,11 @@ def run_braket_observable(
 
     results, errors = {}, {}
     if job.measure.optimize_measurement:
-        from mpqp.tools.pauli_grouping import (
-            find_qubitwise_rotations,
-            pauli_monomial_eigenvalues,
-        )
-
-        if job.measure.pre_transpiled is None:
-            grouping = job.measure.get_pauli_grouping()
-            pre_measure = [
-                QCircuit(
-                    find_qubitwise_rotations(group, job.measure.targets)
-                    + (
-                        [BasisMeasure(targets=job.measure.targets)]
-                        if job.measure.shots != 0
-                        else []
-                    )
-                )
-                for group in grouping
-            ]
-            for circuit in pre_measure:
-                for (
-                    instr
-                ) in circuit._instructions:  # pyright: ignore[reportPrivateUsage]
-                    instr.targets = [job.measure.targets[t] for t in instr.targets]
-            transpiled_pre_measures = [
-                pre_m.to_other_language(Language.BRAKET) for pre_m in pre_measure
-            ]
-            eigenvalues = [
-                {
-                    monomial.name: pauli_monomial_eigenvalues(monomial)
-                    for monomial in group
-                }
-                for group in grouping
-            ]
-        else:
-            eigenvalues, transpiled_pre_measures = (
-                job.measure.pre_transpiled
-            )  # pyright: ignore[reportGeneralTypeIssues]
+        if job.device not in job.measure.translated_pre_measures:
+            job.measure.pre_transpile_observables(job.device)
+        eigenvalues, transpiled_pre_measures = job.measure.translated_pre_measures[
+            job.device
+        ]
 
         expectation_values = {}
         for eigenvalues, pre_measure in zip(eigenvalues, transpiled_pre_measures):

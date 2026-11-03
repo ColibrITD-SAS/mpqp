@@ -11,6 +11,7 @@ import numpy as np
 import pytest
 
 from mpqp import ExpectationMeasure, Language, Observable, QCircuit, X, pI, pX, pY, pZ
+from mpqp.execution.devices import AWSDevice, IBMDevice
 from mpqp.tools.errors import NumberQubitsError
 
 
@@ -34,6 +35,34 @@ def test_expectation_measure_fits_larger_circuit():
 
     assert circuit.nb_qubits == 3
     assert measurement.targets == [0]
+
+
+@pytest.mark.provider("qiskit")
+def test_pre_transpile_observables_caches_translation_per_device():
+    measurement = ExpectationMeasure(Observable(pZ))
+    observable = measurement.observables[0]
+    device = IBMDevice.AER_SIMULATOR
+
+    assert observable.pre_transpiled == {}
+    assert measurement.pre_transpile_observables(device) is None
+    cached = observable.pre_transpiled[device]
+
+    measurement.pre_transpile_observables(device)
+    assert observable.pre_transpiled[device] is cached
+
+
+@pytest.mark.provider("braket")
+def test_pre_transpile_observables_caches_aws_measurement_preparation():
+    measurement = ExpectationMeasure(
+        Observable(pX @ pZ), targets=[1, 3], shots=100
+    )
+    device = AWSDevice.BRAKET_LOCAL_SIMULATOR
+
+    assert measurement.pre_transpile_observables(device) is None
+    cached = measurement.translated_pre_measures[device]
+
+    measurement.pre_transpile_observables(device)
+    assert measurement.translated_pre_measures[device] is cached
 
 
 @pytest.mark.parametrize("targets", [[], [0, 1]])

@@ -28,6 +28,21 @@ def test_prepared_circuit_reuses_template_for_multiple_values():
 
 
 @pytest.mark.provider("qiskit")
+def test_bind_parameters_updates_cached_provider_circuit():
+    from qiskit.quantum_info import Statevector
+
+    theta = Symbol("theta")
+    circuit = QCircuit([Ry(theta, 0)])
+    device = IBMDevice.AER_SIMULATOR_STATEVECTOR
+    circuit.transpiled_for_device(device)
+
+    assert circuit.bind_parameters(device, {theta: 0.5}) is None
+    bound = circuit.transpiled_circuit[device]
+
+    assert Statevector(bound).probabilities()[1] == pytest.approx(np.sin(0.25) ** 2)
+
+
+@pytest.mark.provider("qiskit")
 def test_prepared_circuit_cache_is_per_device():
     circuit = QCircuit([X(0)])
     devices = (

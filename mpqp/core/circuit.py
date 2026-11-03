@@ -2361,9 +2361,21 @@ class QCircuit:
 
     def bind_parameters(
         self, device: AvailableDevice, values: dict[Expr | str, Number]
-    ):
-        """Bind parameter values to the transpiled circuit."""
-        # TODO: to enhance docs
+    ) -> None:
+        """Bind values in the provider circuit cached for ``device``.
+
+        The MPQP instructions are left unchanged. If no provider circuit is
+        cached yet, it is transpiled first. The cached provider representation
+        is then replaced by its bound counterpart.
+
+        Args:
+            device: Device identifying the cached provider representation.
+            values: Values indexed by MPQP expressions or parameter names.
+
+        Raises:
+            TypeError: If parameter binding is not implemented for the device's
+                provider.
+        """
         if device not in self.transpiled_circuit:
             self.transpiled_for_device(device)
         transpiled = self.transpiled_circuit[device]
