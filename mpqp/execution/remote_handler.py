@@ -37,7 +37,7 @@ def get_remote_result(
 ) -> Result:
     """Retrieve and parse a remote result from a job id or a Job. When passing
     a job id, the device on which the job was submitted must also be provided.
-    If the job is still running, wait until it is done.
+    If the job is still running, the call blocks until the job is done.
 
     Args:
         job_data: Either the :class:`~mpqp.execution.job.Job` object or the
