@@ -569,8 +569,9 @@ def run_braket_observable(job: Job) -> Result:
         is_noisy=bool(job.circuit.noises),
     )
 
-    results, errors = {}, {}
     if job.measure.optimize_measurement:
+        # need: job, language,
+        # returns: grouping, monomials, pre_measure
         from mpqp.tools.pauli_grouping import (
             find_qubitwise_rotations,
             pauli_monomial_eigenvalues,
@@ -604,13 +605,11 @@ def run_braket_observable(job: Job) -> Result:
                 job.measure.pre_transpiled
             )  # pyright: ignore[reportGeneralTypeIssues]
 
-        expectation_values = {}
+        expectation_values, errors = {}, {}
+        job.status = JobStatus.RUNNING
         for eigenvalues, pre_measure in zip(eigenvalues, transpiled_pre_measures):
-            job.status = JobStatus.RUNNING
             if job.measure.shots == 0:
-                from copy import deepcopy
-
-                cirq = deepcopy(transpiled_circuit + pre_measure)
+                cirq = transpiled_circuit + pre_measure
                 cirq.state_vector()  # pyright: ignore[reportAttributeAccessIssue]
                 local_result = device.run(
                     cirq,
@@ -620,7 +619,7 @@ def run_braket_observable(job: Job) -> Result:
 
                 assert isinstance(local_result, GateModelQuantumTaskResult)
                 values = local_result.values[0]
-                sorted_values = []
+                sorted_values: list[float] = []
                 for i in range(len(values)):
                     sorted_values.append(float(np.abs(values[i]) ** 2))
             else:
@@ -632,39 +631,29 @@ def run_braket_observable(job: Job) -> Result:
                 )
                 result = local_result.result()
                 assert isinstance(result, GateModelQuantumTaskResult)
-                a = len(list(result.measurement_probabilities.keys())[0])
-                length = 2**a
-                sorted_values: list[float] = []
-                for i in range(length):
-                    binary_state = f"{bin(i)[2:].zfill(len(bin(length))- 3)}"
-                    if binary_state in result.measurement_probabilities:
-                        sorted_values.append(
-                            result.measurement_probabilities[binary_state].real
-                        )
-                    else:
-                        sorted_values.append(0)
+
+                length = 2**job.measure.nb_qubits
+                from mpqp.tools.pauli_grouping import reconstruct_full_counts
+
+                sorted_values: list[float] = reconstruct_full_counts(
+                    result.measurement_probabilities, length
+                )
+
             for name, eigenvalue in eigenvalues.items():
                 expectation_value: float = np.dot(
                     eigenvalue,
                     np.array(sorted_values, dtype=np.float64),
                 )
                 expectation_values[name] = expectation_value
-        for i, obs in enumerate(job.measure.observables):
-            string = obs.pauli_string
-            local: float = 0
-            for monoms in string.monomials:
-                if TYPE_CHECKING:
-                    assert isinstance(monoms.coef, (int, float))
-                local += expectation_values[monoms.name] * monoms.coef
-            results.update({f"observable_{i}": local})
-            errors.update({f"observable_{len(errors)}": None})
-        if len(results) == 1:
-            return Result(job, results["observable_0"], shots=job.measure.shots)
-        return Result(job, results, errors, shots=job.measure.shots)
+                errors.update({name: 0})
+        from mpqp.tools.pauli_grouping import build_pauli_grouping_result
+
+        return build_pauli_grouping_result(job, expectation_values, errors)
 
     else:
         from copy import deepcopy
 
+        results, errors = {}, {}
         braket_sum = None
         index = []
         for i, obs in enumerate(job.measure.observables):
@@ -673,7 +662,7 @@ def run_braket_observable(job: Job) -> Result:
             if job.measure.shots == 0:
                 # TODO: Remove this when Braket will have fixed PauliString with coeff
                 # force the conversion to matrix to avoid issues with pauli_string with coeff
-                if obs._pauli_string is not None:  # pyright: ignore[reportPrivateUsage]
+                if obs.is_pauli_set:
                     obs = deepcopy(obs)
                     obs.matrix
                     obs._pauli_string = None  # pyright: ignore[reportPrivateUsage]

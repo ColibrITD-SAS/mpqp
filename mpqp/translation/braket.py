@@ -606,7 +606,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
             cached = observable_cache.get(id(measure))
             if cached is not None:
                 return cached
-            if any(observable.is_matrix_set() for observable in measure.observables):
+            if any(observable.is_matrix_set for observable in measure.observables):
                 warn(
                     "To translate observables from CircuitBindings to braket we "
                     "need to translate the matrix to pauli string. This process "
