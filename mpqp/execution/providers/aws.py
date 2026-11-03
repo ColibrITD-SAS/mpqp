@@ -729,8 +729,6 @@ def _run_optimized_braket_observables(
     reservation_arn: Optional[str] = None,
 ) -> Result:
     """Evaluate grouped Pauli observables in one Braket program set."""
-    from copy import deepcopy
-
     from braket.program_sets import ProgramSet
 
     from mpqp.tools.pauli_grouping import find_qubitwise_rotations
@@ -755,7 +753,7 @@ def _run_optimized_braket_observables(
 
     programs = []
     for pre_measure in transpiled_pre_measures:
-        circuit = deepcopy(transpiled_circuit + pre_measure)
+        circuit = transpiled_circuit + pre_measure
         circuit.measure(job.measure.targets)
         programs.append(circuit)
 
