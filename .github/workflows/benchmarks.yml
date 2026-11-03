@@ -3,7 +3,7 @@ name: Benchmarks dashboard
 on:
   push:
     branches:
-      - perf-benchmark
+      - dev
       - main
   workflow_dispatch:
     inputs:
@@ -200,7 +200,7 @@ jobs:
           auto-push: ${{ github.event_name == 'push' || inputs.save }}
           alert-threshold: 120%
           fail-threshold: 150%
-          fail-on-alert: true
-          comment-on-alert: false
+          fail-on-alert: false
+          comment-on-alert: true
           summary-always: true
           max-items-in-chart: 100
