@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 if TYPE_CHECKING:
     from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
@@ -10,7 +10,39 @@ if TYPE_CHECKING:
 import numpy as np
 import pytest
 
-from mpqp import ExpectationMeasure, Language, Observable, pI, pX, pY, pZ
+from mpqp import ExpectationMeasure, Language, Observable, QCircuit, X, pI, pX, pY, pZ
+from mpqp.tools.errors import NumberQubitsError
+
+
+@pytest.mark.parametrize("targets", [None, [0], [2]])
+def test_expectation_measure_targets_stay_fixed(targets: Optional[list[int]]):
+    measurement = ExpectationMeasure(Observable(pZ), targets)
+    expected_targets = targets if targets is not None else [0]
+    circuit = QCircuit([measurement])
+
+    assert measurement.targets == expected_targets
+    circuit.add(X(3))
+    assert measurement.targets == expected_targets
+    circuit.remove(X(3))
+    assert measurement.targets == expected_targets
+    assert circuit.nb_qubits == max(expected_targets) + 1
+
+
+def test_expectation_measure_fits_larger_circuit():
+    measurement = ExpectationMeasure(Observable(pZ))
+    circuit = QCircuit([X(2), measurement])
+
+    assert circuit.nb_qubits == 3
+    assert measurement.targets == [0]
+
+
+@pytest.mark.parametrize("targets", [[], [0, 1]])
+def test_expectation_measure_rejects_wrong_target_count(targets: list[int]):
+    with pytest.raises(
+        NumberQubitsError,
+        match=f"Target size {len(targets)} doesn't match observable size 1",
+    ):
+        ExpectationMeasure(Observable(pZ), targets)
 
 
 @pytest.mark.parametrize(
