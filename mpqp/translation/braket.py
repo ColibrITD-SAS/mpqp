@@ -340,14 +340,15 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
 
         Pauli grouping is applied independently to every
         :class:`~mpqp.core.instruction.measurement.expectation_value.ExpectationMeasure`
-        whose ``optimize_measurement`` attribute is true. Compatible terms share a
-        basis-rotation circuit, so one sampled execution supplies all their
-        expectation values. Parameter rows using that same circuit and group are
-        packed into one Braket ``CircuitBinding``.
+        whose ``optimize_measurement`` attribute is true and whose commutation
+        type is qubit-wise. Compatible terms share a basis-rotation circuit, so
+        one sampled execution supplies all their expectation values. Parameter
+        rows using that same circuit and group are packed into one Braket
+        ``CircuitBinding``.
 
-        Measurements with ``optimize_measurement=False`` retain Braket's native
-        observable translation. If no measurement requests grouping, this function
-        delegates to the existing translator unchanged.
+        Measurements with ``optimize_measurement=False`` or full commutation
+        retain Braket's native observable translation. If no measurement is
+        eligible for grouping, this function delegates to the native translator.
 
         Args:
             binding: Binding containing circuits, parameter rows and measurements.
@@ -362,7 +363,6 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
         Raises:
             ValueError: If grouping is requested for a zero-shot binding or an
                 execution has no expectation measurement.
-            NotImplementedError: If full-commutation grouping is requested.
             TypeError: If a circuit parameter is not real.
 
         Note:
@@ -376,17 +376,19 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
         from braket.circuits import Circuit as BraketCircuit
         from collections import OrderedDict
 
+        from mpqp.core.instruction.measurement.pauli_string import CommutingTypes
         from mpqp.core.languages import Language
         from mpqp.tools.pauli_grouping import pauli_monomial_eigenvalues
 
         executions = binding.unroll()
-        optimized = [
-            measurement
+        grouped_measurements = {
+            id(measurement)
             for _, _, measurement in executions
             if isinstance(measurement, ExpectationMeasure)
             and measurement.optimize_measurement
-        ]
-        if not optimized:
+            and measurement.commuting_type == CommutingTypes.QUBITWISE
+        }
+        if not grouped_measurements:
             return _grouped_cb_to_programset(binding, device)
         if binding.shots == 0:
             raise ValueError("Braket ProgramSets are not available with zero shots.")
@@ -425,7 +427,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                     ).to_other_device(device)
                 translated_circuits[circuit_id] = provider_circuit
 
-            if measurement.optimize_measurement:
+            if id(measurement) in grouped_measurements:
                 grouping = measurement.get_pauli_grouping()
                 for group_index, group in enumerate(grouping):
                     group_key = (id(measurement), group_index)

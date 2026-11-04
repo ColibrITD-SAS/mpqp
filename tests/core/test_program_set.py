@@ -12,7 +12,13 @@ from mpqp.core.instruction.measurement.expectation_value import (
     ExpectationMeasure,
     Observable,
 )
-from mpqp.core.instruction.measurement.pauli_string import pI, pX, pZ
+from mpqp.core.instruction.measurement.pauli_string import (
+    CommutingTypes,
+    pI,
+    pX,
+    pY,
+    pZ,
+)
 from mpqp.execution.devices import AWSDevice
 from mpqp.gates import *
 
@@ -300,6 +306,79 @@ def test_pauli_grouping_shares_one_execution_between_observables():
     assert len(contexts[0]) == 1
     assert contexts[0][0].optimized
     assert result.results[0].expectation_values == {"ZI": 1.0, "IZ": 1.0}
+
+
+@pytest.mark.provider("braket")
+@pytest.mark.parametrize(
+    "circuit, observable, expected, executables",
+    [
+        (QCircuit([Ry(t, 0)]), Observable(pZ), [1.0, -1.0], 2),
+        (
+            QCircuit([H(0), CNOT(0, 1), Rz(t, 0)]),
+            Observable(2 * pX @ pX + 3 * pY @ pY),
+            [-1.0, 1.0],
+            4,
+        ),
+    ],
+)
+def test_full_commutation_binding_uses_native_observables(
+    circuit: QCircuit,
+    observable: Observable,
+    expected: list[float],
+    executables: int,
+):
+    from mpqp.execution.runner import run
+
+    measure = ExpectationMeasure(
+        observable, shots=100, commuting_type=CommutingTypes.FULL
+    )
+    binding = CircuitBinding(
+        circuit, values=[{"t": 0.0}, {"t": np.pi}], measurements=measure
+    )
+    program_set, contexts = binding.to_other_device(AWSDevice.BRAKET_LOCAL_SIMULATOR)
+    result = run(binding, AWSDevice.BRAKET_LOCAL_SIMULATOR)
+
+    assert program_set.total_executables == executables
+    assert all(not context.optimized for entry in contexts for context in entry)
+    # In the Bell-state case, Rz(pi) swaps the signs of XX and YY.
+    assert [r.expectation_values for r in result.results] == expected
+    assert measure.optimize_measurement
+    assert measure.commuting_type == CommutingTypes.FULL
+    assert binding.optimize_measurement
+
+
+@pytest.mark.provider("braket")
+@pytest.mark.parametrize("mode", [BindingMode.PRODUCT, BindingMode.ZIP])
+def test_mixed_commutation_binding_preserves_grouping_and_order(mode: BindingMode):
+    from mpqp.execution.runner import run
+
+    binding = CircuitBinding(
+        QCircuit([Ry(t, 0), X(1)]),
+        values=[{"t": 0.0}, {"t": np.pi}],
+        measurements=[
+            ExpectationMeasure(
+                [Observable(pZ @ pI, label="ZI"), Observable(pI @ pZ, label="IZ")],
+                shots=100,
+            ),
+            ExpectationMeasure(
+                Observable(pZ @ pZ), shots=100, commuting_type=CommutingTypes.FULL
+            ),
+        ],
+        mode=mode,
+    )
+    program_set, contexts = binding.to_other_device(AWSDevice.BRAKET_LOCAL_SIMULATOR)
+    result = run(binding, AWSDevice.BRAKET_LOCAL_SIMULATOR)
+
+    assert any(context.optimized for entry in contexts for context in entry)
+    assert any(not context.optimized for entry in contexts for context in entry)
+    expected = (
+        [{"ZI": 1.0, "IZ": -1.0}, -1.0, {"ZI": -1.0, "IZ": -1.0}, 1.0]
+        if mode == BindingMode.PRODUCT
+        else [{"ZI": 1.0, "IZ": -1.0}, 1.0]
+    )
+    assert program_set.total_executables == len(expected)
+    assert [r.expectation_values for r in result.results] == expected
+    assert binding.optimize_measurement
 
 
 @pytest.mark.provider("braket")

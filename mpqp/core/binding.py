@@ -598,6 +598,10 @@ class CircuitBinding:
             NotImplementedError: If the device provider is unsupported.
 
         Note:
+            For AWS, Pauli grouping optimizes qubit-wise commuting measurements.
+            Full-commutation measurements remain supported through native
+            observable execution.
+
             For IBM, PRODUCT/ZIP combinations are resolved before executions
             are grouped by circuit. PUB fields are circuit, observables and
             parameter values; absent trailing fields are omitted.
