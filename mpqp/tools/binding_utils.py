@@ -25,10 +25,10 @@ associate the translations with individual parameter sets and measurements.
 
 from typing import TYPE_CHECKING, Any, Optional, TypeVar
 
+from mpqp.core._types import BindingParameters
 from mpqp.core.binding import (
     BindingExecution,
     BindingOptions,
-    BindingParameters,
     CircuitBinding,
 )
 from mpqp.core.circuit import QCircuit
@@ -60,13 +60,13 @@ def __translate_binding_circuits(
 
             else:
                 if isinstance(device, AWSDevice):
-                    result.update(
-                        {
-                            id(circuit): (
-                                circuit + QCircuit(cb.noises)
-                            ).to_other_device(device)
-                        }
-                    )
+                    if cb.noises:
+                        translated_circuit = (
+                            circuit + QCircuit(cb.noises)
+                        ).to_other_device(device)
+                    else:
+                        translated_circuit = circuit.transpiled_for_device(device)
+                    result.update({id(circuit): translated_circuit})
                 elif isinstance(device, IBMDevice):
                     if cb.is_noisy:
                         from mpqp.execution.providers.ibm import (
@@ -88,11 +88,15 @@ def __translate_binding_circuits(
                             backend_sim=backend_sim,
                         )
                     else:
-                        translated_circuit = circuit.to_other_device(
-                            device,
-                            skip_pre_measure=skip_pre_measure,
-                            backend_sim=backend_sim,
-                        )
+                        if device not in circuit.transpiled_circuit:
+                            circuit.transpiled_circuit[device] = (
+                                circuit.to_other_device(
+                                    device,
+                                    skip_pre_measure=skip_pre_measure,
+                                    backend_sim=backend_sim,
+                                )
+                            )
+                        translated_circuit = circuit.transpiled_circuit[device]
                     result.update({id(circuit): translated_circuit})
                 else:
                     raise NotImplementedError
@@ -155,9 +159,14 @@ def merge_values(
     """Merge child and parent values, giving precedence to the parent."""
     if child_parameters is None and parent_parameters is None:
         return None
-    combined_parameters = dict(child_parameters) if child_parameters is not None else {}
+    combined_parameters = (
+        {key: value for key, value in child_parameters.items()}
+        if child_parameters is not None
+        else {}
+    )
     if parent_parameters is not None:
-        combined_parameters.update(parent_parameters)
+        for key, value in parent_parameters.items():
+            combined_parameters[key] = value
     return combined_parameters
 
 
@@ -199,8 +208,12 @@ def combine_zipped_options(
         if TYPE_CHECKING:
             assert parent_parameters is not None
             assert child_parameters is not None
-        parent_execution_parameters = parent_parameters.copy()
-        child_execution_parameters = child_parameters.copy()
+        parent_execution_parameters = {
+            key: value for key, value in parent_parameters.items()
+        }
+        child_execution_parameters = {
+            key: value for key, value in child_parameters.items()
+        }
     else:
         parent_execution_parameters = child_execution_parameters = merge_values(
             child_parameters, parent_parameters
@@ -258,13 +271,15 @@ def product_values(
     for parent_parameters in parent_values:
         if child_parameters is None:
             parameter_set = (
-                parent_parameters.copy() if parent_parameters is not None else None
+                {key: value for key, value in parent_parameters.items()}
+                if parent_parameters is not None
+                else None
             )
         elif parent_parameters is None:
             keep_child_parameters = True
             continue
         elif bind_same_parameters(child_parameters, parent_parameters):
-            parameter_set = parent_parameters.copy()
+            parameter_set = {key: value for key, value in parent_parameters.items()}
             keep_child_parameters = True
         else:
             parameter_set = merge_values(child_parameters, parent_parameters)
@@ -274,7 +289,7 @@ def product_values(
     if keep_child_parameters:
         if TYPE_CHECKING:
             assert child_parameters is not None
-        child_parameters = child_parameters.copy()
+        child_parameters = {key: value for key, value in child_parameters.items()}
         unique_values.setdefault(parameter_set_key(child_parameters), child_parameters)
 
     return list(unique_values.values())

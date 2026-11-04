@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 from contextlib import contextmanager
+from numbers import Real
 from typing import TYPE_CHECKING, Optional
 
 import numpy as np
@@ -30,7 +31,24 @@ from mpqp.tools.errors import (
 if TYPE_CHECKING:
     from braket.circuits import Circuit
     from braket.devices import Device as BraketDevice
+    from braket.program_sets import ProgramSet
     from braket.tasks import GateModelQuantumTaskResult, QuantumTask
+
+
+def _run_braket_device(
+    target: AWSDevice,
+    device: "BraketDevice",
+    circuit: "ProgramSet | Circuit",
+    shots: Optional[int],
+    provider_params: Optional[BraketParams],
+    inputs: Optional[dict[str, float]] = None,
+) -> "QuantumTask":
+    """Run a Braket circuit, optionally inside a direct reservation."""
+    reservation_arn = (
+        provider_params.reservation_arn if provider_params is not None else None
+    )
+    with optional_reservation_arn(device, reservation_arn):
+        return device.run(circuit, shots=shots, inputs=inputs)
 
 
 def apply_noise_to_braket_circuit(
@@ -138,10 +156,10 @@ def run_braket(
     from braket.tasks import GateModelQuantumTaskResult
 
     try:
-        if isinstance(job.measure, ExpectationMeasure):
-            return run_braket_observable(job, provider_params)
         if isinstance(job.circuit, CircuitBinding):
             return run_circuit_binding(job, provider_params)
+        if isinstance(job.measure, ExpectationMeasure):
+            return run_braket_observable(job, provider_params)
         _, task = submit_job_braket(job, provider_params)
         res = task.result()
         if TYPE_CHECKING:
@@ -196,7 +214,6 @@ def run_pseudo_circuit_binding(
     translated_circuit = translate_binding_circuits(cb, job.device)
     translated_measurement = translate_binding_measurements(cb, job.device)
     device = get_braket_device(job.device, is_noisy=cb.is_noisy)
-    reservation_arn = provider_params.reservation_arn if provider_params else None
     results = []
 
     job.status = JobStatus.RUNNING
@@ -205,9 +222,16 @@ def run_pseudo_circuit_binding(
         transpiled_measurement = (
             translated_measurement[id(m)] if m is not None else None
         )
-        braket_inputs = (
-            {str(key): value for key, value in v.items()} if v is not None else None
-        )
+        braket_inputs: Optional[dict[str, float]] = None
+        if v is not None:
+            braket_inputs = {}
+            for key, value in v.items():
+                if not isinstance(value, Real):
+                    raise TypeError(
+                        "Braket circuit parameters must be real numbers, "
+                        f"but parameter {key} has value {value}."
+                    )
+                braket_inputs[str(key)] = float(value)
 
         if TYPE_CHECKING:
             assert isinstance(transpiled_circuit, braket_Circuit)
@@ -223,14 +247,16 @@ def run_pseudo_circuit_binding(
         if job.job_type == JobType.STATE_VECTOR:
             executable_circuit.state_vector()  # pyright: ignore[reportAttributeAccessIssue]
 
-        with optional_reservation_arn(device, reservation_arn):
-            task = device.run(
-                executable_circuit,
-                shots=0,
-                inputs=braket_inputs,  # pyright: ignore[reportArgumentType]
-            )
+        task = _run_braket_device(
+            job.device,
+            device,
+            executable_circuit,
+            0,
+            provider_params,
+            inputs=braket_inputs,
+        )
 
-        local_job = Job(job.job_type, c, job.device, m, v)
+        local_job = Job(job.job_type, c, job.device, m, v, mode=job.mode)
         local_job.id = task.id
         local_job.status = JobStatus.DONE
         if job.job_type == JobType.STATE_VECTOR:
@@ -276,15 +302,13 @@ def run_circuit_binding(
             f"{job.device} instead"
         )
     device = get_braket_device(job.device, is_noisy=circuitBinding.is_noisy)
-    reservation_arn = provider_params.reservation_arn if provider_params else None
     braket_circuit, jobs = circuitBinding.to_other_device(job.device)
 
     if TYPE_CHECKING:
         from braket.circuits import Circuit as braket_Circuit
 
         assert isinstance(braket_circuit, braket_Circuit)
-    with optional_reservation_arn(device, reservation_arn):
-        task = device.run(braket_circuit, shots=None, inputs=None)
+    task = _run_braket_device(job.device, device, braket_circuit, None, provider_params)
     task_result = task.result()
     nbr_shots = circuitBinding.shots if circuitBinding.shots is not None else 0
     job.id = task.id
@@ -448,7 +472,14 @@ def run_circuit_binding(
                             or f"observable_{index}": error
                         }
                     )
-            local_job = Job(job.job_type, circuit, job.device, measurement, variables)
+            local_job = Job(
+                job.job_type,
+                circuit,
+                job.device,
+                measurement=measurement,
+                values=variables,
+                mode=job.mode,
+            )
             local_job.id = job.id
             local_job.status = job.status
             indexed_results.append(
@@ -484,6 +515,7 @@ def run_circuit_binding(
                     job.device,
                     measurement=measure,
                     values=values,
+                    mode=job.mode,
                 )
                 local_job.id = job.id
                 local_job.status = JobStatus.DONE
@@ -528,74 +560,34 @@ def run_braket_observable(
         assert isinstance(job.device, AWSDevice)
 
     assert isinstance(job.circuit, QCircuit)
-    circuit = job.circuit.without_measurements()
-    if circuit.transpiled_circuit is None:
-        transpiled_circuit = circuit.to_other_device(job.device)
-    else:
-        transpiled_circuit = circuit.transpiled_circuit
-        if TYPE_CHECKING:
-            assert isinstance(transpiled_circuit, Circuit)
+    transpiled_circuit = job.circuit.transpiled_for_device(job.device)
+    assert isinstance(transpiled_circuit, Circuit)
 
     device = get_braket_device(
         job.device,
         is_noisy=bool(job.circuit.noises),
     )
-    reservation_arn = provider_params.reservation_arn if provider_params else None
-
     results, errors = {}, {}
+
     if job.measure.optimize_measurement:
-        from mpqp.tools.pauli_grouping import (
-            find_qubitwise_rotations,
-            pauli_monomial_eigenvalues,
+        job.measure.pre_transpile_observables(job.device)
+        eigenvalues_by_group, transpiled_pre_measures = (
+            job.measure.translated_pre_measures[job.device]
         )
 
-        if job.measure.pre_transpiled is None:
-            grouping = job.measure.get_pauli_grouping()
-            pre_measure = [
-                QCircuit(
-                    find_qubitwise_rotations(group, job.measure.targets)
-                    + (
-                        [BasisMeasure(targets=job.measure.targets)]
-                        if job.measure.shots != 0
-                        else []
-                    )
-                )
-                for group in grouping
-            ]
-            for circuit in pre_measure:
-                for (
-                    instr
-                ) in circuit._instructions:  # pyright: ignore[reportPrivateUsage]
-                    instr.targets = [job.measure.targets[t] for t in instr.targets]
-            transpiled_pre_measures = [
-                pre_m.to_other_language(Language.BRAKET) for pre_m in pre_measure
-            ]
-            eigenvalues = [
-                {
-                    monomial.name: pauli_monomial_eigenvalues(monomial)
-                    for monomial in group
-                }
-                for group in grouping
-            ]
-        else:
-            eigenvalues, transpiled_pre_measures = (
-                job.measure.pre_transpiled
-            )  # pyright: ignore[reportGeneralTypeIssues]
-
-        expectation_values = {}
-        for eigenvalues, pre_measure in zip(eigenvalues, transpiled_pre_measures):
+        expectation_values: dict[str, float] = {}
+        for group_eigenvalues, pre_measure in zip(
+            eigenvalues_by_group, transpiled_pre_measures
+        ):
             job.status = JobStatus.RUNNING
             if job.measure.shots == 0:
                 from copy import deepcopy
 
                 cirq = deepcopy(transpiled_circuit + pre_measure)
                 cirq.state_vector()  # pyright: ignore[reportAttributeAccessIssue]
-                with optional_reservation_arn(device, reservation_arn):
-                    local_result = device.run(
-                        cirq,
-                        shots=0,
-                        inputs=None,  # disable_qubit_rewiring=True
-                    ).result()
+                local_result = _run_braket_device(
+                    job.device, device, cirq, 0, provider_params
+                ).result()
 
                 assert isinstance(local_result, GateModelQuantumTaskResult)
                 values = local_result.values[0]
@@ -603,27 +595,27 @@ def run_braket_observable(
                 for i in range(len(values)):
                     sorted_values.append(float(np.abs(values[i]) ** 2))
             else:
-                with optional_reservation_arn(device, reservation_arn):
-                    local_result = device.run(
-                        transpiled_circuit + pre_measure,
-                        shots=job.measure.shots,
-                        inputs=None,
-                        # disable_qubit_rewiring=True,
-                    )
+                local_result = _run_braket_device(
+                    job.device,
+                    device,
+                    transpiled_circuit + pre_measure,
+                    job.measure.shots,
+                    provider_params,
+                )
                 result = local_result.result()
                 assert isinstance(result, GateModelQuantumTaskResult)
                 a = len(list(result.measurement_probabilities.keys())[0])
                 length = 2**a
                 sorted_values: list[float] = []
                 for i in range(length):
-                    binary_state = f"{bin(i)[2:].zfill(len(bin(length))- 3)}"
+                    binary_state = f"{bin(i)[2:].zfill(len(bin(length)) - 3)}"
                     if binary_state in result.measurement_probabilities:
                         sorted_values.append(
                             result.measurement_probabilities[binary_state].real
                         )
                     else:
                         sorted_values.append(0)
-            for name, eigenvalue in eigenvalues.items():
+            for name, eigenvalue in group_eigenvalues.items():
                 expectation_value: float = np.dot(
                     eigenvalue,
                     np.array(sorted_values, dtype=np.float64),
@@ -638,6 +630,7 @@ def run_braket_observable(
                 local += expectation_values[monoms.name] * monoms.coef
             results.update({f"observable_{i}": local})
             errors.update({f"observable_{len(errors)}": None})
+
         if len(results) == 1:
             return Result(job, results["observable_0"], shots=job.measure.shots)
         return Result(job, results, errors, shots=job.measure.shots)
@@ -665,14 +658,9 @@ def run_braket_observable(
                     observable=braket_obs, target=job.measure.targets
                 )
                 job.status = JobStatus.RUNNING
-                # TODO: handle disable_qubit_rewiring, linked to verbatim box but crashes when not in use.
-                with optional_reservation_arn(device, reservation_arn):
-                    local_result = device.run(
-                        copy,
-                        shots=job.measure.shots,
-                        inputs=None,
-                        # disable_qubit_rewiring=True,
-                    ).result()
+                local_result = _run_braket_device(
+                    job.device, device, copy, job.measure.shots, provider_params
+                ).result()
                 assert isinstance(local_result, GateModelQuantumTaskResult)
                 results.update({f"observable_{i}": local_result.values[0].real})
                 errors.update({f"observable_{i}": None})
@@ -702,13 +690,13 @@ def run_braket_observable(
             )
             job.status = JobStatus.RUNNING
 
-            with optional_reservation_arn(device, reservation_arn):
-                local_result = device.run(
-                    program_set,
-                    shots=program_set.total_executables * job.measure.shots,
-                    inputs=None,
-                    # disable_qubit_rewiring=True,
-                ).result()
+            local_result = _run_braket_device(
+                job.device,
+                device,
+                program_set,
+                program_set.total_executables * job.measure.shots,
+                provider_params,
+            ).result()
             assert isinstance(local_result, ProgramSetQuantumTaskResult)
             for res in local_result:
                 for i, value in enumerate(res.entries):
@@ -717,6 +705,7 @@ def run_braket_observable(
 
         if len(results) == 1:
             return Result(job, results["observable_0"], None, job.measure.shots)
+
     return Result(job, results, errors, job.measure.shots)
 
 
@@ -776,12 +765,7 @@ def submit_job_braket(
     from braket.circuits import Circuit
 
     device = get_braket_device(job.device, is_noisy=is_noisy)
-    reservation_arn = provider_params.reservation_arn if provider_params else None
-
-    if job.circuit.transpiled_circuit is None:
-        braket_circuit = job.circuit.to_other_device(job.device)
-    else:
-        braket_circuit = job.circuit.transpiled_circuit
+    braket_circuit = job.circuit.transpiled_for_device(job.device)
     if TYPE_CHECKING:
         assert isinstance(braket_circuit, Circuit)
 
@@ -803,39 +787,39 @@ def submit_job_braket(
         braket_circuit.state_vector()  # pyright: ignore[reportAttributeAccessIssue]
         job.status = JobStatus.RUNNING
 
-        with optional_reservation_arn(device, reservation_arn):
-            task = device.run(braket_circuit, shots=0, inputs=None)
+        task = _run_braket_device(
+            job.device, device, braket_circuit, 0, provider_params
+        )
 
     elif job.job_type == JobType.SAMPLE:
         if TYPE_CHECKING:
             assert job.measure is not None
         job.status = JobStatus.RUNNING
-
-        with optional_reservation_arn(device, reservation_arn):
-            task = device.run(
-                braket_circuit,
-                shots=job.measure.shots,
-                inputs=None,
-                # disable_qubit_rewiring=True,
-            )
+        task = _run_braket_device(
+            job.device, device, braket_circuit, job.measure.shots, provider_params
+        )
 
     elif job.job_type == JobType.OBSERVABLE:
-        # TODO : [multi-obs] update this to take into account the case when we have list of Observables
         if TYPE_CHECKING:
             assert isinstance(job.measure, ExpectationMeasure)
 
-        if job.measure.observables[0].pre_transpiled is None:
+        # TODO : [multi-obs] update this to take into account the case when we have list of Observables
+        #  and in this case looping over the list of observables is not sufficient, we have to take into account the
+        #  grouping and do it manually if job.measure.optimize_measurement is true otherwise do it sequentially
+        cached_observable = job.measure.observables[0].pre_transpiled.get(job.device)
+        if cached_observable is None:
             herm_op = job.measure.observables[0].to_other_language(Language.BRAKET)
         else:
-            herm_op = job.measure.observables[0].pre_transpiled
+            herm_op = cached_observable
         braket_circuit.expectation(  # pyright: ignore[reportAttributeAccessIssue]
             observable=herm_op, target=job.measure.targets
         )
 
         job.status = JobStatus.RUNNING
 
-        with optional_reservation_arn(device, reservation_arn):
-            task = device.run(braket_circuit, shots=job.measure.shots, inputs=None)
+        task = _run_braket_device(
+            job.device, device, braket_circuit, job.measure.shots, provider_params
+        )
     else:
         raise NotImplementedError(f"Job of type {job.job_type} not handled.")
 

@@ -135,3 +135,7 @@ class QuantinuumParams(ProviderParams):
     ):
         self.optimisation_level = optimisation_level
         self.commutation_strategy = commutation_strategy
+
+
+AWSParams = BraketParams
+"""Backward-compatible alias for :class:`BraketParams`."""
