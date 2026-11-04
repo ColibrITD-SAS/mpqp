@@ -3,14 +3,14 @@ import pytest
 from mpqp import AWSDevice, Job, JobStatus, JobType, QCircuit
 
 JOB_STATUSES = tuple(JobStatus)
-STATUS_PRIORITY = {
-    JobStatus.ERROR: 0,
-    JobStatus.CANCELLED: 1,
-    JobStatus.RUNNING: 2,
-    JobStatus.QUEUED: 3,
-    JobStatus.INIT: 4,
-    JobStatus.DONE: 5,
-}
+STATUS_PRIORITY = (
+    JobStatus.ERROR,
+    JobStatus.CANCELLED,
+    JobStatus.RUNNING,
+    JobStatus.QUEUED,
+    JobStatus.INIT,
+    JobStatus.DONE,
+)
 
 
 @pytest.mark.parametrize("job_ids", [None, []], ids=["none", "empty-list"])
@@ -33,7 +33,7 @@ def test_status_without_remote_job_ids(job_ids: None | list[str]):
             second_status,
             min(
                 (first_status, second_status),
-                key=lambda status: STATUS_PRIORITY[status],
+                key=STATUS_PRIORITY.index,
             ),
             id=f"{first_status.name.lower()}-{second_status.name.lower()}",
         )
