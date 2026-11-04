@@ -347,7 +347,6 @@ class Observable:
             (required if ``language == Language.TKET``) otherwise defaults at (0,...)
             circuit: The Cirq circuit associated with the observable (required
                 if ``language == Language.CIRQ``).
-            pauli_string_translation: If set at `True`, the translation will translated the observable with its ``PauliString`` representation. If set at `False`, the translation will be done with the matrix representation of the observable. Default to `True`.
 
         Returns:
             Depends on the target language.
