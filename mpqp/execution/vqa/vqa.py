@@ -135,6 +135,8 @@ class VQAModule:
         residual_function: Optional function receiving the parameter vector and
             raw results, and returning the residual vector used by
             :attr:`Optimizer.TRF`.
+        provider_params: Provider-specific execution configuration used by
+            default for every evaluation.
 
     Raises:
         ValueError: If circuits are empty or parameters contain duplicates,
@@ -153,6 +155,7 @@ class VQAModule:
         parameters: Optional[Sequence[Basic]] = None,
         cost_function: Optional[CostFunction] = None,
         residual_function: Optional[ResidualFunction] = None,
+        provider_params: Optional[ProviderParams] = None,
     ) -> None:
         binding_execution: list[BindingExecution] = []
         if isinstance(circuits, CircuitBinding):
@@ -212,6 +215,7 @@ class VQAModule:
         self.backend = device
         self.cost_function = cost_function
         self.residual_function = residual_function
+        self.provider_params = provider_params
         self.result = VQAResult()
         for item in self._prepared:
             item.circuit.transpiled_for_device(device)
@@ -242,7 +246,8 @@ class VQAModule:
             shots: Shot override. Its priority is: this argument, the source
                 ``CircuitBinding.shots``, then the measurement's own value.
             mode: Provider execution mode. ``None`` selects ``JOB``.
-            provider_params: Provider-specific execution configuration.
+            provider_params: Provider-specific execution configuration. Defaults
+                to the configuration supplied when creating the module.
 
         Returns:
             Raw measurement results in circuit order.
@@ -368,7 +373,11 @@ class VQAModule:
                 binding,
                 self.backend,
                 mode=execution_mode,
-                provider_params=provider_params,
+                provider_params=(
+                    provider_params
+                    if provider_params is not None
+                    else self.provider_params
+                ),
             )
             if len(batch.results) != len(indices):
                 raise RuntimeError("Provider returned an unexpected result count.")
@@ -396,7 +405,8 @@ class VQAModule:
             current_params: Values in the module's parameter order.
             shots: Shot count override. Defaults to each circuit's configuration.
             mode: Provider execution mode. ``None`` selects ``JOB``.
-            provider_params: Provider-specific execution configuration.
+            provider_params: Provider-specific execution configuration. Defaults
+                to the configuration supplied when creating the module.
 
         Returns:
             Custom cost, or the sum of expectation values when no cost is set.
@@ -430,7 +440,8 @@ class VQAModule:
             parameter_batch: Parameter vectors in the module's parameter order.
             shots: Shot override shared by every vector in this batch.
             mode: Provider execution mode. None selects JOB.
-            provider_params: Provider-specific execution configuration.
+            provider_params: Provider-specific execution configuration. Defaults
+                to the configuration supplied when creating the module.
 
         Returns:
             One validated cost per parameter vector, in input order.
@@ -519,7 +530,8 @@ class VQAModule:
                 Prefer ``cost_function`` for quantum post-processing.
             mode: Provider execution mode. ``None`` selects ``JOB``.
             shots: Shot count override. Defaults to each circuit's configuration.
-            provider_params: Provider-specific execution configuration.
+            provider_params: Provider-specific execution configuration. Defaults
+                to the configuration supplied when creating the module.
 
         Returns:
             Final loss, parameters, evaluation history and optimizer output.
@@ -708,7 +720,8 @@ class VQAModule:
             shots: Optional shot count for each stage. If omitted, measurements
                 keep their configured shot counts.
             mode: Provider execution mode forwarded to every stage.
-            provider_params: Provider-specific execution configuration.
+            provider_params: Provider-specific execution configuration. Defaults
+                to the configuration supplied when creating the module.
 
         Returns:
             One independent result per stage, in execution order.

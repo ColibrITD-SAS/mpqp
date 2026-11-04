@@ -351,21 +351,23 @@ def test_shot_priority_and_vqa_provider_options(
 
     monkeypatch.setattr(module, "run", inspected)
     params = QiskitParams(instance="instance")
-    vqa = VQAModule(binding, DEVICE)
+    vqa = VQAModule(binding, DEVICE, provider_params=params)
     assert sum(vqa.evaluate([0])[0].counts) == 24
+    assert seen[-1]["provider_params"] is params
+    override = QiskitParams(instance="override")
     assert (
         sum(
             vqa.evaluate(
                 [0],
                 shots=7,
                 mode=ExecutionMode.BATCH,
-                provider_params=params,
+                provider_params=override,
             )[0].counts
         )
         == 7
     )
     assert seen[-1]["mode"] is ExecutionMode.BATCH
-    assert seen[-1]["provider_params"] is params
+    assert seen[-1]["provider_params"] is override
 
 
 def test_cmaes_returns_best_candidate_and_preserves_options() -> None:
