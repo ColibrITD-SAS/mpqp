@@ -1,3 +1,7 @@
+from copy import deepcopy
+from unittest.mock import patch
+
+import numpy as np
 import pytest
 from sympy import Symbol
 
@@ -296,6 +300,80 @@ def test_pauli_grouping_shares_one_execution_between_observables():
     assert len(contexts[0]) == 1
     assert contexts[0][0].optimized
     assert result.results[0].expectation_values == {"ZI": 1.0, "IZ": 1.0}
+
+
+@pytest.mark.provider("braket")
+def test_pauli_grouping_reuses_diagonals_within_one_translation():
+    from mpqp.tools.pauli_grouping import pauli_monomial_eigenvalues
+
+    binding = CircuitBinding(
+        [QCircuit([Ry(t, 0)], nb_qubits=2), QCircuit([Rx(t, 1)], nb_qubits=2)],
+        values=[{"t": 0.0}, {"t": np.pi}],
+        measurements=ExpectationMeasure(
+            [Observable(pX @ pI + pI @ pZ), Observable(pZ @ pI)], shots=100
+        ),
+    )
+
+    with patch(
+        "mpqp.tools.pauli_grouping.pauli_monomial_eigenvalues",
+        wraps=pauli_monomial_eigenvalues,
+    ) as build_diagonal:
+        binding.to_other_device(AWSDevice.BRAKET_LOCAL_SIMULATOR)
+        assert build_diagonal.call_count == 3
+
+        binding.to_other_device(AWSDevice.BRAKET_LOCAL_SIMULATOR)
+        assert build_diagonal.call_count == 6
+
+
+@pytest.mark.provider("braket")
+def test_pauli_grouping_shared_diagonals_are_read_only():
+    binding = CircuitBinding(
+        QCircuit([Ry(t, 0)]),
+        values=[{"t": 0.0}, {"t": np.pi}],
+        measurements=ExpectationMeasure(Observable(pZ), shots=100),
+    )
+    _, contexts = binding.to_other_device(AWSDevice.BRAKET_LOCAL_SIMULATOR)
+    first, second = contexts[0]
+    assert first.eigenvalues is not None
+    assert second.eigenvalues is not None
+    assert first.eigenvalues is not second.eigenvalues
+    diagonal = first.eigenvalues["pZ"]
+    assert diagonal is second.eigenvalues["pZ"]
+
+    with pytest.raises(ValueError, match="read-only"):
+        diagonal[0] = -1
+
+    copied = deepcopy(first)
+    assert copied.eigenvalues is not None
+    copied.eigenvalues["pZ"][0] = -1
+    np.testing.assert_array_equal(diagonal, [1, -1])
+
+
+@pytest.mark.provider("braket")
+def test_pauli_grouping_sweep_preserves_embedded_weighted_expectations():
+    from mpqp.execution.runner import run
+
+    binding = CircuitBinding(
+        [
+            QCircuit([Ry(t, 0), H(1)]),
+            QCircuit([Ry(t, 0), H(1), X(2)]),
+        ],
+        values=[{"t": 0.0}, {"t": np.pi}],
+        measurements=ExpectationMeasure(
+            [
+                Observable(2 * pZ @ pI + 3 * pI @ pX, label="weighted"),
+                Observable(pZ @ pX, label="ZX"),
+            ],
+            shots=100,
+        ),
+    )
+    result = run(binding, AWSDevice.BRAKET_LOCAL_SIMULATOR)
+
+    # Ry(0) and Ry(pi) give Z = +1 and -1; H prepares X = +1 on qubit 1.
+    assert [r.expectation_values for r in result.results] == [
+        {"weighted": 5.0, "ZX": 1.0},
+        {"weighted": 1.0, "ZX": -1.0},
+    ] * 2
 
 
 @pytest.mark.parametrize(

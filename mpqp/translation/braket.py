@@ -42,6 +42,8 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
         A grouped entry produces probabilities rather than a Braket expectation
         value. ``eigenvalues`` maps every Pauli monomial measured by the entry to
         the diagonal used to recover its expectation from those probabilities.
+        These arrays are read-only and shared by contexts for the same
+        measurement and Pauli group within a translation.
         For a non-grouped entry, ``observable_index`` identifies the provider
         expectation that belongs to the original MPQP measurement and
         ``executable_span`` records the number of Braket executables occupied by
@@ -390,6 +392,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
             raise ValueError("Braket ProgramSets are not available with zero shots.")
 
         translated_circuits: dict[int, BraketCircuit] = {}
+        diagonal_cache: dict[tuple[int, int], dict[str, npt.NDArray[np.float64]]] = {}
         grouped_entries: "OrderedDict[tuple[Any, ...], dict[str, Any]]" = OrderedDict()
         entries: list[Any] = []
         entry_contexts: list[list[BraketPauliGroupingContext]] = []
@@ -425,6 +428,16 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
             if measurement.optimize_measurement:
                 grouping = measurement.get_pauli_grouping()
                 for group_index, group in enumerate(grouping):
+                    group_key = (id(measurement), group_index)
+                    eigenvalues = diagonal_cache.get(group_key)
+                    if eigenvalues is None:
+                        eigenvalues = {
+                            monomial.name: pauli_monomial_eigenvalues(monomial)
+                            for monomial in group
+                        }
+                        for diagonal in eigenvalues.values():
+                            diagonal.setflags(write=False)
+                        diagonal_cache[group_key] = eigenvalues
                     parameter_schema = (
                         tuple(sorted(str(parameter) for parameter in values))
                         if values is not None
@@ -464,10 +477,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                             optimized=True,
                             group_index=group_index,
                             monomials=tuple(group),
-                            eigenvalues={
-                                monomial.name: pauli_monomial_eigenvalues(monomial)
-                                for monomial in group
-                            },
+                            eigenvalues=eigenvalues.copy(),
                         )
                     )
                 continue
