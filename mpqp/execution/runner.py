@@ -537,11 +537,13 @@ def _run_circuit_binding(
             )
         result = run_braket(job, provider_params)
     elif isinstance(device, GOOGLEDevice):
-        raise NotImplementedError(f"Device {device} not handled")
-        result = run_google(jobs)  # TODO
+        from mpqp.execution.providers.google import run_cirq_pseudo_circuitbinding
+
+        result = run_cirq_pseudo_circuitbinding(job)  # TODO
     elif isinstance(device, AZUREDevice):
-        raise NotImplementedError(f"Device {device} not handled")
-        result = run_azure(jobs)  # TODO
+        from mpqp.execution.providers.azure import run_azure_pseudo_circuitbinding
+
+        result = run_azure_pseudo_circuitbinding(job)
     else:
         raise NotImplementedError(f"Device {device} not handled")
 

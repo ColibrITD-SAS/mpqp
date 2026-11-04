@@ -6,6 +6,7 @@ if TYPE_CHECKING:
     from qiskit.result import Result as QiskitResult
     from azure.quantum.qiskit.job import AzureQuantumJob
 
+from mpqp.core.binding import CircuitBinding
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.measurement import BasisMeasure
 from mpqp.execution.connection.azure_connection import (
@@ -14,7 +15,7 @@ from mpqp.execution.connection.azure_connection import (
 )
 from mpqp.execution.devices import AZUREDevice
 from mpqp.execution.job import IBMDevice, Job, JobStatus, JobType
-from mpqp.execution.result import Result, Sample
+from mpqp.execution.result import BatchResult, Result, Sample
 
 
 def run_azure(job: Job) -> Result:
@@ -37,6 +38,61 @@ def run_azure(job: Job) -> Result:
         assert isinstance(job.device, AZUREDevice)
         assert isinstance(result_sim, QiskitResult)
     return extract_result(result_sim, job, job.device)
+
+
+def run_azure_pseudo_circuitbinding(job: Job) -> BatchResult:
+    if TYPE_CHECKING:
+        assert isinstance(job.circuit, CircuitBinding)
+        assert isinstance(job.device, AZUREDevice)
+
+    if job.job_type != JobType.SAMPLE:
+        raise ValueError(
+            f"Job type {job.job_type} not handled on Azure devices for circuit binding."
+        )
+    backend_sim = get_azure_provider().get_backend(job.device.value)
+
+    from mpqp.tools.binding_utils import (
+        translate_binding_circuits,
+        translate_binding_measurements,
+    )
+
+    transpiled_circuits = translate_binding_circuits(
+        job.circuit, IBMDevice.AER_SIMULATOR
+    )
+    transpiled_measurements = translate_binding_measurements(
+        job.circuit, IBMDevice.AER_SIMULATOR
+    )
+    shots = job.measure.shots if job.measure is not None else 0
+    results = []
+
+    job.status = JobStatus.RUNNING
+    for c, v, m in job.circuit.unroll():
+        translated_circuit = transpiled_circuits[id(c)]
+        if TYPE_CHECKING:
+            from qiskit import QuantumCircuit
+
+            assert isinstance(translated_circuit, QuantumCircuit)
+
+        transpiled_measurement = (
+            transpiled_measurements[id(m)] if m is not None else None
+        )
+        qiskit_inputs = (
+            {str(key): value for key, value in v.items()} if v is not None else None
+        )
+        if transpiled_measurement is not None:
+            translated_circuit += transpiled_measurement
+        if qiskit_inputs is not None:
+            translated_circuit = translated_circuit.assign_parameters(
+                qiskit_inputs, inplace=False
+            )
+        local_job = Job(
+            job_type=job.job_type, circuit=c, device=job.device, measurement=m, values=v
+        )
+        job_sim = backend_sim.run(translated_circuit, shots=shots)
+        result_sim = job_sim.result()
+        results.append(extract_result(result_sim, local_job, job.device))
+
+    return BatchResult(results)
 
 
 def submit_job_azure(job: Job) -> tuple[str, "AzureQuantumJob"]:
