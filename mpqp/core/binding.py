@@ -32,7 +32,7 @@ from __future__ import annotations
 from copy import copy
 from enum import Enum, auto
 from numbers import Complex
-from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union, overload
+from typing import TYPE_CHECKING, Optional, TypeVar, Union, overload
 
 from sympy import Expr
 
@@ -48,7 +48,7 @@ if TYPE_CHECKING:
 
     from mpqp.execution._execution_context import ExecutionContext
     from mpqp.execution.devices import AvailableDevice, AWSDevice, IBMDevice
-
+    from mpqp.translation.braket import BraketPauliGroupingContext
 
 BindingParameters = dict[Union[Expr, str], Union[Complex, float]]
 """Parameter values keyed by symbolic expressions or parameter names."""
@@ -535,10 +535,42 @@ class CircuitBinding:
         """Return an unambiguous representation of the binding."""
         return f"CircuitBinding(circuits={repr(self.circuits)}, values={repr(self.value)}, measurements={repr(self.measurements)}, mode={repr(self.mode)}, noises={repr(self.noises)}, shots={repr(self.shots)})"
 
+    @property
+    def optimize_measurement(self) -> bool:
+        """Whether all measurements in this observable binding enable Pauli grouping.
+
+        Unmeasured nested bindings do not disable optimization supplied at
+        another level. Returns ``False`` for non-observable bindings.
+
+        Example:
+            >>> inner = CircuitBinding(QCircuit(1))
+            >>> measure = ExpectationMeasure(Observable(pZ))
+            >>> CircuitBinding(inner, measurements=measure).optimize_measurement
+            True
+        """
+        from mpqp.core.instruction.measurement import ExpectationMeasure
+        from mpqp.execution.job import JobType
+
+        if self.job_type != JobType.OBSERVABLE:
+            return False
+
+        def all_measurements_optimized(binding: CircuitBinding) -> bool:
+            return all(
+                isinstance(measurement, ExpectationMeasure)
+                and measurement.optimize_measurement
+                for measurement in binding.measurements or ()
+            ) and all(
+                all_measurements_optimized(circuit)
+                for circuit in binding.circuits
+                if isinstance(circuit, CircuitBinding)
+            )
+
+        return all_measurements_optimized(self)
+
     @overload
     def to_other_device(
         self, device: AWSDevice, backend_sim: Optional[AerSimulator] = None
-    ) -> tuple[ProgramSet, list[Any]]: ...
+    ) -> tuple[ProgramSet, list[list[BraketPauliGroupingContext]]]: ...
     @overload
     def to_other_device(
         self, device: IBMDevice, backend_sim: Optional[AerSimulator] = None
@@ -548,13 +580,13 @@ class CircuitBinding:
         self, device: AvailableDevice, backend_sim: Optional[AerSimulator] = None
     ) -> (
         list[tuple[EstimatorPubLike, list[ExecutionContext]]]
-        | tuple[ProgramSet, list[Any]]
+        | tuple[ProgramSet, list[list[BraketPauliGroupingContext]]]
     ): ...
     def to_other_device(
         self, device: AvailableDevice, backend_sim: Optional[AerSimulator] = None
     ) -> (
         list[tuple[EstimatorPubLike, list[ExecutionContext]]]
-        | tuple[ProgramSet, list[Any]]
+        | tuple[ProgramSet, list[list[BraketPauliGroupingContext]]]
     ):
         """Translate a binding for the selected provider.
 
@@ -574,6 +606,10 @@ class CircuitBinding:
             NotImplementedError: If the device provider is unsupported.
 
         Note:
+            For AWS, Pauli grouping optimizes qubit-wise commuting measurements.
+            Full-commutation measurements remain supported through native
+            observable execution.
+
             For IBM, PRODUCT/ZIP combinations are resolved before executions
             are grouped by circuit. PUB fields are circuit, observables and
             parameter values; absent trailing fields are omitted.

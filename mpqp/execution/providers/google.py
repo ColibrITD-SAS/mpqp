@@ -165,28 +165,21 @@ def run_cirq_observable(
 
     from mpqp.execution.job import JobStatus
 
-    variances = {}
     if job.measure is None:
         raise NotImplementedError("job.measure is None")
     assert isinstance(job.measure, ExpectationMeasure)
+    variances = {}
 
     # TODO: optimize
     if job.measure.optimize_measurement:
-        monomials = []
-        for obs in job.measure.observables:
-            for monom in obs.pauli_string.monomials:
-                found = False
-                for m in monomials:
-                    if monom.name == m.name:
-                        found = True
-                        break
-                if not found:
-                    monomials.append(monom / monom.coef)
+        from mpqp.tools.pauli_grouping import get_all_monomials
+
+        monomials = get_all_monomials(job.measure)
         expectation_values: dict[str, float] = {}
-        result: dict[str, float] = {}
 
         cirq_obs = [
             monom.to_other_language(Language.CIRQ, circuit=circuit)
+            / monom.coef  # pyright: ignore[reportOperatorIssue]
             for monom in monomials
         ]
         job.status = JobStatus.RUNNING
@@ -202,7 +195,8 @@ def run_cirq_observable(
             )
             for i, res in enumerate(local_result[0]):
                 expectation_values.update({f"{monomials[i].name}": res})
-                variances.update({f"{monomials[i].name}": None})
+                variances.update({f"{monomials[i].name}": 0})
+
         elif job.measure.shots == 0:
             local_result = simulator.simulate_expectation_values(
                 circuit, observables=cirq_obs
@@ -210,6 +204,7 @@ def run_cirq_observable(
             for i, res in enumerate(local_result):
                 expectation_values.update({f"{monomials[i].name}": res.real})
                 variances.update({f"{monomials[i].name}": 0})
+
         else:
             local_result = measure_observables(
                 circuit,
@@ -220,29 +215,10 @@ def run_cirq_observable(
             for i, res in enumerate(local_result):
                 expectation_values.update({f"{monomials[i].name}": res.mean})
                 variances.update({f"{monomials[i].name}": res.variance})
-        errors = {}
-        for i, obs in enumerate(job.measure.observables):
-            string = obs.pauli_string
-            local: float = 0.0
-            var = {}
 
-            for monoms in string.monomials:
-                if TYPE_CHECKING:
-                    assert isinstance(monoms.coef, (float, int))
-                local += expectation_values[monoms.name] * monoms.coef
-                var.update({monoms.name: variances[monoms.name]})
-            errors.update({f"observable_{i}": var})
-            result.update({f"observable_{i}": local})
+        from mpqp.tools.pauli_grouping import build_pauli_grouping_result
 
-        job.status = JobStatus.DONE
-        if len(result) == 1:
-            return Result(
-                job,
-                result["observable_0"],
-                errors["observable_0"],
-                shots=job.measure.shots,
-            )
-        return Result(job, result, errors, shots=job.measure.shots)
+        return build_pauli_grouping_result(job, expectation_values, variances)
 
     else:
         errors = {}

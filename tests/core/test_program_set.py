@@ -1,3 +1,7 @@
+from copy import deepcopy
+from unittest.mock import patch
+
+import numpy as np
 import pytest
 from sympy import Symbol
 
@@ -8,7 +12,13 @@ from mpqp.core.instruction.measurement.expectation_value import (
     ExpectationMeasure,
     Observable,
 )
-from mpqp.core.instruction.measurement.pauli_string import pX, pZ
+from mpqp.core.instruction.measurement.pauli_string import (
+    CommutingTypes,
+    pI,
+    pX,
+    pY,
+    pZ,
+)
 from mpqp.execution.devices import AWSDevice
 from mpqp.gates import *
 
@@ -135,7 +145,9 @@ def test_translation_nbr_jobs(
     assert len(ps) == nbr_entries
     assert sum(len(entry_contexts) for entry_contexts in contexts) == nbr_results
     assert ps.total_executables == sum(
-        context[3] for entry_contexts in contexts for context in entry_contexts
+        context.executable_span or 0
+        for entry_contexts in contexts
+        for context in entry_contexts
     )
 
 
@@ -260,12 +272,187 @@ def test_multi_observable_measure_returns_one_result():
 
     assert len(program_set) == 2
     assert {
-        context[4] for entry_contexts in contexts for context in entry_contexts
+        context.result_index
+        for entry_contexts in contexts
+        for context in entry_contexts
     } == {0}
     assert len(result.results) == 1
     assert result.results[0].expectation_values == pytest.approx(
         {"Z": 1.0, "X-Z": -1.0}, abs=0.15
     )
+
+
+@pytest.mark.provider("braket")
+def test_pauli_grouping_shares_one_execution_between_observables():
+    from mpqp.execution.runner import run
+
+    binding = CircuitBinding(
+        QCircuit(2),
+        measurements=ExpectationMeasure(
+            [
+                Observable(pZ @ pI, label="ZI"),
+                Observable(pI @ pZ, label="IZ"),
+            ],
+            shots=100,
+            optimize_measurement=True,
+        ),
+    )
+
+    program_set, contexts = binding.to_other_device(AWSDevice.BRAKET_LOCAL_SIMULATOR)
+    result = run(binding, AWSDevice.BRAKET_LOCAL_SIMULATOR)
+
+    assert program_set.total_executables == 1
+    assert len(contexts) == 1
+    assert len(contexts[0]) == 1
+    assert contexts[0][0].optimized
+    assert result.results[0].expectation_values == {"ZI": 1.0, "IZ": 1.0}
+
+
+@pytest.mark.provider("braket")
+@pytest.mark.parametrize(
+    "circuit, observable, expected, executables",
+    [
+        (QCircuit([Ry(t, 0)]), Observable(pZ), [1.0, -1.0], 2),
+        (
+            QCircuit([H(0), CNOT(0, 1), Rz(t, 0)]),
+            Observable(2 * pX @ pX + 3 * pY @ pY),
+            [-1.0, 1.0],
+            4,
+        ),
+    ],
+)
+def test_full_commutation_binding_uses_native_observables(
+    circuit: QCircuit,
+    observable: Observable,
+    expected: list[float],
+    executables: int,
+):
+    from mpqp.execution.runner import run
+
+    measure = ExpectationMeasure(
+        observable, shots=100, commuting_type=CommutingTypes.FULL
+    )
+    binding = CircuitBinding(
+        circuit, values=[{"t": 0.0}, {"t": np.pi}], measurements=measure
+    )
+    program_set, contexts = binding.to_other_device(AWSDevice.BRAKET_LOCAL_SIMULATOR)
+    result = run(binding, AWSDevice.BRAKET_LOCAL_SIMULATOR)
+
+    assert program_set.total_executables == executables
+    assert all(not context.optimized for entry in contexts for context in entry)
+    # In the Bell-state case, Rz(pi) swaps the signs of XX and YY.
+    assert [r.expectation_values for r in result.results] == expected
+    assert measure.optimize_measurement
+    assert measure.commuting_type == CommutingTypes.FULL
+    assert binding.optimize_measurement
+
+
+@pytest.mark.provider("braket")
+@pytest.mark.parametrize("mode", [BindingMode.PRODUCT, BindingMode.ZIP])
+def test_mixed_commutation_binding_preserves_grouping_and_order(mode: BindingMode):
+    from mpqp.execution.runner import run
+
+    binding = CircuitBinding(
+        QCircuit([Ry(t, 0), X(1)]),
+        values=[{"t": 0.0}, {"t": np.pi}],
+        measurements=[
+            ExpectationMeasure(
+                [Observable(pZ @ pI, label="ZI"), Observable(pI @ pZ, label="IZ")],
+                shots=100,
+            ),
+            ExpectationMeasure(
+                Observable(pZ @ pZ), shots=100, commuting_type=CommutingTypes.FULL
+            ),
+        ],
+        mode=mode,
+    )
+    program_set, contexts = binding.to_other_device(AWSDevice.BRAKET_LOCAL_SIMULATOR)
+    result = run(binding, AWSDevice.BRAKET_LOCAL_SIMULATOR)
+
+    assert any(context.optimized for entry in contexts for context in entry)
+    assert any(not context.optimized for entry in contexts for context in entry)
+    expected = (
+        [{"ZI": 1.0, "IZ": -1.0}, -1.0, {"ZI": -1.0, "IZ": -1.0}, 1.0]
+        if mode == BindingMode.PRODUCT
+        else [{"ZI": 1.0, "IZ": -1.0}, 1.0]
+    )
+    assert program_set.total_executables == len(expected)
+    assert [r.expectation_values for r in result.results] == expected
+    assert binding.optimize_measurement
+
+
+@pytest.mark.provider("braket")
+def test_pauli_grouping_reuses_diagonals_within_one_translation():
+    from mpqp.tools.pauli_grouping import pauli_monomial_eigenvalues
+
+    binding = CircuitBinding(
+        [QCircuit([Ry(t, 0)], nb_qubits=2), QCircuit([Rx(t, 1)], nb_qubits=2)],
+        values=[{"t": 0.0}, {"t": np.pi}],
+        measurements=ExpectationMeasure(
+            [Observable(pX @ pI + pI @ pZ), Observable(pZ @ pI)], shots=100
+        ),
+    )
+
+    with patch(
+        "mpqp.tools.pauli_grouping.pauli_monomial_eigenvalues",
+        wraps=pauli_monomial_eigenvalues,
+    ) as build_diagonal:
+        binding.to_other_device(AWSDevice.BRAKET_LOCAL_SIMULATOR)
+        assert build_diagonal.call_count == 3
+
+        binding.to_other_device(AWSDevice.BRAKET_LOCAL_SIMULATOR)
+        assert build_diagonal.call_count == 6
+
+
+@pytest.mark.provider("braket")
+def test_pauli_grouping_shared_diagonals_are_read_only():
+    binding = CircuitBinding(
+        QCircuit([Ry(t, 0)]),
+        values=[{"t": 0.0}, {"t": np.pi}],
+        measurements=ExpectationMeasure(Observable(pZ), shots=100),
+    )
+    _, contexts = binding.to_other_device(AWSDevice.BRAKET_LOCAL_SIMULATOR)
+    first, second = contexts[0]
+    assert first.eigenvalues is not None
+    assert second.eigenvalues is not None
+    assert first.eigenvalues is not second.eigenvalues
+    diagonal = first.eigenvalues["pZ"]
+    assert diagonal is second.eigenvalues["pZ"]
+
+    with pytest.raises(ValueError, match="read-only"):
+        diagonal[0] = -1
+
+    copied = deepcopy(first)
+    assert copied.eigenvalues is not None
+    copied.eigenvalues["pZ"][0] = -1
+    np.testing.assert_array_equal(diagonal, [1, -1])
+
+
+@pytest.mark.provider("braket")
+def test_pauli_grouping_sweep_preserves_embedded_weighted_expectations():
+    from mpqp.execution.runner import run
+
+    binding = CircuitBinding(
+        [
+            QCircuit([Ry(t, 0), H(1)]),
+            QCircuit([Ry(t, 0), H(1), X(2)]),
+        ],
+        values=[{"t": 0.0}, {"t": np.pi}],
+        measurements=ExpectationMeasure(
+            [
+                Observable(2 * pZ @ pI + 3 * pI @ pX, label="weighted"),
+                Observable(pZ @ pX, label="ZX"),
+            ],
+            shots=100,
+        ),
+    )
+    result = run(binding, AWSDevice.BRAKET_LOCAL_SIMULATOR)
+
+    # Ry(0) and Ry(pi) give Z = +1 and -1; H prepares X = +1 on qubit 1.
+    assert [r.expectation_values for r in result.results] == [
+        {"weighted": 5.0, "ZX": 1.0},
+        {"weighted": 1.0, "ZX": -1.0},
+    ] * 2
 
 
 @pytest.mark.parametrize(

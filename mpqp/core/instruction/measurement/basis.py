@@ -11,7 +11,8 @@ On the other hand, some common basis are available for you to use:
 from __future__ import annotations
 
 from abc import abstractmethod
-from functools import reduce
+from functools import cached_property, reduce
+from operator import index
 from typing import TYPE_CHECKING, Optional
 
 import numpy as np
@@ -321,13 +322,36 @@ class ComputationalBasis(VariableSizeBasis):
     def __init__(self, nb_qubits: Optional[int] = None):
         super().__init__([np.array([1, 0]), np.array([0, 1])], nb_qubits=nb_qubits)
 
+    @cached_property
+    def basis_vectors(self) -> list[npt.NDArray[np.complex128]]:
+        """Basis vectors in binary order.
+
+        Requesting all vectors requires memory proportional to
+        ``4**nb_qubits``. Creating or resizing the basis does not require this
+        allocation.
+        """
+        size = 2**self.nb_qubits
+        return [
+            np.array([0] * i + [1] + [0] * (size - 1 - i), dtype=np.complex128)
+            for i in range(size)
+        ]
+
     def set_size(self, nb_qubits: int):
+        """Resize the basis without constructing its vectors.
+
+        Args:
+            nb_qubits: Non-negative number of qubits in the basis.
+
+        Raises:
+            TypeError: If the size is not an integer.
+            ValueError: If the size is negative.
+        """
+        nb_qubits = index(nb_qubits)
+        if nb_qubits < 0:
+            raise ValueError("The number of qubits must be non-negative.")
         if self.nb_qubits == nb_qubits:
             return
-        self.basis_vectors = [
-            np.array([0] * i + [1] + [0] * (2**nb_qubits - 1 - i), dtype=np.complex128)
-            for i in range(2**nb_qubits)
-        ]
+        self.__dict__.pop("basis_vectors", None)
         self.nb_qubits = nb_qubits
 
     def to_computational(self) -> QCircuit:

@@ -27,6 +27,7 @@ from mpqp import (
     H,
     Observable,
     QCircuit,
+    pX,
     pZ,
     run,
 )
@@ -39,6 +40,22 @@ from mpqp.execution.providers.aws import (
 )
 from mpqp.execution.providers.providers_params import BraketParams
 from mpqp.execution.result import BatchResult, Result, Sample
+
+
+@pytest.mark.provider("braket")
+@pytest.mark.parametrize(
+    "observables", [[Observable(pZ)], [Observable(pZ), Observable(pX)]]
+)
+def test_grouped_sampling_preserves_unknown_variance(observables: list[Observable]):
+    result = run(
+        QCircuit([H(0), ExpectationMeasure(observables, shots=100)]),
+        AWSDevice.BRAKET_LOCAL_SIMULATOR,
+    )
+
+    if len(observables) == 1:
+        assert result.error is None
+    else:
+        assert result.error == {"observable_0": None, "observable_1": None}
 
 
 @pytest.mark.provider("braket")

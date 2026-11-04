@@ -203,10 +203,12 @@ class Observable:
         self._pauli_string = None
         self._matrix = None
 
+    @property
     def is_matrix_set(self):
         """Returns if the matrix is already set in the observable."""
         return self._matrix is not None
 
+    @property
     def is_pauli_set(self):
         """Returns if the pauli string is already set in the observable."""
         return self._pauli_string is not None
@@ -370,7 +372,7 @@ class Observable:
 
             return QLMObservable(self.nb_qubits, matrix=self.matrix)
         elif language == Language.BRAKET:
-            if self._pauli_string:
+            if self.is_pauli_set:
                 from braket.circuits.observables import Sum, TensorProduct
 
                 obs = self.pauli_string.to_other_language(Language.BRAKET)
@@ -404,7 +406,7 @@ class Observable:
                 if other.is_diagonal:
                     return matrix_eq(self.diagonal_elements, other.diagonal_elements)
                 return False
-            elif self._matrix is not None:
+            elif self.is_matrix_set:
                 return matrix_eq(self.matrix, other.matrix)
             else:
                 return self.pauli_string == other.pauli_string
@@ -464,8 +466,8 @@ class ExpectationMeasure(Measure):
         commuting_type: CommutingTypes = CommutingTypes.QUBITWISE,
         grouping_method: GroupingMethods = GroupingMethods.QISKIT_COLORING_GREEDY,
         label: Optional[str] = None,
-        optimize_measurement: Optional[bool] = True,
-        optim_diagonal: Optional[bool] = False,
+        optimize_measurement: bool = True,
+        optim_diagonal: bool = False,
     ):
 
         super().__init__(targets, shots, label)

@@ -1,3 +1,7 @@
+from copy import deepcopy
+from typing import Any
+from unittest.mock import patch
+
 import numpy as np
 import numpy.typing as npt
 import pytest
@@ -19,6 +23,59 @@ from mpqp import (
 from mpqp.execution import AvailableDevice
 from mpqp.gates import *
 from mpqp.tools.maths import matrix_eq
+
+
+def test_computational_basis_resize_does_not_materialize_vectors():
+    basis = ComputationalBasis()
+
+    with patch(
+        "mpqp.core.instruction.measurement.basis.np.array",
+        side_effect=AssertionError("Resizing must not allocate basis vectors."),
+    ):
+        basis.set_size(16)
+        assert basis.nb_qubits == 16
+
+
+def test_computational_basis_vectors_follow_resizing():
+    basis = ComputationalBasis()
+
+    for nb_qubits in (0, 3, 1, 2):
+        basis.set_size(nb_qubits)
+        vectors = basis.basis_vectors
+        assert isinstance(vectors, list)
+        np.testing.assert_array_equal(vectors, np.eye(2**nb_qubits))
+        assert all(vector.dtype == np.complex128 for vector in vectors)
+        assert basis.basis_vectors is vectors
+
+
+@pytest.mark.parametrize("size, error", [(-1, ValueError), (1.5, TypeError)])
+def test_computational_basis_rejects_invalid_size(size: Any, error: type[Exception]):
+    basis = ComputationalBasis(2)
+    vectors = basis.basis_vectors
+
+    with pytest.raises(error):
+        basis.set_size(size)
+
+    assert basis.nb_qubits == 2
+    assert basis.basis_vectors is vectors
+
+
+def test_computational_basis_preserves_vector_assignment():
+    basis = ComputationalBasis(2)
+    vectors = list(np.eye(4, dtype=np.complex128))
+    basis.basis_vectors = vectors
+    basis.set_size(2)
+    assert basis.basis_vectors is vectors
+
+
+@pytest.mark.parametrize("materialized", [False, True])
+def test_computational_basis_copy_does_not_share_vectors(materialized: bool):
+    basis = ComputationalBasis(2)
+    if materialized:
+        basis.basis_vectors
+    copied = deepcopy(basis)
+    copied.basis_vectors[0][0] = -1
+    assert basis.basis_vectors[0][0] == 1
 
 
 @pytest.mark.parametrize(

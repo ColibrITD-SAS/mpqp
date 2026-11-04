@@ -1,14 +1,18 @@
 from __future__ import annotations
-from typing import Optional
+
+from typing import TYPE_CHECKING, Any, Optional
 
 import numpy as np
 import numpy.typing as npt
 
 from mpqp.core.instruction.instruction import Instruction
+from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
 from mpqp.core.instruction.measurement.pauli_string import (
     CommutingTypes,
     PauliStringMonomial,
 )
+from mpqp.execution.job import Job, JobStatus
+from mpqp.execution.result import Result
 
 
 def find_qubitwise_rotations(
@@ -90,11 +94,122 @@ def pauli_grouping_greedy(
 
 
 def pauli_monomial_eigenvalues(monom: PauliStringMonomial) -> npt.NDArray[np.float64]:
-    result = np.array([1], dtype=np.float64)
-    for atom in monom.atoms:
-        result = np.kron(result, atom.eigen_values)
-    return result  # pyright: ignore[reportReturnType]
+    """Returns the eigenvalues of a Pauli monomial as a numpy array."""
+    import numpy as np
+
+    first_half = np.array([1], dtype=np.float64)
+    n = len(monom.atoms) // 2
+    for i in range(n):
+        first_half = np.kron(first_half, monom.atoms[i].eigen_values)
+    second_half = np.array([1], dtype=np.float64)
+    for j in range(n, len(monom.atoms)):
+        second_half = np.kron(second_half, monom.atoms[j].eigen_values)
+    return np.kron(first_half, second_half)  # pyright: ignore[reportReturnType]
 
 
 def full_commutation_pauli_grouping_ibm_clique(monomials: list[PauliStringMonomial]):
-    pass
+    raise NotImplementedError
+
+
+def reconstruct_full_counts(counts: dict[str, float], length: int):
+    """Helper function for Braket's pauli grouping.
+    When a count is requested from Braket it only outputs states that were measured.
+
+    Args:
+        counts: dictionary taking as keys the binary state that was measured
+    """
+    sorted_values: list[float] = []
+    for i in range(length):
+        binary_state = f"{bin(i)[2:].zfill(len(bin(length))- 3)}"
+        if binary_state in counts:
+            sorted_values.append(counts[binary_state].real)
+        else:
+            sorted_values.append(0)
+    return sorted_values
+
+
+def build_pauli_monomial_expectation_value(
+    measure: ExpectationMeasure, monomial_values: dict[str, float]
+) -> tuple[dict[str, float], dict[str, float]]:
+    exp_values: dict[str, float] = {}
+    error: dict[str, float] = {}
+    for i, obs in enumerate(measure.observables):
+        string = obs.pauli_string
+        local: float = 0
+        for monoms in string.monomials:
+            if TYPE_CHECKING:
+                assert isinstance(monoms.coef, (int, float))
+            local += monomial_values[monoms.name] * monoms.coef
+        exp_values.update({f"observable_{i}": local})
+        error.update({f"observable_{i}": 0.0})
+    return (exp_values, error)
+
+
+def build_pauli_grouping_result(
+    job: Job, expectation_values: dict[str, float], variance: Optional[dict[str, Any]]
+) -> Result:
+    """Build observable results while retaining per-monomial variances.
+
+    Args:
+        job: Observable job associated with the result.
+        expectation_values: Expectations of unit-coefficient Pauli monomials,
+            keyed by monomial name.
+        variance: Per-monomial variances keyed by the same names, or ``None``
+            when unavailable.
+
+    Returns:
+        A result containing the observable expectations and their per-monomial
+        variance information. Unavailable variance is represented by ``None``.
+    """
+    results, errors = {}, {}
+    if TYPE_CHECKING:
+        assert isinstance(job.measure, ExpectationMeasure)
+    for i, obs in enumerate(job.measure.observables):
+        string = obs.pauli_string
+        local: float = 0
+        var = {}
+        for monoms in string.monomials:
+            if TYPE_CHECKING:
+                assert isinstance(monoms.coef, (int, float))
+            local += expectation_values[monoms.name] * monoms.coef
+            if variance is not None:
+                var.update({monoms.name: variance[monoms.name]})
+        results.update({f"observable_{i}": local})
+        errors.update({f"observable_{i}": var if variance is not None else None})
+    job.status = JobStatus.DONE
+    if len(results) == 1:
+        return Result(
+            job,
+            results["observable_0"],
+            errors=errors["observable_0"],
+            shots=job.measure.shots,
+        )
+    return Result(job, results, errors=errors, shots=job.measure.shots)
+
+
+def get_all_monomials(measure: ExpectationMeasure) -> list[PauliStringMonomial]:
+    """Returns a list of all of the non repeating monomials present in the observables of the measure.
+
+    Args:
+        measure: The expectation measure from which we want to extract the monomials.
+
+    Returns:
+        A list of all the monomials in the measure.
+    """
+    monomials: list[PauliStringMonomial] = []
+    for obs in measure.observables:
+        if not obs.is_pauli_set:
+            from warnings import warn
+
+            warn(
+                "The observable has not a set Pauli String, the inputted matrix is going to be converted into a Pauli String, this may lead to low performances."
+            )
+        for monom in obs.pauli_string.monomials:
+            found = False
+            for m in monomials:
+                if monom.name == m.name:
+                    found = True
+                    break
+            if not found:
+                monomials.append(monom)
+    return monomials
