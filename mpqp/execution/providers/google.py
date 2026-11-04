@@ -203,9 +203,7 @@ def run_cirq_observable(
             )
             for i, res in enumerate(local_result):
                 expectation_values.update({f"{monomials[i].name}": res.real})
-                print("huh")
                 variances.update({f"{monomials[i].name}": 0})
-            print(variances)
 
         else:
             local_result = measure_observables(
@@ -220,7 +218,6 @@ def run_cirq_observable(
 
         from mpqp.tools.pauli_grouping import build_pauli_grouping_result
 
-        print(f"oulalal la variance elle est là: {variances}")
         return build_pauli_grouping_result(job, expectation_values, variances)
 
     else:
