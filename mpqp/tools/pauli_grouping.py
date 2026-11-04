@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from typing import TYPE_CHECKING, Any, Optional
 
 import numpy as np
@@ -145,8 +146,21 @@ def build_pauli_monomial_expectation_value(
 
 
 def build_pauli_grouping_result(
-    job: Job, expectation_values: dict[str, float], variance: dict[str, Any]
+    job: Job, expectation_values: dict[str, float], variance: Optional[dict[str, Any]]
 ) -> Result:
+    """Build observable results while retaining per-monomial variances.
+
+    Args:
+        job: Observable job associated with the result.
+        expectation_values: Expectations of unit-coefficient Pauli monomials,
+            keyed by monomial name.
+        variance: Per-monomial variances keyed by the same names, or ``None``
+            when unavailable.
+
+    Returns:
+        A result containing the observable expectations and their per-monomial
+        variance information. Unavailable variance is represented by ``None``.
+    """
     results, errors = {}, {}
     if TYPE_CHECKING:
         assert isinstance(job.measure, ExpectationMeasure)
@@ -158,12 +172,18 @@ def build_pauli_grouping_result(
             if TYPE_CHECKING:
                 assert isinstance(monoms.coef, (int, float))
             local += expectation_values[monoms.name] * monoms.coef
-            var.update({monoms.name: variance[monoms.name]})
+            if variance is not None:
+                var.update({monoms.name: variance[monoms.name]})
         results.update({f"observable_{i}": local})
-        errors.update({f"observable_{i}": var})
+        errors.update({f"observable_{i}": var if variance is not None else None})
     job.status = JobStatus.DONE
     if len(results) == 1:
-        return Result(job, results["observable_0"], shots=job.measure.shots)
+        return Result(
+            job,
+            results["observable_0"],
+            errors=errors["observable_0"],
+            shots=job.measure.shots,
+        )
     return Result(job, results, errors=errors, shots=job.measure.shots)
 
 

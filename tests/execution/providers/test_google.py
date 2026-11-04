@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING
+from unittest.mock import patch
 
 import numpy as np
 import pytest
@@ -17,12 +18,31 @@ from mpqp import (
     Ry,
     S,
     T,
+    pZ,
     run,
 )
 from mpqp.translation.qasm.qasm_to_cirq import qasm2_to_cirq_Circuit
 
 if TYPE_CHECKING:
     from cirq.circuits.circuit import Circuit
+
+
+@pytest.mark.provider("cirq")
+@pytest.mark.parametrize("shots", [0, 1000])
+def test_single_grouped_observable_preserves_variance(shots: int):
+    from cirq.sim.sparse_simulator import Simulator
+
+    circuit = QCircuit([H(0), ExpectationMeasure(Observable(pZ), shots=shots)])
+    with patch("cirq.sim.sparse_simulator.Simulator", return_value=Simulator(seed=42)):
+        result = run(circuit, GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
+
+    mean = result.expectation_values
+    assert isinstance(mean, float)
+    # For Pauli outcomes +/-1, the unbiased variance of the sample mean is
+    # (1 - mean**2) / (shots - 1). Exact expectation values have zero variance.
+    expected_variance = 0.0 if shots == 0 else (1 - mean**2) / (shots - 1)
+    assert result.error == pytest.approx({"pZ": expected_variance})
+    assert result.shots == shots
 
 
 @pytest.mark.provider("cirq")

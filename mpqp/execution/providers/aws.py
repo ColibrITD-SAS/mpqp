@@ -692,7 +692,9 @@ def run_braket_observable(
                 errors.update({name: 0})
         from mpqp.tools.pauli_grouping import build_pauli_grouping_result
 
-        return build_pauli_grouping_result(job, expectation_values, errors)
+        return build_pauli_grouping_result(
+            job, expectation_values, errors if job.measure.shots == 0 else None
+        )
 
     else:
         from copy import deepcopy
