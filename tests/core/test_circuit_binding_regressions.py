@@ -31,6 +31,72 @@ from mpqp.execution.providers.providers_params import QiskitParams
 from mpqp.execution.result import BatchResult, Result
 
 
+@pytest.mark.parametrize(
+    "inner_enabled, outer_enabled, expected",
+    [(True, True, True), (False, True, False), (True, False, False)],
+)
+def test_nested_optimization_checks_measurements_at_every_level(
+    inner_enabled: bool, outer_enabled: bool, expected: bool
+):
+    measured = CircuitBinding(
+        QCircuit(1),
+        measurements=ExpectationMeasure(
+            Observable(pZ), optimize_measurement=inner_enabled
+        ),
+    )
+    mixed = CircuitBinding([measured, CircuitBinding(QCircuit(1))])
+    # This intermediate binding is classified as STATE_VECTOR, but still
+    # contains a measurement that must contribute its optimization flag.
+    assert mixed.job_type == JobType.STATE_VECTOR
+    binding = CircuitBinding(
+        mixed,
+        measurements=ExpectationMeasure(
+            Observable(pZ), optimize_measurement=outer_enabled
+        ),
+    )
+
+    assert binding.optimize_measurement is expected
+
+
+def test_unmeasured_binding_does_not_request_measurement_optimization():
+    assert not CircuitBinding(CircuitBinding(QCircuit(1))).optimize_measurement
+
+
+@pytest.mark.provider("braket")
+@pytest.mark.parametrize("mode", list(BindingMode))
+def test_outer_measurement_keeps_nested_parameter_sweep_grouped(mode: BindingMode):
+    theta = Symbol("theta")
+    sweep = CircuitBinding(
+        CircuitBinding(
+            QCircuit([Ry(theta, 0), X(1)]),
+            values=[{"theta": 0.0}, {"theta": np.pi}],
+            mode=mode,
+        ),
+        mode=mode,
+    )
+    binding = CircuitBinding(
+        sweep,
+        measurements=ExpectationMeasure(
+            [Observable(pZ @ pI, label="ZI"), Observable(pI @ pZ, label="IZ")],
+            shots=100,
+        ),
+        mode=mode,
+    )
+
+    assert not sweep.optimize_measurement
+    assert binding.optimize_measurement
+    program_set, _ = binding.to_other_device(AWSDevice.BRAKET_LOCAL_SIMULATOR)
+    result = run(binding, AWSDevice.BRAKET_LOCAL_SIMULATOR)
+
+    assert program_set.total_executables == 2
+    assert [r.expectation_values for r in result.results] == [
+        {"ZI": 1.0, "IZ": -1.0},
+        {"ZI": -1.0, "IZ": -1.0},
+    ]
+    assert sweep.job_type == JobType.STATE_VECTOR
+    assert sweep.measurements is None
+
+
 def _expectation_confidence_radius(
     observable: Observable, shots: int, alpha: float = 1e-3
 ) -> float:

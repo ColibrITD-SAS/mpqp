@@ -537,27 +537,35 @@ class CircuitBinding:
 
     @property
     def optimize_measurement(self) -> bool:
-        """Returns True if pauli grouping optimization is enabled for all measurements in the binding,
-        False otherwise.
+        """Whether all measurements in this observable binding enable Pauli grouping.
 
-        Note: This method is only relevant for bindings with job_type OBSERVABLE. For other job types, it will return False.
+        Unmeasured nested bindings do not disable optimization supplied at
+        another level. Returns ``False`` for non-observable bindings.
+
+        Example:
+            >>> inner = CircuitBinding(QCircuit(1))
+            >>> measure = ExpectationMeasure(Observable(pZ))
+            >>> CircuitBinding(inner, measurements=measure).optimize_measurement
+            True
         """
-        from mpqp import JobType
+        from mpqp.core.instruction.measurement import ExpectationMeasure
+        from mpqp.execution.job import JobType
 
-        result = True
         if self.job_type != JobType.OBSERVABLE:
             return False
-        for circuits in self.circuits:
-            if isinstance(circuits, CircuitBinding):
-                result &= circuits.optimize_measurement
-        if self.measurements is not None:
-            for measurement in self.measurements:
-                if TYPE_CHECKING:
-                    from mpqp import ExpectationMeasure
 
-                    assert isinstance(measurement, ExpectationMeasure)
-                result &= measurement.optimize_measurement
-        return result
+        def all_measurements_optimized(binding: CircuitBinding) -> bool:
+            return all(
+                isinstance(measurement, ExpectationMeasure)
+                and measurement.optimize_measurement
+                for measurement in binding.measurements or ()
+            ) and all(
+                all_measurements_optimized(circuit)
+                for circuit in binding.circuits
+                if isinstance(circuit, CircuitBinding)
+            )
+
+        return all_measurements_optimized(self)
 
     @overload
     def to_other_device(
