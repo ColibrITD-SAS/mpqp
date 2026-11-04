@@ -2,14 +2,7 @@ import pytest
 
 from mpqp import AWSDevice, Job, JobStatus, JobType, QCircuit
 
-JOB_STATUSES = (
-    JobStatus.INIT,
-    JobStatus.QUEUED,
-    JobStatus.RUNNING,
-    JobStatus.CANCELLED,
-    JobStatus.ERROR,
-    JobStatus.DONE,
-)
+JOB_STATUSES = tuple(JobStatus)
 STATUS_PRIORITY = {
     JobStatus.ERROR: 0,
     JobStatus.CANCELLED: 1,
