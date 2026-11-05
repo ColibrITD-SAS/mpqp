@@ -672,9 +672,11 @@ class QCircuit:
                         f"requested {nb_cbits}."
                     )
             self._user_nb_cbits = nb_cbits
+            self._invalidate_transpilation()
 
     def _set_nb_qubits_dynamic(self, nb_qubits: int):
         if not hasattr(self, "_nb_qubits") or nb_qubits != self._nb_qubits:
+            self._invalidate_transpilation()
             self._nb_qubits = nb_qubits
 
             for instruction in self._instructions:
@@ -765,6 +767,8 @@ class QCircuit:
 
             self.add(inst)
         self.noises.extend(other.noises)
+        if other.noises:
+            self._invalidate_transpilation()
 
     def to_dict(self) -> dict[str, int | str | list[str] | float | None]:
         """
@@ -1380,7 +1384,10 @@ class QCircuit:
                        0  1
 
         """
-        new_circuit = self._clone_without("noises", deep_copy=deep_copy)
+        excluded_attrs = ["noises"]
+        if self.noises:
+            excluded_attrs.append("transpiled_circuit")
+        new_circuit = self._clone_without(excluded_attrs, deep_copy=deep_copy)
         return new_circuit
 
     @overload
@@ -2237,8 +2244,9 @@ class QCircuit:
                                                  2    0  1
 
         """
-        new_circuit = deepcopy(self)
+        new_circuit = self._clone_without(["instructions", "transpiled_circuit"])
         new_circuit._instructions = [inst.subs(values) for inst in self._instructions]
+        new_circuit._measurement_indexes = self._measurement_indexes.copy()
         new_circuit._instruction_revision.value += 1
         return new_circuit
 
@@ -2306,6 +2314,14 @@ class QCircuit:
         self.transpiled_noise_model = None
 
     def transpiled_for_device(self, device: AvailableDevice):
+        """Return the circuit prepared for ``device``, reusing it when available.
+
+        Args:
+            device: Device for which the circuit is prepared.
+
+        Returns:
+            The provider-native circuit for the device.
+        """
         if device not in self.transpiled_circuit:
             from mpqp.execution.devices import IBMDevice
 
@@ -2406,6 +2422,13 @@ class QCircuit:
         self, device: AvailableDevice, values: BindingParameters
     ):
         """Bind a provider template without modifying it or the MPQP circuit."""
+        from sympy import Expr, Symbol
+
+        if any(not isinstance(key, (str, Symbol)) for key in values) or any(
+            isinstance(value, Expr) and value.free_symbols for value in values.values()
+        ):
+            return self.subs(values).transpiled_for_device(device)
+
         transpiled = self._transpilation_templates.get(device)
         if transpiled is None:
             transpiled = self.transpiled_for_device(device)

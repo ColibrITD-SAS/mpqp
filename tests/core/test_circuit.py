@@ -1029,6 +1029,68 @@ def test_cached_tket_template_can_be_bound_repeatedly():
 
 
 @pytest.mark.provider("qiskit")
+def test_substitution_discards_cached_provider_parameters():
+    circuit = QCircuit([Ry(theta, 0)])
+    device = IBMDevice.AER_SIMULATOR_STATEVECTOR
+    template = circuit.transpiled_for_device(device)
+
+    substituted = circuit.subs({theta: np.pi})
+
+    assert run(substituted, device).probabilities[1] == pytest.approx(1)
+    assert circuit.variables() == {theta}
+    assert circuit.transpiled_for_device(device) is template
+
+
+@pytest.mark.provider("qiskit")
+def test_cached_run_preserves_expression_substitution():
+    circuit = QCircuit([Ry(theta + phi, 0)])
+    device = IBMDevice.AER_SIMULATOR_STATEVECTOR
+    circuit.transpiled_for_device(device)
+
+    assert run(circuit, device, values={theta + phi: np.pi}).probabilities[
+        1
+    ] == pytest.approx(1)
+
+
+@pytest.mark.provider("cirq")
+def test_resizing_qubits_after_run_discards_cached_circuit():
+    circuit = QCircuit([X(0)])
+    device = GOOGLEDevice.CIRQ_LOCAL_SIMULATOR
+    run(circuit, device)
+
+    circuit.nb_qubits = 2
+
+    assert np.allclose(run(circuit, device).amplitudes, [0, 0, 1, 0])
+
+
+@pytest.mark.provider("qiskit")
+def test_resizing_cbits_discards_cached_registers():
+    circuit = QCircuit([X(0), BasisMeasure(shots=100)])
+    device = IBMDevice.AER_SIMULATOR
+    circuit.transpiled_for_device(device)
+
+    circuit.nb_cbits = 3
+
+    translated = circuit.transpiled_for_device(device)
+    assert isinstance(translated, QiskitCircuit)
+    assert translated.num_clbits == 3
+
+
+@pytest.mark.provider("braket")
+@pytest.mark.parametrize("deep_copy", [False, True])
+def test_without_noises_discards_cached_noise_instructions(deep_copy: bool):
+    circuit = QCircuit([X(0), BitFlip(0.5), BasisMeasure(shots=100)])
+    device = AWSDevice.BRAKET_LOCAL_SIMULATOR
+    template = circuit.transpiled_for_device(device)
+
+    clean = circuit.without_noises(deep_copy=deep_copy)
+
+    assert run(clean, device).counts == [0, 100]
+    assert circuit.is_noisy
+    assert circuit.transpiled_for_device(device) is template
+
+
+@pytest.mark.provider("qiskit")
 def test_transpiled_circuit_cache_is_per_device():
     circuit = QCircuit([X(0)])
     devices = (

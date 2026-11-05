@@ -18,12 +18,14 @@ return the corresponding job id and :class:`~mpqp.execution.job.Job` object.
 
 from __future__ import annotations
 
+from copy import deepcopy
 from itertools import pairwise
 from textwrap import indent
 from typing import TYPE_CHECKING, Iterable, Optional, Sequence, overload
 
 import numpy as np
 
+from mpqp.core._types import BindingParameters
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.breakpoint import Breakpoint
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
@@ -58,7 +60,6 @@ from mpqp.execution.result import BatchResult, Result
 from mpqp.tools.display import state_vector_ket_shape
 from mpqp.tools.errors import DeviceJobIncompatibleError, RemoteExecutionError
 from mpqp.tools.generics import OneOrMany, find_index, flatten
-from mpqp.core._types import BindingParameters
 
 if TYPE_CHECKING:
     from mpqp.core.binding import CircuitBinding
@@ -239,9 +240,15 @@ def generate_job(
     if values is not None:
         if isinstance(circuit, CircuitBinding):
             raise ValueError("values must be specified in CircuitBinding")
+        template = circuit
         circuit = circuit.subs(values)
-        if device in circuit.transpiled_circuit:
-            circuit.bind_parameters(device, values)
+        if device in template.transpiled_circuit:
+            circuit.transpiled_circuit[device] = (
+                template._bound_transpiled_circuit(  # pyright: ignore[reportPrivateUsage]
+                    device, values
+                )
+            )
+            circuit.transpiled_noise_model = deepcopy(template.transpiled_noise_model)
 
     if isinstance(circuit, CircuitBinding):
         job = Job(circuit.job_type, circuit, device)
