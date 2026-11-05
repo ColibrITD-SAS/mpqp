@@ -221,6 +221,8 @@ class QCircuit:
         """A pre-transpiled circuit to skip repeated transpilation when running 
         the circuit. Useful when working with a symbolic circuit that needs to
         be executed with different parameters."""
+        self._transpilation_templates = self.transpiled_circuit.copy()
+        """Original provider circuits retained when a cached circuit is bound."""
         self.transpiled_noise_model = None
         """A pre-transpiled noise model that skips repeated transpilation when
         running the circuit. Currently, it is only useful in Qiskit when working
@@ -378,8 +380,7 @@ class QCircuit:
             if isinstance(components, Measure):
                 self._measurement_indexes.append(instruction_index)
 
-        self.transpiled_circuit.clear()
-        self.transpiled_noise_model = None
+        self._invalidate_transpilation()
 
     def pop(self, index: int = -1, recompute_dimensions: bool = True) -> Instruction:
         """Remove and return the instruction at ``index`` (the last one by
@@ -441,8 +442,7 @@ class QCircuit:
         ]
         if recompute_dimensions:
             self._recompute_dynamic_dimensions()
-        self.transpiled_circuit.clear()
-        self.transpiled_noise_model = None
+        self._invalidate_transpilation()
         return instruction
 
     def remove(self, instructions: OneOrMany[Instruction]) -> None:
@@ -1249,12 +1249,16 @@ class QCircuit:
             excluded_attrs.update(
                 {"_instructions", "_instruction_revision", "_measurement_indexes"}
             )
+        if "transpiled_circuit" in excluded_attrs:
+            excluded_attrs.update(
+                {"_transpilation_templates", "transpiled_noise_model"}
+            )
         new_obj = QCircuit()
         for attr, val in self.__dict__.items():
             if attr not in excluded_attrs:
                 if deep_copy is True:
                     setattr(new_obj, attr, deepcopy(val))
-                elif attr == "transpiled_circuit":
+                elif attr in ("transpiled_circuit", "_transpilation_templates"):
                     setattr(new_obj, attr, val.copy())
                 else:
                     setattr(new_obj, attr, val)
@@ -2295,6 +2299,12 @@ class QCircuit:
 
         return f'QCircuit({args_repr})'
 
+    def _invalidate_transpilation(self) -> None:
+        """Discard provider circuits and noise prepared for an earlier circuit."""
+        self.transpiled_circuit.clear()
+        self._transpilation_templates.clear()
+        self.transpiled_noise_model = None
+
     def transpiled_for_device(self, device: AvailableDevice):
         if device not in self.transpiled_circuit:
             from mpqp.execution.devices import IBMDevice
@@ -2375,8 +2385,9 @@ class QCircuit:
         """Bind values in the provider circuit cached for ``device``.
 
         The MPQP instructions are left unchanged. If no provider circuit is
-        cached yet, it is transpiled first. The cached provider representation
-        is then replaced by its bound counterpart.
+        cached yet, it is prepared first. Each call replaces the previous
+        binding with values applied to the original circuit, so the same
+        circuit can be bound repeatedly to different values.
 
         Args:
             device: Device identifying the cached provider representation.
@@ -2386,9 +2397,18 @@ class QCircuit:
             TypeError: If parameter binding is not implemented for the device's
                 provider.
         """
-        if device not in self.transpiled_circuit:
-            self.transpiled_for_device(device)
-        transpiled = self.transpiled_circuit[device]
+        self._transpilation_templates.setdefault(
+            device, self.transpiled_for_device(device)
+        )
+        self.transpiled_circuit[device] = self._bound_transpiled_circuit(device, values)
+
+    def _bound_transpiled_circuit(
+        self, device: AvailableDevice, values: BindingParameters
+    ):
+        """Bind a provider template without modifying it or the MPQP circuit."""
+        transpiled = self._transpilation_templates.get(device)
+        if transpiled is None:
+            transpiled = self.transpiled_for_device(device)
 
         param_values = {str(k): v for k, v in values.items()}
 
@@ -2409,7 +2429,7 @@ class QCircuit:
                 for p in transpiled.parameters
                 if p.name in param_values
             }
-            self.transpiled_circuit[device] = (
+            return (
                 transpiled.assign_parameters(qiskit_param_map, inplace=False)
                 if qiskit_param_map
                 else transpiled
@@ -2419,7 +2439,7 @@ class QCircuit:
             from braket.circuits import Circuit as braket_Circuit
 
             assert isinstance(transpiled, braket_Circuit)
-            self.transpiled_circuit[device] = transpiled.make_bound_circuit(
+            return transpiled.make_bound_circuit(
                 param_values  # pyright: ignore[reportArgumentType]
             )
 
@@ -2435,6 +2455,6 @@ class QCircuit:
                     if str(symbol) in param_values
                 }
             )
-            self.transpiled_circuit[device] = bound
+            return bound
         else:
             raise TypeError(f"Unsupported transpiled circuit yet: {type(transpiled)}")

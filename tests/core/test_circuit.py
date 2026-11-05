@@ -984,6 +984,50 @@ def test_bind_parameters_updates_cached_provider_circuit():
     assert Statevector(bound).probabilities()[1] == pytest.approx(np.sin(0.25) ** 2)
 
 
+@pytest.mark.parametrize(
+    "device",
+    [
+        pytest.param(
+            IBMDevice.AER_SIMULATOR_STATEVECTOR, marks=pytest.mark.provider("qiskit")
+        ),
+        pytest.param(
+            AWSDevice.BRAKET_LOCAL_SIMULATOR, marks=pytest.mark.provider("braket")
+        ),
+    ],
+)
+def test_cached_circuit_can_be_bound_repeatedly(device: AvailableDevice):
+    circuit = QCircuit([Ry(theta, 0)])
+    for value, expected in ((0.0, 0.0), (np.pi, 1.0)):
+        assert circuit.bind_parameters(device, {theta: value}) is None
+        assert run(circuit, device).probabilities[1] == pytest.approx(expected)
+
+    assert circuit.variables() == {theta}
+    circuit.add(X(0))
+    circuit.bind_parameters(device, {theta: 0.0})
+    assert run(circuit, device).probabilities[1] == pytest.approx(1)
+
+
+@pytest.mark.provider("quantinuum")
+def test_cached_tket_template_can_be_bound_repeatedly():
+    from pytket import Circuit
+    from sympy import pi
+
+    from mpqp.execution.devices import QUANTINUUMDevice
+
+    circuit = QCircuit([Ry(theta, 0)])
+    device = QUANTINUUMDevice.TKET_AER_STATEVECTOR_SIMULATOR
+    # Use a native template so this test is independent of Qiskit interop versions.
+    template = Circuit(1).Ry(theta / pi, 0)
+    circuit.transpiled_circuit[device] = template
+
+    for value, expected in ((0.0, 0.0), (np.pi, 1.0)):
+        circuit.bind_parameters(device, {theta: value})
+        assert run(circuit, device).probabilities[1] == pytest.approx(expected)
+
+    assert template.free_symbols() == {theta}
+    assert circuit.variables() == {theta}
+
+
 @pytest.mark.provider("qiskit")
 def test_transpiled_circuit_cache_is_per_device():
     circuit = QCircuit([X(0)])
@@ -1117,7 +1161,8 @@ def list_braket_circuit() -> list[tuple[QCircuit, type, str]]:
         (
             QCircuit([CNOT(0, 1), Depolarizing(0.5, [0, 1])]),
             BraketCircuit,
-            ("""\
+            (
+                """\
 T  : │         0         │
             ┌───────────┐ 
 q0 : ───●───┤ DEPO(0.5) ├─
@@ -1125,12 +1170,14 @@ q0 : ───●───┤ DEPO(0.5) ├─
       ┌─┴─┐ ┌───────────┐ 
 q1 : ─┤ X ├─┤ DEPO(0.5) ├─
       └───┘ └───────────┘ 
-T  : │         0         │"""),
+T  : │         0         │"""
+            ),
         ),
         (
             QCircuit([CNOT(0, 1), Depolarizing(0.5, [0, 1], dimension=2)]),
             BraketCircuit,
-            ("""\
+            (
+                """\
 T  : │         0         │
             ┌───────────┐ 
 q0 : ───●───┤ DEPO(0.5) ├─
@@ -1138,14 +1185,16 @@ q0 : ───●───┤ DEPO(0.5) ├─
       ┌─┴─┐ ┌─────┴─────┐ 
 q1 : ─┤ X ├─┤ DEPO(0.5) ├─
       └───┘ └───────────┘ 
-T  : │         0         │"""),
+T  : │         0         │"""
+            ),
         ),
         (
             QCircuit(
                 [CNOT(0, 1), Depolarizing(0.5, [0, 1], dimension=2, gates=[CNOT])]
             ),
             BraketCircuit,
-            ("""\
+            (
+                """\
 T  : │         0         │
             ┌───────────┐ 
 q0 : ───●───┤ DEPO(0.5) ├─
@@ -1153,7 +1202,8 @@ q0 : ───●───┤ DEPO(0.5) ├─
       ┌─┴─┐ ┌─────┴─────┐ 
 q1 : ─┤ X ├─┤ DEPO(0.5) ├─
       └───┘ └───────────┘ 
-T  : │         0         │"""),
+T  : │         0         │"""
+            ),
         ),
     ]
 
