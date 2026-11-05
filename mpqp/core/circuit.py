@@ -83,6 +83,7 @@ if TYPE_CHECKING:
         ATOSDevice,
         AvailableDevice,
         AWSDevice,
+        AZUREDevice,
         GOOGLEDevice,
         IBMDevice,
         QUANTINUUMDevice,
@@ -1627,7 +1628,7 @@ class QCircuit:
     @overload
     def to_other_device(
         self,
-        device: Union[IBMDevice, StaticIBMSimulatedDevice],
+        device: Union[IBMDevice, StaticIBMSimulatedDevice, AZUREDevice],
         skip_pre_measure: bool = False,
         native_gate_set: bool = False,
         backend_sim: Optional["AerSimulator"] = None,
@@ -1702,12 +1703,21 @@ class QCircuit:
         from mpqp.execution.devices import (
             ATOSDevice,
             AWSDevice,
+            AZUREDevice,
             GOOGLEDevice,
             IBMDevice,
             QUANTINUUMDevice,
         )
         from mpqp.execution.providers.ibm import JobType
         from mpqp.execution.simulated_devices import StaticIBMSimulatedDevice
+
+        if isinstance(device, AZUREDevice):
+            return self.to_other_device(
+                IBMDevice.AER_SIMULATOR,
+                skip_pre_measure=skip_pre_measure,
+                native_gate_set=native_gate_set,
+                backend_sim=backend_sim,
+            )
 
         nb_meas = len(self.measurements)
 
@@ -2382,10 +2392,15 @@ class QCircuit:
 
         param_values = {str(k): v for k, v in values.items()}
 
-        from mpqp.execution.devices import AWSDevice, IBMDevice, QUANTINUUMDevice
+        from mpqp.execution.devices import (
+            AWSDevice,
+            AZUREDevice,
+            IBMDevice,
+            QUANTINUUMDevice,
+        )
         from mpqp.execution.simulated_devices import StaticIBMSimulatedDevice
 
-        if isinstance(device, (IBMDevice, StaticIBMSimulatedDevice)):
+        if isinstance(device, (IBMDevice, StaticIBMSimulatedDevice, AZUREDevice)):
             from qiskit import QuantumCircuit
 
             assert isinstance(transpiled, QuantumCircuit)
