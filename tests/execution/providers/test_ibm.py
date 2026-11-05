@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 from typing import Any
 
 import numpy as np
@@ -10,6 +11,7 @@ from qiskit.primitives import (
     StatevectorEstimator,
 )
 from qiskit.primitives.containers import BitArray, DataBin
+from qiskit.primitives.containers.estimator_pub import EstimatorPub
 from qiskit.primitives.containers.sampler_pub import SamplerPub
 from qiskit.quantum_info import SparsePauliOp, Statevector
 from qiskit_aer import AerSimulator
@@ -31,6 +33,7 @@ from mpqp.execution.job import JobStatus
 from mpqp.execution.providers import ibm as ibm_provider
 from mpqp.execution.providers.ibm import extract_result
 from mpqp.execution.providers.providers_params import QiskitParams
+from mpqp.execution.runner import generate_job
 from mpqp.gates import *
 from mpqp.measures import *
 from mpqp.tools.errors import IBMRemoteExecutionError
@@ -73,6 +76,68 @@ class _FakeBinding:
 
     def __init__(self, pubs_with_context: list[tuple[Any, list[Any]]]):
         self._pubs_with_context = pubs_with_context
+
+
+@pytest.mark.provider("qiskit")
+@pytest.mark.parametrize("batched", [False, True])
+@pytest.mark.parametrize("physical_qubits", [2, 3])
+def test_remote_observables_apply_layout_to_cached_logical_translation(
+    monkeypatch: pytest.MonkeyPatch, batched: bool, physical_qubits: int
+):
+    import qiskit_ibm_runtime
+
+    device = IBMDevice.IBM_BRISBANE
+    measure = ExpectationMeasure(Observable(pZ @ pI), shots=100)
+    measure.pre_transpile_observables(device)
+    cached = measure.observables[0].pre_transpiled[device]
+    assert isinstance(cached, SparsePauliOp)
+
+    logical = QuantumCircuit(2)
+    logical.x(0)
+    coupling_map = [[0, 1], [1, 0]]
+    if physical_qubits == 3:
+        coupling_map += [[1, 2], [2, 1]]
+    physical = transpile(
+        logical,
+        coupling_map=coupling_map,
+        initial_layout=[1, 0],
+        basis_gates=["x", "sx", "rz", "cx"],
+        optimization_level=0,
+    )
+    job = generate_job(QCircuit([X(0), measure], nb_qubits=2), device)
+    assert isinstance(job.circuit, QCircuit)
+    job.circuit.transpiled_circuit[device] = physical
+    submitted = []
+
+    class FakeEstimator:
+        def __init__(self, **_kwargs: Any):
+            self.options = SimpleNamespace()
+
+        def run(self, pubs: list[Any]):
+            pub = EstimatorPub.coerce(pubs[0])
+            submitted.append(pub)
+            circuit, observables = pubs[0]
+            assert circuit.num_qubits == physical_qubits
+            assert observables[0].num_qubits == physical_qubits
+            assert Statevector(circuit).expectation_value(
+                observables[0]
+            ) == pytest.approx(-1)
+            return SimpleNamespace(job_id=lambda: "mock-ibm-job")
+
+    monkeypatch.setattr(qiskit_ibm_runtime, "EstimatorV2", FakeEstimator)
+    monkeypatch.setattr(qiskit_ibm_runtime, "Session", lambda **_kwargs: object())
+    monkeypatch.setattr(
+        ibm_provider, "get_backend", lambda *_args: SimpleNamespace(name=device.value)
+    )
+    monkeypatch.setattr(ibm_provider, "get_env_variable", lambda _name: "")
+
+    if batched:
+        ibm_provider.submit_remote_ibm_pubs([job])
+    else:
+        ibm_provider.submit_remote_ibm(job)
+
+    assert len(submitted) == 1
+    assert cached.to_list() == [("IZ", 1 + 0j)]
 
 
 def test_qiskit_params_copy_options():
