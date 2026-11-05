@@ -13,6 +13,7 @@ import numpy as np
 import numpy.typing as npt
 from typing_extensions import Never
 
+from mpqp.core._types import BindingParameters
 from mpqp.core.instruction.gates.gate import Gate
 from mpqp.core.instruction.gates.native_gates import SWAP
 from mpqp.core.instruction.measurement.measure import Measure
@@ -27,7 +28,6 @@ from mpqp.tools.display import one_lined_repr
 from mpqp.tools.errors import NumberQubitsError
 from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import is_diagonal, is_hermitian, is_power_of_two
-from mpqp.core._types import BindingParameters
 
 if TYPE_CHECKING:
     from braket.circuits import Circuit as braket_Circuit
@@ -573,6 +573,7 @@ class ExpectationMeasure(Measure):
                     label_counter += 1
                 prepared_observable = Observable.__new__(Observable)
                 prepared_observable.__dict__.update(observable.__dict__)
+                prepared_observable.pre_transpiled = observable.pre_transpiled.copy()
                 prepared_observable.label = f"{default_label}_{label_counter}"
                 label_counter += 1
             prepared_observables.append(prepared_observable)

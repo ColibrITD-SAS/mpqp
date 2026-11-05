@@ -10,7 +10,18 @@ if TYPE_CHECKING:
 import numpy as np
 import pytest
 
-from mpqp import ExpectationMeasure, Language, Observable, QCircuit, X, pI, pX, pY, pZ
+from mpqp import (
+    ExpectationMeasure,
+    Language,
+    Observable,
+    QCircuit,
+    X,
+    pI,
+    pX,
+    pY,
+    pZ,
+    run,
+)
 from mpqp.core.instruction.measurement.pauli_string import (
     CommutingTypes,
     GroupingMethods,
@@ -53,6 +64,22 @@ def test_pre_transpile_observables_caches_translation_per_device():
 
     measurement.pre_transpile_observables(device)
     assert observable.pre_transpiled[device] is cached
+
+
+@pytest.mark.provider("qiskit")
+def test_measurements_from_one_observable_keep_independent_translations():
+    observable = Observable(pZ)
+    first = ExpectationMeasure(observable)
+    second = ExpectationMeasure(observable)
+    device = IBMDevice.AER_SIMULATOR_STATEVECTOR
+    second.pre_transpile_observables(device)
+
+    first.observables[0].pauli_string = pX
+    first.pre_transpile_observables(device)
+
+    assert run(QCircuit([X(0), first]), device).expectation_values == pytest.approx(0)
+    assert run(QCircuit([X(0), second]), device).expectation_values == pytest.approx(-1)
+    assert observable.pauli_string == pZ
 
 
 @pytest.mark.provider("qiskit")
