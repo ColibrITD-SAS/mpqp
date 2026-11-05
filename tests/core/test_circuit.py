@@ -993,6 +993,9 @@ def test_bind_parameters_updates_cached_provider_circuit():
         pytest.param(
             AWSDevice.BRAKET_LOCAL_SIMULATOR, marks=pytest.mark.provider("braket")
         ),
+        pytest.param(
+            GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, marks=pytest.mark.provider("cirq")
+        ),
     ],
 )
 def test_cached_circuit_can_be_bound_repeatedly(device: AvailableDevice):
@@ -1025,6 +1028,35 @@ def test_cached_tket_template_can_be_bound_repeatedly():
         assert run(circuit, device).probabilities[1] == pytest.approx(expected)
 
     assert template.free_symbols() == {theta}
+    assert circuit.variables() == {theta}
+
+
+@pytest.mark.parametrize(
+    "device",
+    [
+        pytest.param(
+            GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, marks=pytest.mark.provider("cirq")
+        ),
+        pytest.param(ATOSDevice.MYQLM_CLINALG, marks=pytest.mark.provider("myqlm")),
+    ],
+)
+def test_cached_circuit_accepts_empty_run_values(device: AvailableDevice):
+    circuit = QCircuit([X(0)])
+    run(circuit, device)
+
+    assert run(circuit, device, values={}).probabilities[1] == pytest.approx(1)
+
+
+@pytest.mark.provider("cirq")
+def test_cached_symbolic_cirq_circuit_runs_with_different_values():
+    circuit = QCircuit([Ry(theta, 0)])
+    device = GOOGLEDevice.CIRQ_LOCAL_SIMULATOR
+    circuit.transpiled_for_device(device)
+
+    for value, expected in ((0.0, 0.0), (np.pi, 1.0)):
+        assert run(circuit, device, values={theta: value}).probabilities[
+            1
+        ] == pytest.approx(expected)
     assert circuit.variables() == {theta}
 
 

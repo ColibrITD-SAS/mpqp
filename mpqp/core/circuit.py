@@ -2408,10 +2408,6 @@ class QCircuit:
         Args:
             device: Device identifying the cached provider representation.
             values: Values indexed by MPQP expressions or parameter names.
-
-        Raises:
-            TypeError: If parameter binding is not implemented for the device's
-                provider.
         """
         self._transpilation_templates.setdefault(
             device, self.transpiled_for_device(device)
@@ -2480,4 +2476,4 @@ class QCircuit:
             )
             return bound
         else:
-            raise TypeError(f"Unsupported transpiled circuit yet: {type(transpiled)}")
+            return self.subs(values).transpiled_for_device(device)
