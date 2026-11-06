@@ -262,11 +262,6 @@ def run_ibm(
     if not job.device.is_remote():
         return run_aer(job)
 
-    if isinstance(job.circuit, CircuitBinding):
-        raise NotImplementedError(
-            "CircuitBinding is not currently supported for remote runs in MPQP."
-        )
-
     if job.mode == ExecutionMode.SESSION:
         return run_remote_ibm_session(job)
 
