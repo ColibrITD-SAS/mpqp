@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Union
 
+from mpqp.core.binding import CircuitBinding
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.gates.native_gates import NativeGate
 from mpqp.core.instruction.measurement.pauli_string import PauliString
@@ -20,7 +21,7 @@ from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
 from mpqp.execution.devices import GOOGLEDevice
 from mpqp.execution.job import Job, JobType
-from mpqp.execution.result import Result, Sample, StateVector
+from mpqp.execution.result import BatchResult, Result, Sample, StateVector
 from mpqp.noise import NoiseModel
 
 
@@ -136,6 +137,38 @@ def run_google(job: Job) -> Result:
         :func:`~mpqp.execution.runner.run` instead.
     """
     return run_local(job) if not job.device.is_remote() else run_google_remote(job)
+
+
+def run_cirq_pseudo_circuitbinding(job: Job) -> BatchResult:
+    if TYPE_CHECKING:
+        assert isinstance(job.circuit, CircuitBinding)
+
+    from mpqp.tools.binding_utils import (
+        translate_binding_circuits,
+        translate_binding_measurements,
+    )
+
+    results = []
+    transpiled_circuits = translate_binding_circuits(job.circuit, job.device)
+    transpiled_measurements = translate_binding_measurements(job.circuit, job.device)
+
+    for c, v, m in job.circuit.unroll():
+        translated_circuit = transpiled_circuits[id(c)]
+        if TYPE_CHECKING:
+            from cirq.circuits import Circuit
+
+            assert isinstance(translated_circuit, Circuit)
+
+        transpiled_measurement = (
+            transpiled_measurements[id(m)] if m is not None else None
+        )
+        cirq_inputs = (
+            {str(key): value for key, value in v.items()} if v is not None else None
+        )
+        if transpiled_measurement is not None:
+            translated_circuit += transpiled_measurement
+
+    return BatchResult(results)
 
 
 def run_cirq_observable(

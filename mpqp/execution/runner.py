@@ -57,7 +57,11 @@ from mpqp.execution.providers.providers_params import (
     QiskitParams,
     QuantinuumParams,
 )
-from mpqp.execution.providers.quantinuum import run_quantinuum, submit_job_nexus
+from mpqp.execution.providers.quantinuum import (
+    run_quantinuum,
+    run_quantinuum_pseudo_circuitbinding,
+    submit_job_nexus,
+)
 from mpqp.execution.result import BatchResult, Result
 from mpqp.tools.display import state_vector_ket_shape
 from mpqp.tools.errors import DeviceJobIncompatibleError, RemoteExecutionError
@@ -614,7 +618,7 @@ def _run_circuit_binding(
                 f"not `{type(provider_params).__name__}`."
             )
         result = run_braket(job, provider_params)
-    elif isinstance(device, (ATOSDevice, GOOGLEDevice, AZUREDevice, QUANTINUUMDevice)):
+    elif isinstance(device, (ATOSDevice, GOOGLEDevice, AZUREDevice)):
         results: list[Result] = []
         for circuit, values, measurement in circuit_binding.unroll():
             executable = circuit.without_measurements()
@@ -631,6 +635,15 @@ def _run_circuit_binding(
                 )
             )
         return BatchResult(results)
+    elif isinstance(device, QUANTINUUMDevice):
+        if provider_params is not None and not isinstance(
+            provider_params, QuantinuumParams
+        ):
+            raise TypeError(
+                "`provider_params` must be a `QuantinuumParams` instance, "
+                f"not `{type(provider_params).__name__}`."
+            )
+        result = run_quantinuum_pseudo_circuitbinding(job, provider_params)
     else:
         raise NotImplementedError(f"Device {device} not handled")
 

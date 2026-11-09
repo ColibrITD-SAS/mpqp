@@ -6,16 +6,19 @@ import sys
 
 import numpy as np
 import pytest
+from sympy import Expr, Symbol
 
 from mpqp import (
     CNOT,
     BasisMeasure,
+    CircuitBinding,
     ExpectationMeasure,
     H,
     IBMDevice,
     Observable,
     QCircuit,
     QUANTINUUMDevice,
+    Ry,
     X,
     get_remote_result,
     pX,
@@ -67,6 +70,49 @@ def test_local_tket_state_vector(device: QUANTINUUMDevice):
     assert matrix_eq(result.amplitudes, expected)
     assert matrix_eq(result.probabilities, np.abs(expected) ** 2)
     assert result.shots == 0
+
+
+def test_circuit_binding_sample():
+    binding = CircuitBinding(
+        [QCircuit(1), QCircuit([X(0)])],
+        measurements=BasisMeasure([0], shots=100),
+    )
+
+    result = run(binding, QUANTINUUMDevice.TKET_AER_SIMULATOR)
+
+    assert [item.counts for item in result.results] == [[100, 0], [0, 100]]
+
+
+def test_circuit_binding_state_vector():
+    theta = Symbol("theta")
+    binding = CircuitBinding(
+        QCircuit([Ry(theta, 0)]),
+        values=[{theta: 0.0}, {theta: np.pi}],
+    )
+
+    result = run(binding, QUANTINUUMDevice.TKET_AER_STATEVECTOR_SIMULATOR)
+
+    assert matrix_eq(result[0].amplitudes, np.array([1, 0]))
+    assert matrix_eq(result[1].amplitudes, np.array([0, 1]))
+
+
+def test_pseudo_circuit_binding_unrolls_and_binds_values():
+    theta = Symbol("theta")
+    values: list[dict[Expr, float]] = [{theta: 0.0}, {theta: np.pi}]
+    binding = CircuitBinding(QCircuit([Ry(theta, 0)]), values=values)
+    result = run(binding, QUANTINUUMDevice.TKET_AER_STATEVECTOR_SIMULATOR)
+    assert len(result) == 2
+
+
+def test_circuit_binding_observable():
+    binding = CircuitBinding(
+        [QCircuit(1), QCircuit([X(0)])],
+        measurements=ExpectationMeasure(Observable(pZ), shots=0),
+    )
+
+    result = run(binding, QUANTINUUMDevice.TKET_AER_STATEVECTOR_SIMULATOR)
+
+    assert [item.expectation_values for item in result.results] == [1, -1]
 
 
 @pytest.mark.parametrize(
