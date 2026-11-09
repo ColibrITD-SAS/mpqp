@@ -54,6 +54,7 @@ from mpqp.core.instruction.gates.native_gates import (
     Y,
     Z,
 )
+from mpqp.core.languages import Language
 from mpqp.environment.env_manager import get_env_variable
 
 
@@ -125,6 +126,10 @@ class AvailableDevice(Enum):
                 (For example: optimization_level=0 on Qiskit or Verbatim box on Braket)
         """
         return set()
+
+    @abstractmethod
+    def associated_sdk(self) -> Language:
+        pass
 
 
 class IBMDevice(AvailableDevice):
@@ -261,6 +266,9 @@ class IBMDevice(AvailableDevice):
                 return set()
         return set()
 
+    def associated_sdk(self) -> Language:
+        return Language.QISKIT
+
 
 class IBMDeviceFamily(Enum):
     """Enum regrouping all device families defined by IBM."""
@@ -338,6 +346,9 @@ class ATOSDevice(AvailableDevice):
 
     def supports_observable_ideal(self) -> bool:
         return True
+
+    def associated_sdk(self) -> Language:
+        return Language.MY_QLM
 
 
 class AWSDevice(AvailableDevice):
@@ -536,6 +547,9 @@ class AWSDevice(AvailableDevice):
             AWSDevice.BRAKET_TN1_SIMULATOR,
         }
 
+    def associated_sdk(self) -> Language:
+        return Language.BRAKET
+
 
 class GOOGLEDevice(AvailableDevice):
     """Enum regrouping all available devices provided by Google."""
@@ -606,6 +620,9 @@ class GOOGLEDevice(AvailableDevice):
             GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
         }
 
+    def associated_sdk(self) -> Language:
+        return Language.CIRQ
+
 
 class AZUREDevice(AvailableDevice):
     """Enum regrouping all available devices provided by Azure."""
@@ -650,6 +667,9 @@ class AZUREDevice(AvailableDevice):
 
     def supports_observable_ideal(self) -> bool:
         return False
+
+    def associated_sdk(self) -> Language:
+        return Language.QISKIT
 
 
 class QUANTINUUMDevice(AvailableDevice):
@@ -710,3 +730,6 @@ class QUANTINUUMDevice(AvailableDevice):
             QUANTINUUMDevice.TKET_AER_STATEVECTOR_SIMULATOR,
             QUANTINUUMDevice.TKET_QULACS_SIMULATOR,
         }
+
+    def associated_sdk(self) -> Language:
+        return Language.TKET

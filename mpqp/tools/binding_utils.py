@@ -32,8 +32,13 @@ from mpqp.core.binding import (
     CircuitBinding,
 )
 from mpqp.core.circuit import QCircuit
+from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
 from mpqp.core.instruction.measurement.measure import Measure
-from mpqp.execution.devices import AvailableDevice, AWSDevice, IBMDevice
+from mpqp.execution.devices import (
+    AvailableDevice,
+    AWSDevice,
+    IBMDevice,
+)
 
 if TYPE_CHECKING:
     from qiskit_aer import AerSimulator
@@ -115,11 +120,16 @@ def translate_binding_circuits(
 
 
 def __translated_binding_measurements(
-    cb: CircuitBinding, device: AvailableDevice, result: dict[int, Any]
+    cb: CircuitBinding,
+    device: AvailableDevice,
+    result: dict[int, Any],
+    translate_observables: bool,
 ) -> dict[int, Any]:
     for circuit in cb.circuits:
         if isinstance(circuit, CircuitBinding):
-            __translated_binding_measurements(circuit, device, result)
+            __translated_binding_measurements(
+                circuit, device, result, translate_observables
+            )
     if cb.measurements is None:
         return result
     for measurement in cb.measurements:
@@ -129,6 +139,15 @@ def __translated_binding_measurements(
             warn(
                 "Several instances of the same measurement were found in the same CircuitBinding, it may lead to repeated executions."
             )
+        elif translate_observables and isinstance(measurement, ExpectationMeasure):
+            result.update(
+                {
+                    id(measurement): [
+                        obs.to_other_language(device.associated_sdk())
+                        for obs in measurement.observables
+                    ]
+                }
+            )
         else:
             result.update(
                 {id(measurement): QCircuit([measurement]).to_other_device(device)}
@@ -137,15 +156,20 @@ def __translated_binding_measurements(
 
 
 def translate_binding_measurements(
-    cb: CircuitBinding, device: AvailableDevice
+    cb: CircuitBinding, device: AvailableDevice, translate_observables: bool = False
 ) -> dict[int, Any]:
     """Returns a dictionary containing the transpiled measurements of a
     circuit binding with their memory address as keys.
     This functions' goal is to only translate measurements once and prevent altering the original object.
 
     This is of use for runs not supported natively by the equivalent of circuit bindings.
+
+    Args:
+        cb: CircuitBinding from which the measurements are to be translated.
+        device: The device with which the measurements are to translated.
+        translate_observables: if set at `True` will translate ``ExpectationMeasure`` as a list of translated observables.
     """
-    return __translated_binding_measurements(cb, device, {})
+    return __translated_binding_measurements(cb, device, {}, translate_observables)
 
 
 def merge_values(

@@ -8,15 +8,16 @@ from warnings import warn
 
 import numpy as np
 
+from mpqp.core.binding import CircuitBinding
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.measurement import BasisMeasure, ExpectationMeasure
 from mpqp.core.instruction.measurement.pauli_string import CommutingTypes
 from mpqp.core.languages import Language
 from mpqp.execution.connection.quantinuum_connection import get_quantinuum_config
-from mpqp.execution.devices import QUANTINUUMDevice
+from mpqp.execution.devices import IBMDevice, QUANTINUUMDevice
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.providers.providers_params import QuantinuumParams
-from mpqp.execution.result import Result, Sample, StateVector
+from mpqp.execution.result import BatchResult, Result, Sample, StateVector
 from mpqp.tools.errors import (
     DeviceJobIncompatibleError,
     ModifiedShotsNumberWarning,
@@ -29,6 +30,7 @@ if TYPE_CHECKING:
     from pytket.backends.backend import Backend
     from pytket.backends.backendresult import BackendResult
     from pytket.circuit import Circuit as tket_Circuit
+    from pytket.utils.operators import QubitPauliOperator
     from qnexus.models.references import (
         CircuitRef,
         CompilationResultRef,
@@ -67,6 +69,147 @@ def run_quantinuum(
         return run_nexus_remote(job, quantinuum_params)
 
 
+def run_quantinuum_pseudo_circuitbinding(
+    job: Job, quantinuum_params: Optional[QuantinuumParams] = None
+) -> BatchResult:
+    """Execute each expansion of a circuit binding sequentially on Quantinuum.
+
+    Args:
+        job: Circuit-binding job to execute.
+        quantinuum_params: Quantinuum specific parameters used to configure
+            circuit compilation and observable grouping.
+
+    Returns:
+        The individual results in :meth:`CircuitBinding.unroll` order.
+
+    Raises:
+        ValueError: If the job does not contain a circuit binding or has an
+            unsupported job type.
+    """
+    if not isinstance(job.circuit, CircuitBinding):
+        raise ValueError("`job.circuit` must be a `CircuitBinding`.")
+
+    if not isinstance(job.device, QUANTINUUMDevice):
+        raise DeviceJobIncompatibleError(
+            "`job` must correspond to a `QUANTINUUMDevice`, but corresponds "
+            f"to a {job.device} instead."
+        )
+
+    from mpqp.tools.binding_utils import (
+        translate_binding_circuits,
+        translate_binding_measurements,
+    )
+
+    check_job_compatibility(job)
+    binding = job.circuit
+    executions = binding.unroll()
+    translated_circuits = translate_binding_circuits(binding, IBMDevice.AER_SIMULATOR)
+    translated_measurements = translate_binding_measurements(
+        binding, job.device, translate_observables=True
+    )
+
+    backend = None if job.device.is_remote() else _get_tket_backend(job.device)
+    optim_level = (
+        0 if quantinuum_params is None else quantinuum_params.optimisation_level
+    )
+    results = []
+    job.status = JobStatus.RUNNING
+    try:
+        for index, (circuit, values, measurement) in enumerate(executions):
+            context_job = Job(job.job_type, circuit, job.device, measurement, values)
+            context_job.status = JobStatus.RUNNING
+            translated_circuit = translated_circuits[id(circuit)]
+            if TYPE_CHECKING:
+                from qiskit import QuantumCircuit
+
+                assert isinstance(translated_circuit, QuantumCircuit)
+            if values:
+                qiskit_params = {str(key): values[key] for key in values.keys()}
+                translated_circuit = translated_circuit.assign_parameters(
+                    {
+                        str(key): qiskit_params[str(key)]
+                        for key in translated_circuit.parameters
+                    },
+                    inplace=False,
+                )
+            from pytket.extensions.qiskit.qiskit_convert import qiskit_to_tk
+
+            translated_circuit = qiskit_to_tk(translated_circuit)
+
+            if isinstance(measurement, BasisMeasure):
+                translated_circuit.append(translated_measurements[id(measurement)])
+
+            if backend is not None:
+                compiled_circuit = backend.get_compiled_circuit(
+                    translated_circuit,
+                    optimisation_level=optim_level,
+                )
+                if job.job_type == JobType.OBSERVABLE:
+                    result = run_tket_observable(
+                        compiled_circuit,
+                        backend,
+                        context_job,
+                        quantinuum_params,
+                        translated_measurements[id(measurement)],
+                    )
+                else:
+                    local_n_shots = None if measurement is None else measurement.shots
+                    context_job.status = JobStatus.RUNNING
+                    backend_result = backend.run_circuit(
+                        compiled_circuit, n_shots=local_n_shots
+                    )
+                    result = extract_result([backend_result], context_job)
+            else:
+                tket_circuits = [translated_circuit]
+                n_shots: int | list[None]
+                description = ""
+                if job.job_type == JobType.SAMPLE:
+                    assert isinstance(measurement, BasisMeasure)
+                    n_shots = measurement.shots
+                else:
+                    n_shots = [None]
+
+                execute_job_ref = submit_tket_circuits_to_nexus(
+                    context_job,
+                    tket_circuits,
+                    n_shots,
+                    name=(
+                        f"mpqp-binding-{index}-{job.job_type.name.lower()}-"
+                        f"{job.device.value}"
+                    ),
+                    description=description,
+                    provider_params=quantinuum_params,
+                )
+                result = extract_result(
+                    fetch_nexus_results(execute_job_ref), context_job
+                )
+            results.append(result)
+    except Exception as error:
+        job.status = JobStatus.ERROR
+        job.status_message = str(error)
+        raise
+
+    job.status = JobStatus.DONE
+    return BatchResult(results)
+
+
+def _get_tket_backend(device: QUANTINUUMDevice) -> "Backend":
+    """Create the local TKET backend associated with a Quantinuum device."""
+    if device == QUANTINUUMDevice.TKET_AER_SIMULATOR:
+        from pytket.extensions.qiskit.backends.aer import AerBackend
+
+        return AerBackend()
+    if device == QUANTINUUMDevice.TKET_AER_STATEVECTOR_SIMULATOR:
+        from pytket.extensions.qiskit.backends.aer import AerStateBackend
+
+        return AerStateBackend()
+    if device == QUANTINUUMDevice.TKET_QULACS_SIMULATOR:
+        from pytket.extensions.qulacs.backends.qulacs_backend import QulacsBackend
+
+        return QulacsBackend()
+    raise ValueError(f"Local TKET device {device} is not handled.")
+
+
 def check_job_compatibility(job: Job) -> None:
     """Check whether a job is compatible with Quantinuum execution.
 
@@ -83,7 +226,9 @@ def check_job_compatibility(job: Job) -> None:
             f"to a {job.device} instead."
         )
 
-    if type(job.measure) not in job.job_type.value:
+    if isinstance(job.circuit, QCircuit) and (
+        type(job.measure) not in job.job_type.value
+    ):
         expected_measures = ", ".join(
             measure_type.__name__ for measure_type in job.job_type.value
         )
@@ -108,7 +253,12 @@ def check_job_compatibility(job: Job) -> None:
     if job.job_type == JobType.OBSERVABLE:
         if TYPE_CHECKING:
             assert isinstance(job.measure, ExpectationMeasure)
-        if job.measure.shots == 0:
+        nb_shots = (
+            job.measure.shots
+            if isinstance(job.circuit, QCircuit)
+            else job.circuit.shots
+        )
+        if nb_shots == 0:
             if job.device.is_remote():
                 raise DeviceJobIncompatibleError(
                     "Quantinuum Nexus does not handle exact observable jobs. Submit a "
@@ -161,20 +311,7 @@ def run_tket_local(
         if TYPE_CHECKING:
             assert isinstance(tket_circuit, tket_Circuit)
 
-    if job.device == QUANTINUUMDevice.TKET_AER_SIMULATOR:
-        from pytket.extensions.qiskit.backends.aer import AerBackend
-
-        backend = AerBackend()
-    elif job.device == QUANTINUUMDevice.TKET_AER_STATEVECTOR_SIMULATOR:
-        from pytket.extensions.qiskit.backends.aer import AerStateBackend
-
-        backend = AerStateBackend()
-    elif job.device == QUANTINUUMDevice.TKET_QULACS_SIMULATOR:
-        from pytket.extensions.qulacs.backends.qulacs_backend import QulacsBackend
-
-        backend = QulacsBackend()
-    else:
-        raise ValueError(f"Local TKET device {job.device} is not handled.")
+    backend = _get_tket_backend(job.device)
 
     optim_level = (
         0 if quantinuum_params is None else quantinuum_params.optimisation_level
@@ -198,6 +335,7 @@ def run_tket_observable(
     backend: "Backend",
     job: Job,
     quantinuum_params: Optional[QuantinuumParams] = None,
+    translated_observables: Optional[list["QubitPauliOperator"]] = None,
 ) -> Result:
     """Execute an observable job using a local TKET backend.
 
@@ -207,6 +345,7 @@ def run_tket_observable(
         job: Observable job to execute.
         quantinuum_params: Quantinuum specific parameters used to configure
             observable grouping.
+        translated_observables: Optional pre-translated TKET observables.
 
     Returns:
         An MPQP result containing the observable expectation values.
@@ -238,7 +377,11 @@ def run_tket_observable(
     expectation_values = {}
     errors = {}
     for i, o in enumerate(job.measure.observables):
-        translated_obs = o.to_other_language(Language.TKET, targets=job.measure.targets)
+        translated_obs = (
+            o.to_other_language(Language.TKET, targets=job.measure.targets)
+            if translated_observables is None
+            else translated_observables[i]
+        )
 
         exp_value = get_operator_expectation_value(
             compiled_circuit, translated_obs, backend, nb_shots, optimisation_strat
@@ -467,8 +610,6 @@ def submit_circuits_to_nexus(
             of circuits than expected.
     """
 
-    import qnexus as qnx
-
     if TYPE_CHECKING:
         assert isinstance(job.device, QUANTINUUMDevice)
     tket_circuits = []
@@ -477,6 +618,47 @@ def submit_circuits_to_nexus(
             tket_circuits.append(circuit.to_other_device(job.device))
         else:
             tket_circuits.append(circuit.transpiled_circuit)
+
+    return submit_tket_circuits_to_nexus(
+        job,
+        tket_circuits,
+        n_shots,
+        name,
+        description,
+        provider_params,
+    )
+
+
+def submit_tket_circuits_to_nexus(
+    job: Job,
+    tket_circuits: list["tket_Circuit"],
+    n_shots: int | list[None],
+    name: str,
+    description: str = "",
+    provider_params: Optional[QuantinuumParams] = None,
+) -> "ExecuteJobRef":
+    """Compile and submit already translated TKET circuits to Nexus.
+
+    Args:
+        job: Job owning the submitted circuits.
+        tket_circuits: TKET circuits to upload, compile and execute.
+        n_shots: Number of shots to use, or ``[None]`` for a state-vector
+            execution.
+        name: Name to use for the Nexus job.
+        description: Description of the Nexus execute job.
+        provider_params: Quantinuum specific compilation parameters.
+
+    Returns:
+        A reference to the Nexus execution job.
+
+    Raises:
+        RuntimeError: If compilation returns no circuit or a different number
+            of circuits than expected.
+    """
+    import qnexus as qnx
+
+    if TYPE_CHECKING:
+        assert isinstance(job.device, QUANTINUUMDevice)
 
     backend_config = get_quantinuum_config(job.device)
     uploaded_circuit_refs = [
@@ -521,10 +703,10 @@ def submit_circuits_to_nexus(
             assert isinstance(compiled_circuit_ref, CircuitRef)
         compiled_circuit_refs.append(compiled_circuit_ref)
 
-    if len(compiled_circuit_refs) != len(circuits):
+    if len(compiled_circuit_refs) != len(tket_circuits):
         raise RuntimeError(
             f"Quantinuum Nexus compiled {len(compiled_circuit_refs)} circuits, "
-            f"but {len(circuits)} were submitted."
+            f"but {len(tket_circuits)} were submitted."
         )
 
     job.status = JobStatus.RUNNING
