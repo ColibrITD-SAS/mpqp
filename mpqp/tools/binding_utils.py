@@ -14,11 +14,21 @@ MPQP falls back to ordinary batches of individual executions. The helpers in
 this module support that fallback: they recursively visit nested bindings and
 collect provider translations separately for their circuits and measurements.
 
-:func:`translate_binding_circuits` and :func:`translate_binding_measurements`
-return dictionaries keyed by the original objects' :func:`id`. Each distinct
-object is translated once per call, so repeated executions can reuse its
-translation. These keys identify objects within the current process; they do not
-encode execution order or distinguish repeated occurrences of the same object.
+:func:`create_binding_execution_circuit` prepares the MPQP circuit associated
+with one resolved execution. It removes measurements already present in the
+circuit, clears cached provider translations, and adds a copy of the measurement
+selected by the binding. Copying the measurement keeps the original binding
+unchanged and allows the same measurement to receive the correct targets for
+each circuit size.
+
+:func:`translate_binding_circuits` stores each translated circuit under the
+:func:`id` of its original circuit. :func:`translate_binding_measurements` uses
+both the measurement's :func:`id` and the number of qubits in the circuit where
+it is used because a measurement with no targets applies to all qubits. Each
+distinct input is translated once per call, so repeated executions can reuse
+its translation. These keys identify objects within the current process, they
+do not encode execution order.
+
 Execution paths use :meth:`~mpqp.core.binding.CircuitBinding.unroll` to
 associate the translations with individual parameter sets and measurements.
 """
@@ -39,6 +49,35 @@ if TYPE_CHECKING:
     from qiskit_aer import AerSimulator
 
 
+def create_binding_execution_circuit(
+    circuit: QCircuit, measurement: Optional[Measure]
+) -> QCircuit:
+    """Prepare the MPQP circuit used for one binding execution.
+
+    The original measurements are removed, and a copy of the measurement
+    selected by the binding is added. Copying it prevents MPQP from changing
+    the original measurement when it fills in the targets for the current
+    circuit. Cached provider translations are also cleared so this execution
+    is translated from the prepared circuit.
+
+    Args:
+        circuit: Circuit selected for the execution.
+        measurement: Measurement selected for the execution, if any.
+
+    Returns:
+        A circuit containing the selected measurement and no cached provider
+        translation.
+    """
+    from copy import deepcopy
+
+    execution_circuit = circuit.without_measurements(deep_copy=False)
+    execution_circuit.transpiled_circuit = None
+    execution_circuit.transpiled_noise_model = None
+    if measurement is not None:
+        execution_circuit.add(deepcopy(measurement))
+    return execution_circuit
+
+
 def __translate_binding_circuits(
     cb: CircuitBinding,
     device: AvailableDevice,
@@ -46,7 +85,7 @@ def __translate_binding_circuits(
     skip_pre_measure: bool = False,
     backend_sim: Optional["AerSimulator"] = None,
 ):
-    """Recursive function to iterate every circuits in ``cb`` and store their translation in result."""
+    """Recursively translate each circuit in ``cb`` and store its translation in ``result``."""
     for circuit in cb.circuits:
         if isinstance(circuit, CircuitBinding):
             __translate_binding_circuits(circuit, device, result)
@@ -105,47 +144,59 @@ def translate_binding_circuits(
     skip_pre_measure: bool = False,
     backend_sim: Optional["AerSimulator"] = None,
 ) -> dict[int, Any]:
-    """Returns a dictionary containing the transpiled circuits of a
-    circuit binding with their memory address as keys.
-    This functions' goal is to only translate circuits once and prevent altering the original object through transpiled_circuits.
+    """Translate the circuits contained in a circuit binding.
 
-    This is of use for runs not supported natively by the equivalent of circuit bindings.
+    This function translates each circuit only once and returns a dictionary
+    containing the translated circuits, with their object IDs as keys. This
+    prevents repeated translations without storing them in the original
+    circuits through ``transpiled_circuit``.
+
+    This is useful for execution paths that do not support circuit bindings
+    natively.
+
+    Args:
+        cb: Circuit binding containing the circuits to translate.
+        device: Device for which the circuits are translated.
+        skip_pre_measure: If ``True``, translate without pre-measurement
+            operations.
+        backend_sim: Optional Aer simulator used during IBM translation.
+
+    Returns:
+        A dictionary mapping each original circuit's :func:`id` to its provider
+        translation.
     """
     return __translate_binding_circuits(cb, device, {}, skip_pre_measure, backend_sim)
 
 
-def __translated_binding_measurements(
-    cb: CircuitBinding, device: AvailableDevice, result: dict[int, Any]
-) -> dict[int, Any]:
-    for circuit in cb.circuits:
-        if isinstance(circuit, CircuitBinding):
-            __translated_binding_measurements(circuit, device, result)
-    if cb.measurements is None:
-        return result
-    for measurement in cb.measurements:
-        if result.get(id(measurement)) is not None:
-            from warnings import warn
-
-            warn(
-                "Several instances of the same measurement were found in the same CircuitBinding, it may lead to repeated executions."
-            )
-        else:
-            result.update(
-                {id(measurement): QCircuit([measurement]).to_other_device(device)}
-            )
-    return result
-
-
 def translate_binding_measurements(
     cb: CircuitBinding, device: AvailableDevice
-) -> dict[int, Any]:
-    """Returns a dictionary containing the transpiled measurements of a
-    circuit binding with their memory address as keys.
-    This functions' goal is to only translate measurements once and prevent altering the original object.
+) -> dict[tuple[int, int], Any]:
+    """Translate each binding measurement for the circuit where it is used.
 
-    This is of use for runs not supported natively by the equivalent of circuit bindings.
+    A measurement with no targets applies to all qubits. The same measurement
+    must therefore be translated separately when it is used with circuits of
+    different sizes. The original measurement is not modified.
+
+    Args:
+        cb: Circuit binding containing the measurements.
+        device: Device for which the measurements are translated.
+
+    Returns:
+        A dictionary mapping each measurement's :func:`id` and the circuit's
+        number of qubits to its provider translation.
     """
-    return __translated_binding_measurements(cb, device, {})
+    translated: dict[tuple[int, int], Any] = {}
+    for circuit, _, measurement in cb.unroll():
+        if measurement is None:
+            continue
+        key = (id(measurement), circuit.nb_qubits)
+        if key in translated:
+            continue
+        measurement_circuit = create_binding_execution_circuit(
+            QCircuit(circuit.nb_qubits), measurement
+        )
+        translated[key] = measurement_circuit.to_other_device(device)
+    return translated
 
 
 def merge_values(

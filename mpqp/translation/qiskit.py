@@ -237,11 +237,10 @@ if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
                 translate logical circuits and observables for services that
                 perform their own compilation.
         """
-        from copy import deepcopy
-
         from mpqp.core.instruction import ExpectationMeasure
         from mpqp.core.languages import Language
         from mpqp.execution import Job, JobType
+        from mpqp.tools.binding_utils import create_binding_execution_circuit
 
         if binding.job_type != JobType.OBSERVABLE:
             raise ValueError(
@@ -304,8 +303,7 @@ if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
                         for obs in measure.observables
                     ]
                 )
-                context = c.without_measurements(deep_copy=False)
-                context.add(deepcopy(measure))
+                context = create_binding_execution_circuit(c, measure)
                 contexts.append(
                     ExecutionContext(
                         job=Job(binding.job_type, context, device, values=values),
@@ -349,11 +347,10 @@ if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
             ValueError: If the binding is not a sampling binding, contains a
                 non-basis measurement, or omits a circuit parameter value.
         """
-        from copy import deepcopy
-
         from mpqp.core.instruction import BasisMeasure
         from mpqp.core.languages import Language
         from mpqp.execution import Job, JobType
+        from mpqp.tools.binding_utils import create_binding_execution_circuit
 
         if binding.job_type != JobType.SAMPLE:
             raise ValueError(
@@ -365,8 +362,7 @@ if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
             if not isinstance(measure, BasisMeasure):
                 raise ValueError("Sampling bindings require basis measurements.")
 
-            context_circuit = circuit.without_measurements(deep_copy=False)
-            context_circuit.add(deepcopy(measure))
+            context_circuit = create_binding_execution_circuit(circuit, measure)
             qiskit_circuit = context_circuit.to_other_language(Language.QISKIT)
             parameter_names = [
                 parameter.name for parameter in qiskit_circuit.parameters

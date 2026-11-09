@@ -289,7 +289,7 @@ def run_pseudo_circuit_binding(
     for c, v, m in cb.unroll():
         transpiled_circuit = translated_circuit[id(c)]
         transpiled_measurement = (
-            translated_measurement[id(m)] if m is not None else None
+            translated_measurement[(id(m), c.nb_qubits)] if m is not None else None
         )
         braket_inputs = (
             {str(key): value for key, value in v.items()} if v is not None else None
