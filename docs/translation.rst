@@ -88,3 +88,8 @@ Cirq
 ----
 
 .. automodule:: mpqp.translation.cirq
+
+Quantinuum (TKET)
+-----------------
+
+.. automodule:: mpqp.translation.tket

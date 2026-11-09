@@ -1563,12 +1563,13 @@ class QCircuit:
             self._generated_g_phase = 0
             return qasm3_code
         elif language == Language.TKET:
-            circuit_qiskit = self.to_other_language(
-                Language.QISKIT, skip_measurements, skip_pre_measure
-            )
-            from pytket.extensions.qiskit.qiskit_convert import qiskit_to_tk
+            from mpqp.translation.tket import mpqp_to_tket
 
-            return qiskit_to_tk(circuit_qiskit)
+            return mpqp_to_tket(
+                self,
+                skip_pre_measure=skip_pre_measure,
+                skip_measurements=skip_measurements,
+            )
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
 
@@ -1624,7 +1625,9 @@ class QCircuit:
         skip_pre_measure: bool = False,
         native_gate_set: bool = False,
         backend_sim: Optional["AerSimulator"] = None,
-    ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit: ...
+    ) -> (
+        QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit | tket_Circuit
+    ): ...
 
     def to_other_device(
         self,
@@ -1955,15 +1958,13 @@ class QCircuit:
             if job_type == JobType.STATE_VECTOR:
                 skip_measurements = True
 
-            qiskit_circuit = self.to_other_language(
-                Language.QISKIT,
-                skip_pre_measure,
-                skip_measurements,
+            from mpqp.translation.tket import mpqp_to_tket
+
+            return mpqp_to_tket(
+                translated_circuit,
+                skip_pre_measure=skip_pre_measure,
+                skip_measurements=skip_measurements,
             )
-
-            from pytket.extensions.qiskit.qiskit_convert import qiskit_to_tk
-
-            return qiskit_to_tk(qiskit_circuit)
         else:
             raise NotImplementedError(f"Error: {device} is not supported")
 
