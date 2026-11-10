@@ -740,21 +740,20 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
         entry_contexts: list[list[BraketPauliGroupingContext]] = []
 
         for group_data in circuit_groups.values():
-            original_circuit: QCircuit = group_data[0]  # Original MPQP circuit.
-            provider_circuit: BraketCircuit = group_data[
-                1
-            ]  # Translated Braket circuit.
-            parameter_groups_by_values: "OrderedDict[Any, Any]" = group_data[
-                2
-            ]  # Parameter groups indexed by their values.
+            # Original MPQP circuit:
+            original_circuit: QCircuit = group_data[0]
+            # Translated Braket circuit:
+            provider_circuit: BraketCircuit = group_data[1]
+            # Parameter groups indexed by their values.
+            parameter_groups_by_values: "OrderedDict[Any, Any]" = group_data[2]
             # Parameter rows can share a Braket CircuitBinding exactly when
             # they have the same ordered observable axis. This is the common
             # PRODUCT case; ZIP pairs naturally fall into distinct layouts.
             layouts: "OrderedDict[Any, list[Any]]" = OrderedDict()
             for parameter_group in parameter_groups_by_values.values():
-                parameter_values: BindingParameters | None = parameter_group[
-                    0
-                ]  # MPQP parameter mapping.
+                # MPQP parameter mapping:
+                parameter_values: BindingParameters | None = parameter_group[0]
+                # Observable translation information:
                 translation_info: list[
                     tuple[
                         Measure | None,
@@ -763,9 +762,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                         int,
                         int | None,
                     ]
-                ] = parameter_group[
-                    1
-                ]  # Observable translation information.
+                ] = parameter_group[1]
                 # Record the measurement, provider observable and executable
                 # span of every item to identify compatible Braket layouts.
                 layout_key: tuple[tuple[int, int, int], ...] = tuple(
