@@ -365,7 +365,9 @@ def test_observable_key_ignores_lazy_caches(
     _ = observable.matrix
     _ = observable.pauli_string
     _ = observable.diagonal_elements
-    monkeypatch.setattr(observable, "pre_transpiled", object())
+    monkeypatch.setattr(
+        observable, "pre_transpiled", {IBMDevice.AER_SIMULATOR: object()}
+    )
     assert object_key(observable) == before
     observable.matrix = np.diag([2, -2])
     assert object_key(observable) != before

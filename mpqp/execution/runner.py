@@ -605,7 +605,7 @@ def run(
 def run(
     circuit: Sequence[QCircuit],
     device: OneOrMany[AvailableDevice],
-    values: "Optional[dict[Expr | str, Complex]]" = None,
+    values: Optional[BindingParameters] = None,
     display_breakpoints: bool = True,
     provider_params: Optional[ProviderParams] = None,
 ) -> BatchResult: ...
