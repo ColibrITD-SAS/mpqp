@@ -188,13 +188,15 @@ def build_pauli_grouping_result(
 
 
 def get_all_monomials(measure: ExpectationMeasure) -> list[PauliStringMonomial]:
-    """Returns a list of all of the non repeating monomials present in the observables of the measure.
+    """Returns a list of all of the non repeating monomials present in the
+    observables of the measure.
 
     Args:
-        measure: The expectation measure from which we want to extract the monomials.
+        measure: The expectation measure from which we want to extract the
+            monomials.
 
     Returns:
-        A list of all the monomials in the measure.
+        All the monomials in the measure.
     """
     monomials: list[PauliStringMonomial] = []
     for obs in measure.observables:
@@ -202,7 +204,9 @@ def get_all_monomials(measure: ExpectationMeasure) -> list[PauliStringMonomial]:
             from warnings import warn
 
             warn(
-                "The observable has not a set Pauli String, the inputted matrix is going to be converted into a Pauli String, this may lead to low performances."
+                "The observable has not a set Pauli String, the inputted matrix"
+                " is going to be converted into a Pauli String, this may lead "
+                "to low performances."
             )
         for monom in obs.pauli_string.monomials:
             found = False
