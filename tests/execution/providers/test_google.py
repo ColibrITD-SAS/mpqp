@@ -19,6 +19,7 @@ from mpqp import (
     T,
     run,
 )
+from mpqp.core.binding import CircuitBinding
 from mpqp.translation.qasm.qasm_to_cirq import qasm2_to_cirq_Circuit
 
 if TYPE_CHECKING:
@@ -114,3 +115,33 @@ def test_qasm2_to_cirq_Circuit(list_cirq: list[tuple[QCircuit, str]]):
             encoding="utf-8",
         ) as f:
             assert qasm2_to_cirq_Circuit(f.read()) == circuit
+
+
+@pytest.fixture()
+def example_circuitbinding():
+    from sympy import Symbol
+
+    theta = Symbol("theta")
+    c = QCircuit([Rx(theta, 0)])
+    c2 = QCircuit([Ry(theta + 1, 0)])
+    param = [{theta: 1}, {"theta": 0}]
+    m1 = BasisMeasure()
+
+    from mpqp.core.instruction.measurement.pauli_string import pI, pX
+
+    m2 = ExpectationMeasure([Observable(pI), Observable(pX)])
+
+    return [
+        (CircuitBinding([c, c2], values=param, measurements=m1), 4),
+        (CircuitBinding([c, c2], values=param, measurements=m2), 4),
+    ]
+
+
+@pytest.mark.provider("cirq")
+def test_pseudo_circuitbinding_cirq(
+    example_circuitbinding: list[tuple[CircuitBinding, int]],
+):
+    for cb, executables in example_circuitbinding:
+        result = run(cb, GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
+
+        assert len(result.results) == executables

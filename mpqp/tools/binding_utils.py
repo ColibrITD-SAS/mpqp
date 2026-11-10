@@ -37,6 +37,7 @@ from mpqp.core.instruction.measurement.measure import Measure
 from mpqp.execution.devices import (
     AvailableDevice,
     AWSDevice,
+    GOOGLEDevice,
     IBMDevice,
 )
 
@@ -99,6 +100,10 @@ def __translate_binding_circuits(
                             backend_sim=backend_sim,
                         )
                     result.update({id(circuit): translated_circuit})
+                elif isinstance(device, GOOGLEDevice):
+                    if result.get(id(circuit)) is None:
+                        translated_circuit = circuit.to_other_device(device)
+                        result.update({id(circuit): translated_circuit})
                 else:
                     raise NotImplementedError
     return result
@@ -132,6 +137,7 @@ def __translated_binding_measurements(
             )
     if cb.measurements is None:
         return result
+
     for measurement in cb.measurements:
         if result.get(id(measurement)) is not None:
             from warnings import warn
@@ -150,7 +156,11 @@ def __translated_binding_measurements(
             )
         else:
             result.update(
-                {id(measurement): QCircuit([measurement]).to_other_device(device)}
+                {
+                    id(measurement): QCircuit(
+                        [measurement], nb_qubits=cb.nb_qubits
+                    ).to_other_device(device)
+                }
             )
     return result
 

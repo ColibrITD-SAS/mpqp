@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 from mpqp.core.binding import CircuitBinding
 from mpqp.core.circuit import QCircuit
@@ -20,7 +20,7 @@ from mpqp import Language
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
 from mpqp.execution.devices import GOOGLEDevice
-from mpqp.execution.job import Job, JobType
+from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.result import BatchResult, Result, Sample, StateVector
 from mpqp.noise import NoiseModel
 
@@ -142,6 +142,7 @@ def run_google(job: Job) -> Result:
 def run_cirq_pseudo_circuitbinding(job: Job) -> BatchResult:
     if TYPE_CHECKING:
         assert isinstance(job.circuit, CircuitBinding)
+        assert isinstance(job.device, GOOGLEDevice)
 
     from mpqp.tools.binding_utils import (
         translate_binding_circuits,
@@ -151,6 +152,45 @@ def run_cirq_pseudo_circuitbinding(job: Job) -> BatchResult:
     results = []
     transpiled_circuits = translate_binding_circuits(job.circuit, job.device)
     transpiled_measurements = translate_binding_measurements(job.circuit, job.device)
+
+    if job.device.is_remote():
+        if job.device.is_ionq():
+            raise NotImplementedError
+        from mpqp.environment.env_manager import load_env_variables
+        import cirq_ionq as ionq
+
+        load_env_variables()
+        backend = ionq.Service(default_target=job.device.value)
+    else:
+        if job.device.is_processor():
+            from cirq_google.engine.simulated_local_engine import SimulatedLocalEngine
+            from cirq_google.engine.simulated_local_processor import (
+                SimulatedLocalProcessor,
+            )
+            from cirq_google.engine.virtual_engine_factory import (
+                create_device_from_processor_id,
+                load_median_device_calibration,
+            )
+            from qsimcirq.qsim_simulator import QSimSimulator
+
+            calibration = load_median_device_calibration(job.device.value)
+            device = create_device_from_processor_id(job.device.value)
+
+            # noise_props = noise_properties_from_calibration(cal)
+            # noise_model = NoiseModelFromGoogleNoiseProperties(noise_props)
+
+            simulator = QSimSimulator(noise=None)
+            sim_processor = SimulatedLocalProcessor(
+                processor_id=job.device.value,
+                sampler=simulator,
+                device=device,
+                calibrations={calibration.timestamp // 1000: calibration},
+            )
+            backend = SimulatedLocalEngine([sim_processor])
+        else:
+            from cirq.sim.sparse_simulator import Simulator
+
+            backend = Simulator(noise=None)
 
     for c, v, m in job.circuit.unroll():
         translated_circuit = transpiled_circuits[id(c)]
@@ -166,7 +206,43 @@ def run_cirq_pseudo_circuitbinding(job: Job) -> BatchResult:
             {str(key): value for key, value in v.items()} if v is not None else None
         )
         if transpiled_measurement is not None:
-            translated_circuit += transpiled_measurement
+            translated_circuit = translated_circuit + transpiled_measurement
+
+        if cirq_inputs is not None:
+            from cirq import resolve_parameters
+
+            translated_circuit = resolve_parameters(
+                translated_circuit, cirq_inputs  # pyright: ignore[reportArgumentType]
+            )
+
+        local_job = Job(
+            job.job_type, circuit=c, device=job.device, measurement=m, values=v
+        )
+        local_job.status = JobStatus.RUNNING
+        if job.device.is_remote():
+            results.append(
+                run_google_remote(
+                    local_job,
+                    backend,  # pyright: ignore[reportArgumentType]
+                    translated_circuit,
+                )
+            )
+        elif job.device.is_processor():
+            results.append(
+                run_local_processor(
+                    local_job,
+                    backend,  # pyright: ignore[reportArgumentType]
+                    translated_circuit,
+                )
+            )
+        else:
+            results.append(
+                run_local(
+                    local_job,
+                    backend,  # pyright: ignore[reportArgumentType]
+                    translated_circuit,
+                )
+            )
 
     return BatchResult(results)
 
@@ -416,7 +492,11 @@ def run_cirq_observable_remote(
     return Result(job, result)
 
 
-def run_google_remote(job: Job) -> Result:
+def run_google_remote(
+    job: Job,
+    backend: Optional["Service"] = None,
+    circuit: Optional["CirqCircuit"] = None,
+) -> Result:
     """Executes the job remotely on a Google quantum device. At present, only
     IonQ devices are supported.
 
@@ -445,7 +525,9 @@ def run_google_remote(job: Job) -> Result:
     if TYPE_CHECKING:
         assert isinstance(job.circuit, QCircuit)
 
-    if job.circuit.transpiled_circuit is None:
+    if circuit is not None:
+        job_CirqCircuit = circuit
+    elif job.circuit.transpiled_circuit is None:
         job_CirqCircuit = job.circuit.to_other_device(job.device)
     else:
         job_CirqCircuit = job.circuit.transpiled_circuit
@@ -454,10 +536,14 @@ def run_google_remote(job: Job) -> Result:
         assert isinstance(job_CirqCircuit, CirqCircuit)
 
     if job.device.is_ionq():
-        from mpqp.environment.env_manager import load_env_variables
+        if backend is None:
+            from mpqp.environment.env_manager import load_env_variables
 
-        load_env_variables()
-        service = ionq.Service(default_target=job.device.value)
+            load_env_variables()
+            service = ionq.Service(default_target=job.device.value)
+        else:
+            service = backend
+
         if job.job_type == JobType.SAMPLE:
             if TYPE_CHECKING:
                 assert isinstance(job.measure, BasisMeasure)
@@ -479,7 +565,11 @@ def run_google_remote(job: Job) -> Result:
         )
 
 
-def run_local(job: Job) -> Result:
+def run_local(
+    job: Job,
+    simulator: Optional["Simulator"] = None,
+    circuit: Optional["CirqCircuit"] = None,
+) -> Result:
     """Executes the job locally.
 
     Args:
@@ -507,15 +597,17 @@ def run_local(job: Job) -> Result:
     if job.device.is_processor():
         return run_local_processor(job)
 
-    if job.circuit.transpiled_circuit is None:
+    if circuit is not None:
+        cirq_circuit = circuit
+    elif job.circuit.transpiled_circuit is None:
         cirq_circuit = job.circuit.to_other_device(job.device)
     else:
         cirq_circuit = job.circuit.transpiled_circuit
 
     if TYPE_CHECKING:
         assert isinstance(cirq_circuit, CirqCircuit)
-
-    simulator = Simulator(noise=None)
+    if simulator is None:
+        simulator = Simulator(noise=None)
 
     if job.job_type == JobType.STATE_VECTOR:
         return extract_result_STATE_VECTOR(simulator.simulate(cirq_circuit), job)
@@ -531,7 +623,11 @@ def run_local(job: Job) -> Result:
         raise ValueError(f"Job type {job.job_type} not handled")
 
 
-def run_local_processor(job: Job) -> Result:
+def run_local_processor(
+    job: Job,
+    simulator: Optional["SimulatedLocalEngine"] = None,
+    translated_circuit: Optional["CirqCircuit"] = None,
+) -> Result:
     """Executes the job locally on processor.
 
     Args:
@@ -556,24 +652,28 @@ def run_local_processor(job: Job) -> Result:
     )
     from qsimcirq.qsim_simulator import QSimSimulator
 
-    calibration = load_median_device_calibration(job.device.value)
-    device = create_device_from_processor_id(job.device.value)
+    if simulator is None:
+        calibration = load_median_device_calibration(job.device.value)
+        device = create_device_from_processor_id(job.device.value)
 
-    # noise_props = noise_properties_from_calibration(cal)
-    # noise_model = NoiseModelFromGoogleNoiseProperties(noise_props)
+        # noise_props = noise_properties_from_calibration(cal)
+        # noise_model = NoiseModelFromGoogleNoiseProperties(noise_props)
 
-    simulator = QSimSimulator(noise=None)
-    sim_processor = SimulatedLocalProcessor(
-        processor_id=job.device.value,
-        sampler=simulator,
-        device=device,
-        calibrations={calibration.timestamp // 1000: calibration},
-    )
-    simulator = SimulatedLocalEngine([sim_processor])
+        simulator = QSimSimulator(noise=None)  # pyright: ignore[reportAssignmentType]
+        sim_processor = SimulatedLocalProcessor(
+            processor_id=job.device.value,
+            sampler=simulator,  # pyright: ignore[reportArgumentType]
+            device=device,
+            calibrations={calibration.timestamp // 1000: calibration},
+        )
+        simulator = SimulatedLocalEngine([sim_processor])
+
     if TYPE_CHECKING:
         assert isinstance(job.circuit, QCircuit)
 
-    if job.circuit.transpiled_circuit is None:
+    if translated_circuit is not None:
+        cirq_circuit = translated_circuit
+    elif job.circuit.transpiled_circuit is None:
         cirq_circuit = job.circuit.to_other_device(job.device)
     else:
         cirq_circuit = job.circuit.transpiled_circuit
