@@ -344,7 +344,7 @@ def test_full_commutation_binding_uses_native_observables(
     assert [r.expectation_values for r in result.results] == expected
     assert measure.optimize_measurement
     assert measure.commuting_type == CommutingTypes.FULL
-    assert binding.optimize_measurement
+    assert binding.all_measurement_optimized
 
 
 @pytest.mark.provider("braket")
@@ -378,7 +378,7 @@ def test_mixed_commutation_binding_preserves_grouping_and_order(mode: BindingMod
     )
     assert program_set.total_executables == len(expected)
     assert [r.expectation_values for r in result.results] == expected
-    assert binding.optimize_measurement
+    assert binding.all_measurement_optimized
 
 
 @pytest.mark.provider("braket")

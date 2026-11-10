@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from mpqp.environment.var_cache import (
     _INSTALLED_MPQP_PROVIDERS,  # pyright: ignore[reportPrivateUsage]
 )
@@ -7,6 +8,7 @@ from mpqp.environment.var_cache import (
 )
 
 if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
+    from dataclasses import dataclass
     from typing import (
         TYPE_CHECKING,
         Any,
@@ -17,23 +19,21 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
 
     from braket.program_sets import CircuitBinding as BraketBinding
 
-    from dataclasses import dataclass
-
     from mpqp.core.binding import BindingParameters
     from mpqp.core.circuit import QCircuit
     from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
     from mpqp.core.instruction.measurement.measure import Measure
 
     if TYPE_CHECKING:
+        import numpy as np
+        import numpy.typing as npt
+        from braket.circuits import Circuit as BraketCircuit
         from braket.program_sets import ProgramSet
 
-        from mpqp.core.binding import CircuitBinding
-        from mpqp.execution.devices import AWSDevice
-        from braket.circuits import Circuit as BraketCircuit
-        from mpqp.core.instruction.measurement.pauli_string import PauliStringMonomial
-        import numpy.typing as npt
-        import numpy as np
         from mpqp import Gate
+        from mpqp.core.binding import CircuitBinding
+        from mpqp.core.instruction.measurement.pauli_string import PauliStringMonomial
+        from mpqp.execution.devices import AWSDevice
 
     @dataclass(frozen=True)
     class BraketPauliGroupingContext:
@@ -82,9 +82,10 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
 
     def braket_to_mpqp(qcircuit: "BraketCircuit") -> "QCircuit":
 
+        from braket.circuits import Circuit as BraketCircuit
         from braket.circuits.serialization import IRType
         from braket.ir.openqasm.program_v1 import Program
-        from braket.circuits import Circuit as BraketCircuit
+
         from mpqp.core.languages import Language
         from mpqp.translation.qasm.open_qasm_2_and_3 import open_qasm_3_to_2
         from mpqp.translation.qasm.qasm_to_braket import braket_noise_to_mpqp
@@ -168,7 +169,6 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
             T  : │  0  │  1  │
         """
         from mpqp.core.circuit import QCircuit
-        from mpqp.execution.providers.aws import apply_noise_to_braket_circuit
         from mpqp.core.instruction import (
             Barrier,
             BasisMeasure,
@@ -182,20 +182,13 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
         from mpqp.core.instruction.gates.custom_gate import CustomGate
         from mpqp.core.instruction.gates.gate import Gate
         from mpqp.core.instruction.gates.native_gates import CRk
-
-        from mpqp.core.instruction import (
-            Measure,
-            Breakpoint,
-            Barrier,
-            ControlledGate,
-            BasisMeasure,
-        )
         from mpqp.core.languages import Language
-        from mpqp.core.circuit import QCircuit
+        from mpqp.execution.providers.aws import apply_noise_to_braket_circuit
 
         instructions = circuit.with_measurement(deep_copy=False)
-        from mpqp.core.instruction.gates.gate_decomposition import resolve_gate
         from braket.circuits import Circuit as BraketCircuit
+
+        from mpqp.core.instruction.gates.gate_decomposition import resolve_gate
 
         if len(circuit.noises) != 0:
             if any(isinstance(instr, CRk) for instr in instructions):
@@ -287,9 +280,9 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
         """
 
         from mpqp.core.instruction.measurement import BasisMeasure
+        from mpqp.core.instruction.measurement.pauli_string import CommutingTypes
         from mpqp.core.languages import Language
         from mpqp.tools.pauli_grouping import find_qubitwise_rotations
-        from mpqp.core.instruction.measurement.pauli_string import CommutingTypes
 
         if measurement.commuting_type != CommutingTypes.QUBITWISE:
             raise NotImplementedError(
@@ -370,11 +363,12 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
             adapter does not yet reconstruct grouped probability contexts.
         """
 
+        from collections import OrderedDict
+
+        from braket.circuits import Circuit as BraketCircuit
         from braket.circuits.observables import Sum
         from braket.program_sets import CircuitBinding as BraketBinding
         from braket.program_sets import ProgramSet
-        from braket.circuits import Circuit as BraketCircuit
-        from collections import OrderedDict
 
         from mpqp.core.instruction.measurement.pauli_string import CommutingTypes
         from mpqp.core.languages import Language
@@ -559,10 +553,11 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
 
         from collections import OrderedDict
 
+        from braket.circuits import Circuit as BraketCircuit
+        from braket.circuits import Observable as BraketObservable
         from braket.circuits.observables import Sum
         from braket.program_sets import ProgramSet
-        from braket.circuits import Observable as BraketObservable
-        from braket.circuits import Circuit as BraketCircuit
+
         from mpqp.core import Language, QCircuit
         from mpqp.core.instruction import BasisMeasure
 
@@ -921,6 +916,6 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
             The translated program set together with ordered contexts
             used by the AWS result adapter.
         """
-        if binding.optimize_measurement:
+        if binding.all_measurement_optimized:
             return _cb_to_programset_pauli_grouping(binding, device)
         return _grouped_cb_to_programset(binding, device)
