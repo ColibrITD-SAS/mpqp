@@ -1,7 +1,7 @@
 from copy import deepcopy
-from unittest.mock import patch
 
 import numpy as np
+import numpy.typing as npt
 import pytest
 from sympy import Symbol
 
@@ -382,26 +382,41 @@ def test_mixed_commutation_binding_preserves_grouping_and_order(mode: BindingMod
 
 
 @pytest.mark.provider("braket")
-def test_pauli_grouping_reuses_diagonals_within_one_translation():
-    from mpqp.tools.pauli_grouping import pauli_monomial_eigenvalues
+@pytest.mark.parametrize("circuit_count, parameter_count", [(1, 16), (16, 1), (16, 16)])
+def test_pauli_grouping_diagonal_storage_does_not_grow_with_binding(
+    circuit_count: int, parameter_count: int
+):
+    def diagonal_storage_size(circuit_count: int, parameter_count: int) -> int:
+        binding = CircuitBinding(
+            [
+                QCircuit([Ry(t, index % 2)], nb_qubits=2)
+                for index in range(circuit_count)
+            ],
+            values=[{"t": float(index)} for index in range(parameter_count)],
+            measurements=ExpectationMeasure(
+                [Observable(pX @ pI + pI @ pZ), Observable(pZ @ pI)], shots=100
+            ),
+        )
+        _, contexts = binding.to_other_device(AWSDevice.BRAKET_LOCAL_SIMULATOR)
+        assert len(
+            {context.result_index for entry in contexts for context in entry}
+        ) == (circuit_count * parameter_count)
 
-    binding = CircuitBinding(
-        [QCircuit([Ry(t, 0)], nb_qubits=2), QCircuit([Rx(t, 1)], nb_qubits=2)],
-        values=[{"t": 0.0}, {"t": np.pi}],
-        measurements=ExpectationMeasure(
-            [Observable(pX @ pI + pI @ pZ), Observable(pZ @ pI)], shots=100
-        ),
-    )
+        buffers: list[npt.NDArray[np.float64]] = []
+        for entry in contexts:
+            for context in entry:
+                assert context.eigenvalues is not None
+                for diagonal in context.eigenvalues.values():
+                    # Count shared storage once, including distinct views of it.
+                    if not any(
+                        np.shares_memory(diagonal, buffer) for buffer in buffers
+                    ):
+                        buffers.append(diagonal)
+        return sum(buffer.nbytes for buffer in buffers)
 
-    with patch(
-        "mpqp.tools.pauli_grouping.pauli_monomial_eigenvalues",
-        wraps=pauli_monomial_eigenvalues,
-    ) as build_diagonal:
-        binding.to_other_device(AWSDevice.BRAKET_LOCAL_SIMULATOR)
-        assert build_diagonal.call_count == 3
-
-        binding.to_other_device(AWSDevice.BRAKET_LOCAL_SIMULATOR)
-        assert build_diagonal.call_count == 6
+    baseline_size = diagonal_storage_size(1, 1)
+    assert baseline_size > 0
+    assert diagonal_storage_size(circuit_count, parameter_count) == baseline_size
 
 
 @pytest.mark.provider("braket")
