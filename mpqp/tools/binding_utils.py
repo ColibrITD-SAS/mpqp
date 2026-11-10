@@ -241,18 +241,18 @@ def combine_zipped_options(
 
 def parameter_set_key(
     parameter_set: Optional[BindingParameters],
-) -> Optional[tuple[tuple[str, str]]]:
+) -> Optional[tuple[tuple[str, str], ...]]:
     """Build a stable, hashable key for a parameter mapping."""
     if parameter_set is None:
         return None
     return tuple(
         sorted((str(key), repr(value)) for key, value in parameter_set.items())
-    )  # pyright: ignore[reportReturnType]
+    )
 
 
 def execution_key(
     execution: BindingExecution,
-) -> tuple[int, Optional[tuple[tuple[str, str]]], int]:
+) -> tuple[int, Optional[tuple[tuple[str, str], ...]], int]:
     """Build an identity key used to remove duplicate executions."""
     circuit, parameters, measurement = execution
     return id(circuit), parameter_set_key(parameters), id(measurement)
@@ -263,8 +263,25 @@ def product_values(
     parent_values: list[Optional[BindingParameters]],
 ) -> list[Optional[BindingParameters]]:
     """Resolve and deduplicate parameter sets for PRODUCT mode."""
+    return list(product_value_options(child_parameters, parent_values).values())
+
+
+def product_value_options(
+    child_parameters: Optional[BindingParameters],
+    parent_values: list[Optional[BindingParameters]],
+) -> dict[Optional[tuple[tuple[str, str], ...]], Optional[BindingParameters]]:
+    """Resolve PRODUCT parameters while retaining their deduplication keys.
+
+    Args:
+        child_parameters: Parameters inherited from the child execution.
+        parent_values: Parameter alternatives supplied by the parent binding.
+
+    Returns:
+        Canonical keys paired with shallow copies of the resolved mappings.
+        An unspecified mapping remains ``None``.
+    """
     unique_values: dict[
-        Optional[tuple[tuple[str, str]]], Optional[BindingParameters]
+        Optional[tuple[tuple[str, str], ...]], Optional[BindingParameters]
     ] = {}
     keep_child_parameters = False
 
@@ -292,7 +309,7 @@ def product_values(
         child_parameters = {key: value for key, value in child_parameters.items()}
         unique_values.setdefault(parameter_set_key(child_parameters), child_parameters)
 
-    return list(unique_values.values())
+    return unique_values
 
 
 def product_measurements(

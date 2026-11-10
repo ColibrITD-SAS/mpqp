@@ -354,7 +354,10 @@ class QCircuit:
                 if components._dynamic  # pyright: ignore[reportPrivateUsage]
                 else max(components.connections(), default=-1) + 1
             )
-            if isinstance(components, NoiseModel):
+            if isinstance(components, NoiseModel) and (
+                components._dynamic  # pyright: ignore[reportPrivateUsage]
+                or len(components.targets) > 0
+            ):
                 required_qubits = max(required_qubits, components.min_nb_qubits)
             self._set_nb_qubits_dynamic(max(self.nb_qubits, required_qubits))
 

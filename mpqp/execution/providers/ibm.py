@@ -243,6 +243,7 @@ def compute_expectation_value(
 
     job.status = JobStatus.RUNNING
     job_expectation = estimator.run(pubs_to_run)
+    job.id = job_expectation.job_id()
     estimator_result = job_expectation.result()
 
     if TYPE_CHECKING:
@@ -287,6 +288,7 @@ def _extract_estimator_pubs_result(
         offset = 0
         for context in contexts:
             context_job = context.job
+            context_job.id = job.id
             pub_result = estimator_result[i]
             if split_contexts:
                 if not isinstance(context_job.measure, ExpectationMeasure):
@@ -652,6 +654,7 @@ def run_aer(job: Job) -> Result | BatchResult:
 
     if isinstance(job.circuit, CircuitBinding):
         binding = job.circuit
+        resolved = job._get_binding_executions()  # pyright: ignore[reportPrivateUsage]
         backend_sim = None
 
         if isinstance(job.device, StaticIBMSimulatedDevice):
@@ -667,7 +670,11 @@ def run_aer(job: Job) -> Result | BatchResult:
 
         if job.job_type == JobType.OBSERVABLE:
 
-            pubs_with_context = binding.to_other_device(job.device)
+            from mpqp.translation.qiskit import circuitbinding_to_pubs
+
+            pubs_with_context = circuitbinding_to_pubs(
+                binding, job.device, resolved=resolved
+            )
             if (
                 not isinstance(job.device, StaticIBMSimulatedDevice)
                 and binding.is_noisy
@@ -682,14 +689,14 @@ def run_aer(job: Job) -> Result | BatchResult:
             return compute_expectation_value(
                 job,
                 backend_sim,
-                pubs=pubs,  # pyright: ignore[reportArgumentType]
-                pubs_contexts=contexts,  # pyright: ignore[reportArgumentType]
+                pubs=pubs,
+                pubs_contexts=contexts,
                 shots=binding.shots,
             )
         elif job.job_type in (JobType.SAMPLE, JobType.STATE_VECTOR):
             from mpqp.tools.binding_utils import translate_binding_circuits
 
-            unrolled_items = binding.unroll()
+            unrolled_items = resolved
             bound_circuits = []
             context_jobs = []
             translated_circuits = translate_binding_circuits(
@@ -753,10 +760,12 @@ def run_aer(job: Job) -> Result | BatchResult:
                 shots = binding.shots if binding.shots is not None else 1024
                 job_sim = backend_sim.run(bound_circuits, shots=shots)
 
+            job.id = job_sim.job_id()
             result_sim = job_sim.result()
 
             extracted_items = []
             for i, context_job in enumerate(context_jobs):
+                context_job.id = job.id
                 extracted = extract_result(
                     result=result_sim,
                     job=context_job,
@@ -820,6 +829,7 @@ def run_aer(job: Job) -> Result | BatchResult:
             qiskit_circuit.save_statevector()  # pyright: ignore[reportAttributeAccessIssue]
             job.status = JobStatus.RUNNING
             job_sim = backend_sim.run(qiskit_circuit, shots=0)
+            job.id = job_sim.job_id()
             result_sim = job_sim.result()
             if TYPE_CHECKING:
                 assert isinstance(job.device, IBMDevice)
@@ -832,6 +842,7 @@ def run_aer(job: Job) -> Result | BatchResult:
             job.status = JobStatus.RUNNING
 
             job_sim = backend_sim.run(qiskit_circuit, shots=job.measure.shots)
+            job.id = job_sim.job_id()
             result_sim = job_sim.result()
             if TYPE_CHECKING:
                 assert isinstance(job.device, (IBMDevice, StaticIBMSimulatedDevice))
@@ -922,9 +933,10 @@ def submit_remote_ibm(
             f"{job.job_type} not handled by remote remote IBM devices."
         )
 
-    job.id = ibm_job.job_id()
+    job_id = ibm_job.job_id()
+    job.id = job_id
 
-    return job.id, ibm_job
+    return job_id, ibm_job
 
 
 def submit_remote_ibm_pubs(jobs: list[Job]):
@@ -999,9 +1011,10 @@ def submit_remote_ibm_pubs(jobs: list[Job]):
 
         ibm_job = estimator.run(pubs)
 
-        job.id = ibm_job.job_id()
+        job_id = ibm_job.job_id()
+        job.id = job_id
 
-        return job.id, ibm_job
+        return job_id, ibm_job
 
 
 def run_remote_ibm(
@@ -1488,6 +1501,8 @@ def get_result_from_ibm_job_id(job_id: str) -> Result:
     result = extract_result(result, None, ibm_device)
     if TYPE_CHECKING:
         assert isinstance(result, Result)
+    result.job.id = job_id
+    result.job.status = JobStatus.DONE
     return result
 
 

@@ -68,6 +68,7 @@ if TYPE_CHECKING:
 def adjust_measure(
     measure: ExpectationMeasure,
     circuit: QCircuit,
+    expand_to_full_register: bool = True,
 ) -> ExpectationMeasure:
     """A measure can be incomplete and not span the entire circuit, but providers
     usually do not support this behavior. The function therefore adjusts each
@@ -76,17 +77,21 @@ def adjust_measure(
     In order to do this, we place identity operators on the qubits not targeted
     by the measure. If the targets are not ordered, each observable is first
     reordered so that its local qubit order matches the sorted target order.
-    Pauli observables are directly embedded on their target qubits, while matrix
-    observables are padded with identity matrices when the targets are ordered
-    and contiguous, and are otherwise embedded through their pauli decomposition.
+    When ``expand_to_full_register`` is enabled, Pauli observables are directly
+    embedded on their target qubits, while matrix observables are padded with
+    identity matrices when the targets are ordered and contiguous, and are
+    otherwise embedded through their pauli decomposition.
 
     Args:
         measure: The expectation measure, potentially incomplete.
-        nb_qubits: The number of qubits in the circuit.
+        circuit: The circuit from which the measure is derived.
+        expand_to_full_register: Whether observables must span the complete
+            circuit register. Providers supporting local observable targets can
+            disable this while still benefiting from target reordering.
 
     Returns:
-        A measure targeting all circuit qubits, with observables embedded into
-        the full register.
+        The reordered measure. Its observables target the complete circuit
+        register when ``expand_to_full_register`` is enabled.
 
     Raises:
         ValueError: If the number of target qubits does not match the number
@@ -122,9 +127,8 @@ def adjust_measure(
         reordered_observables: list[Observable] = []
 
         for observable in observables:
-            if (
-                observable._matrix is None  # pyright: ignore[reportPrivateUsage]
-                or measure.optimize_measurement
+            if observable._matrix is None or (  # pyright: ignore[reportPrivateUsage]
+                measure.optimize_measurement and expand_to_full_register
             ):
                 reordered_observables.append(
                     Observable(
@@ -145,66 +149,69 @@ def adjust_measure(
         targets = ordered_targets
         observables = reordered_observables
 
-    targets_are_contiguous = bool(targets) and targets == list(
-        range(targets[0], targets[-1] + 1)
-    )
-    # Extend observables to cover the circuit's full qubit register
-    adjusted_observables: list[Observable] = []
+    adjusted_observables = observables
+    adjusted_targets = targets
+    if expand_to_full_register:
+        targets_are_contiguous = bool(targets) and targets == list(
+            range(targets[0], targets[-1] + 1)
+        )
+        adjusted_observables = []
 
-    from mpqp.core.instruction.measurement.pauli_string import (
-        PauliString,
-        PauliStringMonomial,
-        pI,
-    )
+        from mpqp.core.instruction.measurement.pauli_string import (
+            PauliString,
+            PauliStringMonomial,
+            pI,
+        )
 
-    for observable in observables:
-        if (
-            observable._pauli_string is None  # pyright: ignore[reportPrivateUsage]
-            and targets_are_contiguous
-        ):
-            nb_qubits_before = targets[0]
-            nb_qubits_after = nb_qubits - targets[-1] - 1
+        for observable in observables:
+            if (
+                observable._pauli_string is None  # pyright: ignore[reportPrivateUsage]
+                and targets_are_contiguous
+            ):
+                nb_qubits_before = targets[0]
+                nb_qubits_after = nb_qubits - targets[-1] - 1
 
-            full_matrix = observable.matrix
+                full_matrix = observable.matrix
 
-            if nb_qubits_before > 0:
-                identity_before = np.eye(2**nb_qubits_before)
-                full_matrix = np.kron(identity_before, full_matrix)
+                if nb_qubits_before > 0:
+                    identity_before = np.eye(2**nb_qubits_before)
+                    full_matrix = np.kron(identity_before, full_matrix)
 
-            if nb_qubits_after > 0:
-                identity_after = np.eye(2**nb_qubits_after)
-                full_matrix = np.kron(full_matrix, identity_after)
+                if nb_qubits_after > 0:
+                    identity_after = np.eye(2**nb_qubits_after)
+                    full_matrix = np.kron(full_matrix, identity_after)
 
-            adjusted_observables.append(
-                Observable(
-                    full_matrix,  # pyright: ignore[reportArgumentType]
-                    label=observable.label,
+                adjusted_observables.append(
+                    Observable(
+                        full_matrix,  # pyright: ignore[reportArgumentType]
+                        label=observable.label,
+                    )
                 )
-            )
-        else:
-            embedded_pauli_string = PauliString()
+            else:
+                embedded_pauli_string = PauliString()
 
-            for monomial in observable.pauli_string.monomials:
-                embedded_atoms = [pI] * nb_qubits
+                for monomial in observable.pauli_string.monomials:
+                    embedded_atoms = [pI] * nb_qubits
 
-                for local_idx, target in enumerate(targets):
-                    embedded_atoms[target] = monomial.atoms[local_idx]
+                    for local_idx, target in enumerate(targets):
+                        embedded_atoms[target] = monomial.atoms[local_idx]
 
-                embedded_pauli_string += PauliStringMonomial(
-                    monomial.coef,
-                    embedded_atoms,
+                    embedded_pauli_string += PauliStringMonomial(
+                        monomial.coef,
+                        embedded_atoms,
+                    )
+
+                adjusted_observables.append(
+                    Observable(
+                        embedded_pauli_string.simplify(),
+                        label=observable.label,
+                    )
                 )
-
-            adjusted_observables.append(
-                Observable(
-                    embedded_pauli_string.simplify(),
-                    label=observable.label,
-                )
-            )
+        adjusted_targets = list(range(nb_qubits))
 
     adjusted_measure = ExpectationMeasure(
         adjusted_observables,
-        list(range(nb_qubits)),
+        adjusted_targets,
         measure.shots,
         measure.commuting_type,
         measure.grouping_method,
@@ -267,7 +274,11 @@ def generate_job(
             else:
                 job = Job(JobType.SAMPLE, circuit, device)
         elif isinstance(measurement, ExpectationMeasure):
-            m = adjust_measure(measurement, circuit)
+            m = adjust_measure(
+                measurement,
+                circuit,
+                expand_to_full_register=not isinstance(device, AWSDevice),
+            )
             circuit = circuit.without_measurements(deep_copy=False)
             circuit.add(m)
             job = Job(
@@ -523,7 +534,10 @@ def _run_circuit_binding(
         ):
             raise NotImplementedError(f"Noisy simulations not supported on {device}.")
 
+    # Only references are retained; structural comparisons remain lazy.
+    plan = circuit_binding._unroll_with_inputs()  # pyright: ignore[reportPrivateUsage]
     job = generate_job(circuit_binding, device)
+    job._binding_executions = plan.executions  # pyright: ignore[reportPrivateUsage]
 
     if isinstance(device, (IBMDevice, StaticIBMSimulatedDevice)):
         if not (provider_params is None or isinstance(provider_params, QiskitParams)):
@@ -557,7 +571,14 @@ def _run_circuit_binding(
     #        result[i], exp_measure, job
     #    )
 
-    return result if isinstance(result, BatchResult) else BatchResult([result])
+    batch = result if isinstance(result, BatchResult) else BatchResult([result])
+    if len(batch) != len(plan.executions):
+        raise ValueError(
+            "Binding results must contain one result per resolved execution."
+        )
+    for item, input_circuit in zip(batch, plan.input_circuits):
+        item.input_circuit = input_circuit
+    return batch
 
 
 @overload
@@ -582,7 +603,17 @@ def run(
 
 @overload
 def run(
-    circuit: OneOrMany[QCircuit],
+    circuit: Sequence[QCircuit],
+    device: OneOrMany[AvailableDevice],
+    values: "Optional[dict[Expr | str, Complex]]" = None,
+    display_breakpoints: bool = True,
+    provider_params: Optional[ProviderParams] = None,
+) -> BatchResult: ...
+
+
+@overload
+def run(
+    circuit: QCircuit,
     device: AvailableDevice,
     values: Optional[BindingParameters] = None,
     display_breakpoints: bool = True,
@@ -672,58 +703,36 @@ def run(
 
     """
 
-    def namer(circ: QCircuit, i: int):
-        circ.label = f"circuit {i}" if circ.label is None else circ.label
-        return circ
-
-    if isinstance(device, Iterable):
-        results: list[Result] = []
-        devices = flatten(device)
-        if isinstance(circuit, (QCircuit, Iterable)):
-            for i, circ in enumerate(flatten(circuit)):
-                for dev in devices:
-                    results.append(
-                        _run_single(
-                            namer(circ, i + 1),
-                            dev,
-                            values,
-                            display_breakpoints,
-                            provider_params,
-                        )
-                    )
-        else:
-            for dev in devices:
-                if values is not None:
-                    raise ValueError("values must be specified in CircuitBinding")
+    if not isinstance(circuit, (QCircuit, Iterable)):
+        if values is not None:
+            raise ValueError("values must be specified in CircuitBinding")
+        if isinstance(device, Iterable):
+            binding_results: list[Result] = []
+            for dev in flatten(device):
                 result = _run_circuit_binding(
                     circuit, dev, display_breakpoints, provider_params
                 )
-                results.extend(result.results)
-        return BatchResult(results)
-    else:
-        if isinstance(circuit, QCircuit):
-            return _run_single(
-                circuit, device, values, display_breakpoints, provider_params
-            )
-        elif isinstance(circuit, Iterable):
-            results: list[Result] = []
-            for i, circ in enumerate(flatten(circuit)):
-                results.append(
-                    _run_single(
-                        namer(circ, i + 1),
-                        device,
-                        values,
-                        display_breakpoints,
-                        provider_params,
-                    )
+                binding_results.extend(result.results)
+            return BatchResult(binding_results)
+        return _run_circuit_binding(
+            circuit, device, display_breakpoints, provider_params
+        )
+
+    if isinstance(circuit, Iterable) or isinstance(device, Iterable):
+        devices = flatten(device)
+        results: list[Result] = []
+        for i, circ in enumerate(flatten(circuit)):
+            for dev in devices:
+                result = _run_single(
+                    circ, dev, values, display_breakpoints, provider_params
                 )
-            return BatchResult(results)
-        else:
-            if values is not None:
-                raise ValueError("values must be specified in CircuitBinding")
-            return _run_circuit_binding(
-                circuit, device, display_breakpoints, provider_params
-            )
+                # Display names belong to results, not to the circuit metadata
+                # used for structural matching.
+                if circ.label is None and result.label is None:
+                    result.label = f"circuit {i + 1}"
+                results.append(result)
+        return BatchResult(results)
+    return _run_single(circuit, device, values, display_breakpoints, provider_params)
 
 
 def submit(
@@ -731,7 +740,7 @@ def submit(
     device: AvailableDevice,
     values: Optional[BindingParameters] = None,
     provider_params: Optional[ProviderParams] = None,
-) -> tuple[str, Job]:
+) -> tuple[str | list[str], Job]:
     """Submit the job related to the circuit on the remote backend provided in
     parameter. The submission returns a ``job_id`` that can be used to retrieve
     the :class:`~mpqp.execution.result.Result` later using the
@@ -751,7 +760,8 @@ def submit(
         provider_params: Provider's specific parameters for remote submissions
 
     Returns:
-        The job id provided by the remote device after submission of the job.
+        The job id or ids provided by the remote device after
+        submission and the associated MPQP job.
 
     Example:
         >>> circuit = QCircuit([H(0), CNOT(0,1), BasisMeasure([0,1], shots=10)])

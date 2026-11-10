@@ -70,26 +70,26 @@ def fetch_all_results() -> list[DictDB]:
         >>> results = fetch_all_results()
         >>> for result in results:
         ...    print("result:", result) # doctest: +ELLIPSIS
-        result: {'id': 1, 'job_id': 1, 'data': '"[Sample(...), Sample(...)]"', 'error': None, 'shots': 1024, 'created_at': '...'}
-        result: {'id': 2, 'job_id': 2, 'data': '"[Sample(...), Sample(...)]"', 'error': None, 'shots': 1024, 'created_at': '...'}
-        result: {'id': 3, 'job_id': 3, 'data': '"[Sample(...), Sample(...)]"', 'error': None, 'shots': 1024, 'created_at': '...'}
-        result: {'id': 4, 'job_id': 4, 'data': '"[Sample(...), Sample(...)]"', 'error': '...', 'shots': 1024, 'created_at': '...'}
-        result: {'id': 5, 'job_id': 1, 'data': '"[Sample(...), Sample(...)]"', 'error': None, 'shots': 1024, 'created_at': '...'}
-        result: {'id': 6, 'job_id': 2, 'data': '"[Sample(...), Sample(...)]"', 'error': None, 'shots': 1024, 'created_at': '...'}
-        result: {'id': 7, 'job_id': 3, 'data': '"[Sample(...), Sample(...)]"', 'error': None, 'shots': 1024, 'created_at': '...'}
-        result: {'id': 8, 'job_id': 4, 'data': '"[Sample(...), Sample(...)]"', 'error': '...', 'shots': 1024, 'created_at': '...'}
-        result: {'id': 9, 'job_id': 5, 'data': '"[Sample(...), Sample(...)]"', 'error': None, 'shots': 1024, 'created_at': '...'}
-        result: {'id': 10, 'job_id': 6, 'data': '"[Sample(...), Sample(...)]"', 'error': None, 'shots': 1024, 'created_at': '...'}
-        result: {'id': 11, 'job_id': 7, 'data': '"[Sample(...), Sample(...)]"', 'error': None, 'shots': 1024, 'created_at': '...'}
-        result: {'id': 12, 'job_id': 8, 'data': '"[Sample(...), Sample(...)]"', 'error': '...', 'shots': 1024, 'created_at': '...'}
-        result: {'id': 13, 'job_id': 9, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '...', 'shots': 0, 'created_at': '...'}
-        result: {'id': 14, 'job_id': 10, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...'}
-        result: {'id': 15, 'job_id': 11, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...'}
-        result: {'id': 16, 'job_id': 12, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...'}
-        result: {'id': 17, 'job_id': 13, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...'}
-        result: {'id': 18, 'job_id': 14, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...'}
-        result: {'id': 19, 'job_id': 15, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...'}
-        result: {'id': 20, 'job_id': 16, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...'}
+        result: {'id': 1, 'job_id': 1, 'data': '"[Sample(...), Sample(...)]"', 'error': None, 'shots': 1024, 'created_at': '...', 'label': ..., 'input_circuit': ...}
+        result: {'id': 2, 'job_id': 2, 'data': '"[Sample(...), Sample(...)]"', 'error': None, 'shots': 1024, 'created_at': '...', 'label': ..., 'input_circuit': ...}
+        result: {'id': 3, 'job_id': 3, 'data': '"[Sample(...), Sample(...)]"', 'error': None, 'shots': 1024, 'created_at': '...', 'label': ..., 'input_circuit': ...}
+        result: {'id': 4, 'job_id': 4, 'data': '"[Sample(...), Sample(...)]"', 'error': '...', 'shots': 1024, 'created_at': '...', 'label': ..., 'input_circuit': ...}
+        result: {'id': 5, 'job_id': 1, 'data': '"[Sample(...), Sample(...)]"', 'error': None, 'shots': 1024, 'created_at': '...', 'label': ..., 'input_circuit': ...}
+        result: {'id': 6, 'job_id': 2, 'data': '"[Sample(...), Sample(...)]"', 'error': None, 'shots': 1024, 'created_at': '...', 'label': ..., 'input_circuit': ...}
+        result: {'id': 7, 'job_id': 3, 'data': '"[Sample(...), Sample(...)]"', 'error': None, 'shots': 1024, 'created_at': '...', 'label': ..., 'input_circuit': ...}
+        result: {'id': 8, 'job_id': 4, 'data': '"[Sample(...), Sample(...)]"', 'error': '...', 'shots': 1024, 'created_at': '...', 'label': ..., 'input_circuit': ...}
+        result: {'id': 9, 'job_id': 5, 'data': '"[Sample(...), Sample(...)]"', 'error': None, 'shots': 1024, 'created_at': '...', 'label': ..., 'input_circuit': ...}
+        result: {'id': 10, 'job_id': 6, 'data': '"[Sample(...), Sample(...)]"', 'error': None, 'shots': 1024, 'created_at': '...', 'label': ..., 'input_circuit': ...}
+        result: {'id': 11, 'job_id': 7, 'data': '"[Sample(...), Sample(...)]"', 'error': None, 'shots': 1024, 'created_at': '...', 'label': ..., 'input_circuit': ...}
+        result: {'id': 12, 'job_id': 8, 'data': '"[Sample(...), Sample(...)]"', 'error': '...', 'shots': 1024, 'created_at': '...', 'label': ..., 'input_circuit': ...}
+        result: {'id': 13, 'job_id': 9, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '...', 'shots': 0, 'created_at': '...', 'label': ..., 'input_circuit': ...}
+        result: {'id': 14, 'job_id': 10, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...', 'label': ..., 'input_circuit': ...}
+        result: {'id': 15, 'job_id': 11, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...', 'label': ..., 'input_circuit': ...}
+        result: {'id': 16, 'job_id': 12, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...', 'label': ..., 'input_circuit': ...}
+        result: {'id': 17, 'job_id': 13, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...', 'label': ..., 'input_circuit': ...}
+        result: {'id': 18, 'job_id': 14, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...', 'label': ..., 'input_circuit': ...}
+        result: {'id': 19, 'job_id': 15, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...', 'label': ..., 'input_circuit': ...}
+        result: {'id': 20, 'job_id': 16, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...', 'label': ..., 'input_circuit': ...}
 
     """
     from sqlite3 import Row, connect
@@ -123,9 +123,9 @@ def fetch_results_with_id(result_id: int | list[int]) -> list[DictDB]:
         >>> results = fetch_results_with_id([1, 2, 3])
         >>> for result in results:
         ...    print("result:", result) # doctest: +ELLIPSIS
-        result: {'id': 1, 'job_id': 1, 'data': '"[Sample(...), Sample(...)]"', 'error': None, 'shots': 1024, 'created_at': '...'}
-        result: {'id': 2, 'job_id': 2, 'data': '"[Sample(...), Sample(...)]"', 'error': None, 'shots': 1024, 'created_at': '...'}
-        result: {'id': 3, 'job_id': 3, 'data': '"[Sample(...), Sample(...)]"', 'error': None, 'shots': 1024, 'created_at': '...'}
+        result: {'id': 1, 'job_id': 1, 'data': '"[Sample(...), Sample(...)]"', 'error': None, 'shots': 1024, 'created_at': '...', 'label': ..., 'input_circuit': ...}
+        result: {'id': 2, 'job_id': 2, 'data': '"[Sample(...), Sample(...)]"', 'error': None, 'shots': 1024, 'created_at': '...', 'label': ..., 'input_circuit': ...}
+        result: {'id': 3, 'job_id': 3, 'data': '"[Sample(...), Sample(...)]"', 'error': None, 'shots': 1024, 'created_at': '...', 'label': ..., 'input_circuit': ...}
 
     """
     from sqlite3 import Row, connect
@@ -493,7 +493,7 @@ def fetch_results_with_result_and_job(
         >>> results = fetch_results_with_result_and_job(result)
         >>> for result in results:
         ...    print("result:", result) # doctest: +ELLIPSIS
-        result: {'id': 14, 'job_id': 10, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...'}
+        result: {'id': 14, 'job_id': 10, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...', 'label': ..., 'input_circuit': ...}
 
     """
     from sqlite3 import Row, connect
@@ -572,7 +572,7 @@ def fetch_results_with_job(jobs: Job | list[Job]) -> list[DictDB]:
         >>> results = fetch_results_with_job(job)
         >>> for result in results:
         ...    print("result:", result) # doctest: +ELLIPSIS
-        result: {'id': 14, 'job_id': 10, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...'}
+        result: {'id': 14, 'job_id': 10, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...', 'label': ..., 'input_circuit': ...}
 
     """
     from sqlite3 import Row, connect
@@ -641,14 +641,14 @@ def fetch_results_with_result(
         >>> results = fetch_results_with_result(result)
         >>> for result in results:
         ...    print("result:", result) # doctest: +ELLIPSIS
-        result: {'id': 13, 'job_id': 9, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...'}
-        result: {'id': 14, 'job_id': 10, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...'}
-        result: {'id': 15, 'job_id': 11, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...'}
-        result: {'id': 16, 'job_id': 12, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...'}
-        result: {'id': 17, 'job_id': 13, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...'}
-        result: {'id': 18, 'job_id': 14, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...'}
-        result: {'id': 19, 'job_id': 15, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...'}
-        result: {'id': 20, 'job_id': 16, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...'}
+        result: {'id': 13, 'job_id': 9, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...', 'label': ..., 'input_circuit': ...}
+        result: {'id': 14, 'job_id': 10, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...', 'label': ..., 'input_circuit': ...}
+        result: {'id': 15, 'job_id': 11, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...', 'label': ..., 'input_circuit': ...}
+        result: {'id': 16, 'job_id': 12, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...', 'label': ..., 'input_circuit': ...}
+        result: {'id': 17, 'job_id': 13, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...', 'label': ..., 'input_circuit': ...}
+        result: {'id': 18, 'job_id': 14, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...', 'label': ..., 'input_circuit': ...}
+        result: {'id': 19, 'job_id': 15, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...', 'label': ..., 'input_circuit': ...}
+        result: {'id': 20, 'job_id': 16, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...', 'label': ..., 'input_circuit': ...}
 
     """
     from sqlite3 import Row, connect
