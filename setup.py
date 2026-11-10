@@ -75,5 +75,5 @@ setup(
         "Intended Audience :: Developers",
         "Intended Audience :: Science/Research",
     ],
-    package_data={"mpqp.qasm.header_codes": ["*.qasm", "*.inc"]},
+    package_data={"mpqp.translation.qasm.header_codes": ["*.qasm", "*.inc"]},
 )

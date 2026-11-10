@@ -838,3 +838,22 @@ def test_pauli_monomial_from_atom(
 )
 def test_rearrange(ps: PauliString, targets: list[int], expected: PauliString):
     assert ps.rearrange(targets) == expected
+
+
+@pytest.mark.skip(reason="to be solved in another branch")
+@pytest.mark.parametrize("scalar", [np.int64(2), np.float32(2.0), 2, 2.0])
+def test_inplace_ops_accept_numpy_scalars(scalar: Any):
+    monomial = 4 * pX @ pZ
+    monomial /= scalar
+    assert monomial.coef == 2.0
+
+    atom = pX
+    atom *= scalar
+    assert atom.coef == 2.0
+
+
+def test_inplace_division_accepts_symbolic_coefficients():
+    a = symbols("a")
+    monomial = 4 * pX @ pZ
+    monomial /= a
+    assert monomial.coef == 4 / a

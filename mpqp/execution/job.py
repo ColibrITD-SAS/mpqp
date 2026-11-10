@@ -13,7 +13,7 @@ would in principle never need to instantiate one yourself.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Callable, Optional
 
 from aenum import Enum, NoAlias, auto
 
@@ -23,10 +23,13 @@ from mpqp.tools.generics import MessageEnum
 # is a class (probably because Enum does weird things to the Enum class)
 if TYPE_CHECKING:
     from enum import Enum
+    from sympy import Expr
+    from numbers import Complex
+    from ..core.circuit import QCircuit
+    from ..core.binding import CircuitBinding
 
 from mpqp.core.instruction.measurement import BasisMeasure, ExpectationMeasure, Measure
 
-from ..core.circuit import QCircuit
 from ..tools.errors import IBMRemoteExecutionError, QLMRemoteExecutionError
 from .connection.azure_connection import get_jobs_by_id
 from .connection.ibm_connection import get_QiskitRuntimeService
@@ -115,8 +118,10 @@ class Job:
     def __init__(
         self,
         job_type: JobType,
-        circuit: QCircuit,
+        circuit: QCircuit | CircuitBinding,
         device: AvailableDevice,
+        measurement: Optional[Measure] = None,
+        values: Optional[dict[Expr | str, Complex | float]] = None,
     ):
         self._status = JobStatus.INIT
 
@@ -126,22 +131,31 @@ class Job:
         """See parameter description."""
         self.device = device
         """See parameter description."""
-        self.id: Optional[str] = None
-        """Contains the id of the remote job, used to retrieve the result from 
-        the remote provider.  ``None`` if the job is local. It can take a little
-        while before it is set to the right value (For instance, a job
-        submission can require handshake protocols to conclude before
+        self.id: Optional[str | list[str]] = None
+        """Contains the job id or ids assigned by the execution provider. It can
+        take a little while before it is set to the right value (for instance,
+        a job submission can require handshake protocols to conclude before
         attributing an id to the job)."""
         self.status_message: Optional[str] = None
         """Optional message associated with the current job status, especially
         for execution errors."""
 
+        self._measurement = measurement
+        """Store the measurement of a circuit, used mostly for ``CircuitBinding`` execution."""
+
+        self.values = values
+        """Store parameters in case the original circuit was parametrized."""
+
     @property
     def measure(self) -> Optional[Measure]:
         """Returns the first measurement from the circuit's measurements."""
+        from ..core.binding import CircuitBinding
+
+        if isinstance(self.circuit, CircuitBinding):
+            return self._measurement
 
         return (
-            None
+            self._measurement
             if len(self.circuit.measurements) == 0
             else self.circuit.measurements[0]
         )
@@ -157,22 +171,45 @@ class Job:
             # in the remote case, we need to check the current status of the job.
             # in the local case, it is updated automatically after each step
             if self.device.is_remote():
-                if TYPE_CHECKING:
-                    assert isinstance(self.id, str)
-                if isinstance(self.device, ATOSDevice):
-                    self._status = get_qlm_job_status(self.id)
-                elif isinstance(self.device, IBMDevice):
-                    self._status = get_ibm_job_status(self.id)
-                elif isinstance(self.device, AWSDevice):
-                    self._status = get_aws_job_status(self.id)
-                elif isinstance(self.device, AZUREDevice):
-                    self._status = get_azure_job_status(self.id)
-                elif isinstance(self.device, QUANTINUUMDevice):
-                    self._status = get_quantinuum_job_status(self.id)
+                if self.id is None:
+                    return self._status
+
+                job_ids = self.id if isinstance(self.id, list) else [self.id]
+                if len(job_ids) == 0:
+                    return self._status
+
+                statuses: list[JobStatus] = []
+                for job_id in job_ids:
+                    if TYPE_CHECKING:
+                        assert isinstance(job_id, str)
+                    status_getter: dict[
+                        type[AvailableDevice], Callable[[str], JobStatus]
+                    ] = {
+                        ATOSDevice: get_qlm_job_status,
+                        IBMDevice: get_ibm_job_status,
+                        AWSDevice: get_aws_job_status,
+                        AZUREDevice: get_azure_job_status,
+                        QUANTINUUMDevice: get_quantinuum_job_status,
+                    }
+                    if type(self.device) in status_getter:
+                        statuses.append(status_getter[type(self.device)](job_id))
+                    else:
+                        raise NotImplementedError(
+                            f"Cannot update job status for the device {self.device} yet"
+                        )
+
+                if all(status == JobStatus.DONE for status in statuses):
+                    self._status = JobStatus.DONE
+                elif JobStatus.ERROR in statuses:
+                    self._status = JobStatus.ERROR
+                elif JobStatus.CANCELLED in statuses:
+                    self._status = JobStatus.CANCELLED
+                elif JobStatus.RUNNING in statuses:
+                    self._status = JobStatus.RUNNING
+                elif JobStatus.QUEUED in statuses:
+                    self._status = JobStatus.QUEUED
                 else:
-                    raise NotImplementedError(
-                        f"Cannot update job status for the device {self.device} yet"
-                    )
+                    self._status = JobStatus.INIT
         return self._status
 
     @status.setter

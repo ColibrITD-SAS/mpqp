@@ -254,6 +254,7 @@ register_optionflag("FUNC_NEED_QISKIT")
 register_optionflag("FUNC_NEED_BRAKET")
 register_optionflag("FUNC_NEED_CIRQ")
 register_optionflag("FUNC_NEED_QUANTINUUM")
+register_optionflag("REMOTE_RUN")
 
 PROVIDER_FLAGS = {
     "myqlm": PROVIDER_MYQLM,
@@ -310,7 +311,7 @@ def run_doctest(
             test.docstring
             and "3M-TODO" not in test.docstring
             and "6M-TODO" not in test.docstring
-            # TODO: Check for +FUNC_NEED_ flags
+            and "# doctest: +REMOTE_RUN" not in test.docstring
             and all(
                 f"# doctest: +FUNC_NEED_{keyword.upper()}" not in test.docstring
                 for keyword in skip_provider_flags.keys()
