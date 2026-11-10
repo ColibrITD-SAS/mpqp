@@ -32,7 +32,7 @@ from __future__ import annotations
 from copy import copy
 from enum import Enum, auto
 from numbers import Complex
-from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union, overload
+from typing import TYPE_CHECKING, Any, NamedTuple, Optional, TypeVar, Union, overload
 
 from sympy import Expr
 
@@ -57,6 +57,13 @@ BindingExecution = tuple[QCircuit, Optional[BindingParameters], Optional[Measure
 BindingOptions = tuple[Optional[BindingParameters], Optional[Measure]]
 """Optional parameters and measurement combined while resolving a binding."""
 _AxisElement = TypeVar("_AxisElement")
+
+
+class _BindingPlan(NamedTuple):
+    """Resolved executions and their corresponding original circuit references."""
+
+    executions: list[BindingExecution]
+    input_circuits: list[QCircuit]
 
 
 class BindingMode(Enum):
@@ -220,6 +227,7 @@ class CircuitBinding:
         else:
             circuits = list(circuits)
 
+        self._input_circuit: Optional[QCircuit] = None
         normalized_circuits: list[QCircuit | CircuitBinding] = []
 
         for circuit in circuits:
@@ -235,13 +243,15 @@ class CircuitBinding:
                     deep_copy=False
                 )
 
-                normalized_circuits.append(
-                    CircuitBinding(
-                        circuits=circuit_without_measurements,
-                        measurements=circuit_measurements,
-                        shots=shots,
-                    )
+                circuit_without_measurements.transpiled_circuit = None
+
+                normalized = CircuitBinding(
+                    circuits=circuit_without_measurements,
+                    measurements=circuit_measurements,
+                    shots=shots,
                 )
+                normalized._input_circuit = circuit
+                normalized_circuits.append(normalized)
             else:
                 normalized_circuits.append(circuit)
         circuits = normalized_circuits
@@ -428,7 +438,10 @@ class CircuitBinding:
             make nested execution counts differ from a simple product of all
             input lengths.
         """
-        import itertools
+        return self._unroll_with_inputs().executions
+
+    def _unroll_with_inputs(self) -> _BindingPlan:
+        """Resolve executions while retaining their original circuit references."""
         from copy import deepcopy
         from typing import cast
 
@@ -436,12 +449,15 @@ class CircuitBinding:
         from mpqp.execution.runner import adjust_measure
         from mpqp.tools.binding_utils import (
             broadcast_axis,
-            expand_branch,
             combine_zipped_options,
-            product_values,
             product_measurements,
-            execution_key,
+            product_value_options,
         )
+
+        def expand_branch(branch: QCircuit | CircuitBinding) -> _BindingPlan:
+            if isinstance(branch, CircuitBinding):
+                return branch._unroll_with_inputs()
+            return _BindingPlan([(branch, None, None)], [branch])
 
         raw_parent_values = (
             self.value
@@ -463,6 +479,7 @@ class CircuitBinding:
         )  # pyright: ignore[reportAssignmentType]
 
         executions: list[BindingExecution] = []
+        input_circuits: list[QCircuit] = []
 
         if self.mode == BindingMode.ZIP:
             zip_length = max(
@@ -474,13 +491,21 @@ class CircuitBinding:
             branches = broadcast_axis(self.circuits, zip_length)
             values = broadcast_axis(parent_values, zip_length)
             measurements = broadcast_axis(parent_measurements, zip_length)
+            singleton_plan = (
+                expand_branch(self.circuits[0]) if len(self.circuits) == 1 else None
+            )
 
             for branch, parent_parameters, parent_measurement in zip(
                 branches, values, measurements
             ):
                 assert branch is not None
-                for circuit, child_parameters, child_measurement in expand_branch(
-                    branch
+                child_plan = (
+                    singleton_plan
+                    if singleton_plan is not None
+                    else expand_branch(branch)
+                )
+                for (circuit, child_parameters, child_measurement), child_input in zip(
+                    child_plan.executions, child_plan.input_circuits
                 ):
                     for parameters, measurement in combine_zipped_options(
                         child_parameters,
@@ -489,24 +514,42 @@ class CircuitBinding:
                         parent_measurement,
                     ):
                         executions.append((circuit, parameters, measurement))
+                        input_circuits.append(
+                            self._input_circuit
+                            if self._input_circuit is not None
+                            else child_input
+                        )
 
         else:
             for branch in self.circuits:
                 unique_branch_executions: dict[
-                    tuple[int, Optional[tuple[tuple[str, str]]], int],
+                    tuple[int, Optional[tuple[tuple[str, str], ...]], int],
                     BindingExecution,
                 ] = {}
-                for circuit, child_parameters, child_measurement in expand_branch(
-                    branch
+                child_plan = expand_branch(branch)
+                for (circuit, child_parameters, child_measurement), child_input in zip(
+                    child_plan.executions, child_plan.input_circuits
                 ):
-                    for parameters, measurement in itertools.product(
-                        product_values(child_parameters, parent_values),
-                        product_measurements(child_measurement, parent_measurements),
-                    ):
-                        execution = (circuit, parameters, measurement)
-                        unique_branch_executions.setdefault(
-                            execution_key(execution), execution
-                        )
+                    parameter_options = product_value_options(
+                        child_parameters, parent_values
+                    )
+                    measurement_options = product_measurements(
+                        child_measurement, parent_measurements
+                    )
+                    for parameter_key, parameters in parameter_options.items():
+                        for measurement in measurement_options:
+                            execution = (circuit, parameters, measurement)
+                            key = (id(circuit), parameter_key, id(measurement))
+                            # Retain an input only for an execution surviving deduplication.
+                            if (
+                                unique_branch_executions.setdefault(key, execution)
+                                is execution
+                            ):
+                                input_circuits.append(
+                                    self._input_circuit
+                                    if self._input_circuit is not None
+                                    else child_input
+                                )
                 executions.extend(unique_branch_executions.values())
 
         # Resolve ZIP/PRODUCT and nested bindings before choosing a register size.
@@ -529,7 +572,7 @@ class CircuitBinding:
                         adjusted[key] = adjust_measure(deepcopy(measurement), circuit)
                     measurement = adjusted[key]
             resolved.append((circuit, parameters, measurement))
-        return resolved
+        return _BindingPlan(resolved, input_circuits)
 
     def __repr__(self):
         """Return an unambiguous representation of the binding."""

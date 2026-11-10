@@ -17,9 +17,9 @@ if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
         from qiskit import QuantumCircuit
         from qiskit.primitives.containers import EstimatorPubLike, SamplerPubLike
 
-        from mpqp.core.binding import CircuitBinding
+        from mpqp.core.binding import BindingExecution, CircuitBinding
         from mpqp.core.circuit import QCircuit
-        from mpqp.execution.devices import IBMDevice
+        from mpqp.execution.devices import AvailableDevice, IBMDevice
 
     def qiskit_to_mpqp(qcircuit: "QuantumCircuit"):
         """Translate a qiskit QuantumCircuit into a MPQP QCircuit.
@@ -226,16 +226,25 @@ if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
         return new_circ
 
     def circuitbinding_to_pubs(
-        binding: "CircuitBinding", device: "IBMDevice", *, transpile: bool = True
+        binding: "CircuitBinding",
+        device: "AvailableDevice",
+        *,
+        transpile: bool = True,
+        resolved: "list[BindingExecution] | None" = None,
     ) -> "list[tuple[EstimatorPubLike, list[ExecutionContext]]]":
-        """Prepare estimator PUBs and their execution contexts.
+        """Group binding executions into estimator inputs and result contexts.
 
         Args:
-            binding: Binding containing expectation measurements.
-            device: Device associated with the execution contexts.
+            binding: Circuits, measurements and values to translate.
+            device: Device targeted by the translation.
             transpile: Whether to prepare circuits for the device. If False,
                 translate logical circuits and observables for services that
                 perform their own compilation.
+            resolved: Executions already resolved for this run. When omitted,
+                the binding is resolved during translation.
+
+        Returns:
+            Estimator inputs paired with their ordered execution contexts.
         """
         from copy import deepcopy
 
@@ -248,7 +257,7 @@ if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
                 "to_other_device is only supported for circuits with expectation measurements."
             )
 
-        unrolled = binding.unroll()
+        unrolled = binding.unroll() if resolved is None else resolved
 
         from mpqp.tools.binding_utils import translate_binding_circuits
 

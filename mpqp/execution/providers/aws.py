@@ -286,7 +286,8 @@ def run_pseudo_circuit_binding(
     job_ids: list[str] = []
 
     job.status = JobStatus.RUNNING
-    for c, v, m in cb.unroll():
+    resolved = job._get_binding_executions()  # pyright: ignore[reportPrivateUsage]
+    for c, v, m in resolved:
         transpiled_circuit = translated_circuit[id(c)]
         transpiled_measurement = (
             translated_measurement[id(m)] if m is not None else None
@@ -367,7 +368,12 @@ def run_circuit_binding(
         )
     device = get_braket_device(job.device, is_noisy=circuitBinding.is_noisy)
     reservation_arn = provider_params.reservation_arn if provider_params else None
-    braket_circuit, jobs = circuitBinding.to_other_device(job.device)
+    from mpqp.translation.braket import circuitbinding_to_programset
+
+    resolved = job._get_binding_executions()  # pyright: ignore[reportPrivateUsage]
+    braket_circuit, jobs = circuitbinding_to_programset(
+        circuitBinding, job.device, resolved=resolved
+    )
 
     if TYPE_CHECKING:
         from braket.circuits import Circuit as braket_Circuit

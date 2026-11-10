@@ -7,6 +7,7 @@ out/
 /.benchmarks/
 mpqp/_setuptools_scm_version.py
 .eggs/
+.benchmarks/
 
 # python
 *.egg-info/
