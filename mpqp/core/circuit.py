@@ -342,7 +342,10 @@ class QCircuit:
                 if components._dynamic  # pyright: ignore[reportPrivateUsage]
                 else max(components.connections(), default=-1) + 1
             )
-            if isinstance(components, NoiseModel):
+            if isinstance(components, NoiseModel) and (
+                components._dynamic  # pyright: ignore[reportPrivateUsage]
+                or len(components.targets) > 0
+            ):
                 required_qubits = max(required_qubits, components.min_nb_qubits)
             self._set_nb_qubits_dynamic(max(self.nb_qubits, required_qubits))
 
@@ -1286,7 +1289,8 @@ class QCircuit:
 
         """
         new_circuit = self._clone_without(
-            ["instructions", "measurements", "_nb_cbits"], deep_copy=deep_copy
+            ["instructions", "measurements", "_nb_cbits", "transpiled_circuit"],
+            deep_copy=deep_copy,
         )
         instructions = self._non_measurement_instructions()
         new_circuit._instructions = (

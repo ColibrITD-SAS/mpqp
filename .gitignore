@@ -4,6 +4,7 @@ docs/notebooks/
 docs/requirements_providers/
 docs/html/
 out/
+/.benchmarks/
 mpqp/_setuptools_scm_version.py
 .eggs/
 .benchmarks/
@@ -15,6 +16,9 @@ __pycache__/
 *.pyc
 .mypy_cache/
 .pytest_cache/
+.benchmarks/
+benchmark-results.json
+benchmark-histogram*.svg
 .ipynb_checkpoints/
 venv/
 

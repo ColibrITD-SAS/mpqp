@@ -19,8 +19,44 @@ from mpqp import (
 )
 from mpqp.core.instruction.measurement import PauliString
 from mpqp.execution import adjust_measure
+from mpqp.execution.job import Job, JobStatus, JobType
+from mpqp.execution.providers.providers_params import QiskitParams
+from mpqp.execution.result import Result, Sample
 from mpqp.tools.errors import NumberQubitsError
 from mpqp.tools.maths import matrix_eq
+
+
+def test_diagonal_optimization_preserves_provider_parameters(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    params = QiskitParams(
+        instance="selected-instance",
+        options={"environment": {"private": True, "job_tags": ["experiment"]}},
+    )
+    monkeypatch.setattr(params, "qctrl_function", object())
+
+    def execute(job: Job, qiskit_params: QiskitParams | None = None) -> Result:
+        assert qiskit_params is params
+        assert job.job_type == JobType.SAMPLE
+        assert isinstance(job.measure, BasisMeasure)
+        assert job.measure.shots == 100
+        job.id = "sampling-job-id"
+        job.status = JobStatus.DONE
+        return Result(job, [Sample(1, index=1, count=100)], shots=100)
+
+    monkeypatch.setattr("mpqp.execution.runner.run_ibm", execute)
+    circuit = QCircuit(
+        [
+            X(0),
+            ExpectationMeasure(Observable(pZ), shots=100, optim_diagonal=True),
+        ]
+    )
+
+    result = run(circuit, IBMDevice.IBM_FEZ, provider_params=params)
+
+    assert isinstance(result, Result)
+    assert result.expectation_values == pytest.approx(-1.0)
+    assert result.job.id == "sampling-job-id"
 
 
 @pytest.mark.parametrize(
@@ -118,6 +154,52 @@ def test_adjust_measure_matrix_reordering():
             (pZ @ pX @ pY).to_matrix(),
         )
         assert matrix_eq(measure.observables[0].matrix, original_matrix)
+
+
+@pytest.mark.parametrize(
+    ("pauli_string", "expected_pauli_string"),
+    [
+        (pX @ pZ, pZ @ pX),
+        (
+            2 * (pY @ pI) - 0.5 * (pZ @ pX),
+            2 * (pI @ pY) - 0.5 * (pX @ pZ),
+        ),
+        (pI @ pX, pX @ pI),
+    ],
+    ids=["tensor-product", "weighted-sum", "identity"],
+)
+def test_adjust_measure_without_register_expansion_preserves_representations(
+    pauli_string: PauliString,
+    expected_pauli_string: PauliString,
+):
+    matrix_observable = Observable((pX @ pZ).to_matrix())
+    measure = ExpectationMeasure(
+        [matrix_observable, Observable(pauli_string)],
+        targets=[2, 0],
+        optimize_measurement=True,
+    )
+
+    adjusted_measure = adjust_measure(
+        measure,
+        QCircuit(3),
+        expand_to_full_register=False,
+    )
+
+    assert adjusted_measure.targets == [0, 2]
+    assert adjusted_measure.observables[0].nb_qubits == 2
+    assert (
+        adjusted_measure.observables[
+            0
+        ]._pauli_string  # pyright: ignore[reportPrivateUsage]
+        is None
+    )
+    assert matrix_eq(
+        adjusted_measure.observables[0].matrix,
+        (pZ @ pX).to_matrix(),
+    )
+    pauli_observable = adjusted_measure.observables[1]
+    assert pauli_observable.pauli_string == expected_pauli_string
+    assert pauli_observable._matrix is None  # pyright: ignore[reportPrivateUsage]
 
 
 def test_adjust_measure_targets_mismatch():
