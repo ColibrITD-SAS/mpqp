@@ -322,7 +322,9 @@ def replace_custom_gate(
         When using Qiskit, a global phase is introduced (related to usage of
         ``u`` in OpenQASM2). This may be problematic in some cases, so this
         function also returns the global phase introduced so it can be corrected
-        later on.
+        later on. A numerical Weyl-decomposition failure is retried once using
+        the closest unitary matrix, whether Qiskit reports it as a QiskitError
+        or as a Rust panic. Other failures propagate unchanged.
 
     Args:
         custom_unitary: instruction containing the custom unitary operator.
@@ -349,20 +351,26 @@ def replace_custom_gate(
         transpiled = transpile(
             transpilation_circuit, basis_gates=['u3', 'cx'], optimization_level=0
         )
-    except QiskitError as e:
-        # if the error is arising from TwoQubitWeylDecomposition, we replace the
-        # matrix by the closest unitary
-        if "TwoQubitWeylDecomposition" in str(e):
-            custom_closest_unitary = UnitaryGate(closest_unitary(matrix))
-            transpilation_circuit = QuantumCircuit(nb_qubits)
-            transpilation_circuit.unitary(
-                custom_closest_unitary, list(reversed(targets))
-            )
-            transpiled = transpile(
-                transpilation_circuit,
-                basis_gates=['u1', 'u2', 'u3', 'cx'],
-                optimization_level=0,
-            )
-        else:
-            raise e
+    except BaseException as error:
+        # PyO3 wraps Rust panics in a BaseException rather than QiskitError.
+        # Recover only the known numerical failure; propagate everything else.
+        is_rust_panic = (
+            type(error).__module__ == "pyo3_runtime"
+            and type(error).__name__ == "PanicException"
+        )
+        if not (
+            (isinstance(error, QiskitError) or is_rust_panic)
+            and "TwoQubitWeylDecomposition" in str(error)
+        ):
+            raise
+
+        custom_closest_unitary = UnitaryGate(closest_unitary(matrix))
+        original_phase = transpilation_circuit.global_phase
+        transpilation_circuit = QuantumCircuit(nb_qubits, global_phase=original_phase)
+        transpilation_circuit.unitary(custom_closest_unitary, list(reversed(targets)))
+        transpiled = transpile(
+            transpilation_circuit,
+            basis_gates=['u1', 'u2', 'u3', 'cx'],
+            optimization_level=0,
+        )
     return transpiled, transpiled.global_phase
