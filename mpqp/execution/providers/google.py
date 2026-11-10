@@ -156,7 +156,6 @@ def run_cirq_observable(
     Returns:
         A result containing the expectation values of the observables.
     """
-    from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
     from cirq.ops.pauli_string import PauliString as CirqPauliString
     from cirq.work.observable_measurement import (
         RepetitionsStoppingCriteria,
@@ -249,14 +248,13 @@ def run_cirq_observable(
         expectation_values = {}
         for obs in job.measure.observables:
 
-            if obs.pre_transpiled is None:
+            if job.device not in obs.pre_transpiled:
                 cirq_obs = obs.to_other_language(
                     language=Language.CIRQ, circuit=circuit
                 )
+                obs.pre_transpiled[job.device] = cirq_obs
             else:
-                cirq_obs = obs.pre_transpiled
-                if TYPE_CHECKING:
-                    assert type(cirq_obs) in (CirqPauliSum, CirqPauliString)
+                cirq_obs = obs.pre_transpiled[job.device]
             job.status = JobStatus.RUNNING
             from cirq_google.engine.simulated_local_engine import SimulatedLocalEngine
 
@@ -290,7 +288,7 @@ def run_cirq_observable(
                 results = measure_observables(
                     circuit,
                     observables=(
-                        [cirq_obs]
+                        [cirq_obs]  # pyright: ignore[reportArgumentType]
                         if isinstance(cirq_obs, CirqPauliString)
                         else cirq_obs
                     ),
@@ -429,10 +427,7 @@ def run_google_remote(job: Job) -> Result:
     if TYPE_CHECKING:
         assert isinstance(job.circuit, QCircuit)
 
-    if job.circuit.transpiled_circuit is None:
-        job_CirqCircuit = job.circuit.to_other_device(job.device)
-    else:
-        job_CirqCircuit = job.circuit.transpiled_circuit
+    job_CirqCircuit = job.circuit.transpiled_for_device(job.device)
 
     if TYPE_CHECKING:
         assert isinstance(job_CirqCircuit, CirqCircuit)
@@ -503,10 +498,7 @@ def run_local(job: Job) -> Result:
     if job.device.is_processor():
         return run_local_processor(job)
 
-    if job.circuit.transpiled_circuit is None:
-        cirq_circuit = job.circuit.to_other_device(job.device)
-    else:
-        cirq_circuit = job.circuit.transpiled_circuit
+    cirq_circuit = job.circuit.transpiled_for_device(job.device)
 
     if TYPE_CHECKING:
         assert isinstance(cirq_circuit, CirqCircuit)
@@ -569,10 +561,7 @@ def run_local_processor(job: Job) -> Result:
     if TYPE_CHECKING:
         assert isinstance(job.circuit, QCircuit)
 
-    if job.circuit.transpiled_circuit is None:
-        cirq_circuit = job.circuit.to_other_device(job.device)
-    else:
-        cirq_circuit = job.circuit.transpiled_circuit
+    cirq_circuit = job.circuit.transpiled_for_device(job.device)
 
     if TYPE_CHECKING:
         assert isinstance(cirq_circuit, CirqCircuit)

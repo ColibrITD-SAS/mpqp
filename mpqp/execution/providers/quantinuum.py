@@ -154,10 +154,10 @@ def run_tket_local(
     if TYPE_CHECKING:
         assert isinstance(job.device, QUANTINUUMDevice)
         assert isinstance(job.circuit, QCircuit)
-    if job.circuit.transpiled_circuit is None:
+    if job.device not in job.circuit.transpiled_circuit:
         tket_circuit = job.circuit.to_other_device(job.device)
     else:
-        tket_circuit = job.circuit.transpiled_circuit
+        tket_circuit = job.circuit.transpiled_circuit[job.device]
         if TYPE_CHECKING:
             assert isinstance(tket_circuit, tket_Circuit)
 
@@ -473,10 +473,10 @@ def submit_circuits_to_nexus(
         assert isinstance(job.device, QUANTINUUMDevice)
     tket_circuits = []
     for circuit in circuits:
-        if job.circuit.transpiled_circuit is None:  # type: ignore
+        if job.device not in circuit.transpiled_circuit:
             tket_circuits.append(circuit.to_other_device(job.device))
         else:
-            tket_circuits.append(circuit.transpiled_circuit)
+            tket_circuits.append(circuit.transpiled_circuit[job.device])
 
     backend_config = get_quantinuum_config(job.device)
     uploaded_circuit_refs = [

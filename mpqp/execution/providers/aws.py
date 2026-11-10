@@ -731,30 +731,13 @@ def _run_optimized_braket_observables(
     """Evaluate grouped Pauli observables in one Braket program set."""
     from braket.program_sets import ProgramSet
 
-    from mpqp.tools.pauli_grouping import find_qubitwise_rotations
-
     assert isinstance(job.measure, ExpectationMeasure)
-    if job.measure.pre_transpiled is None:
-        grouping = job.measure.get_pauli_grouping()
-        pre_measures = [QCircuit(find_qubitwise_rotations(group)) for group in grouping]
-        for pre_measure in pre_measures:
-            for instruction in pre_measure.instructions:
-                instruction.targets = [
-                    job.measure.targets[target] for target in instruction.targets
-                ]
-        transpiled_pre_measures = [
-            pre_measure.to_other_language(Language.BRAKET)
-            for pre_measure in pre_measures
-        ]
-    else:
-        _, transpiled_pre_measures = (
-            job.measure.pre_transpiled
-        )  # pyright: ignore[reportGeneralTypeIssues]
+    job.measure.pre_transpile_observables(job.device)
+    _, transpiled_pre_measures = job.measure.translated_pre_measures[job.device]
 
     programs = []
     for pre_measure in transpiled_pre_measures:
         circuit = transpiled_circuit + pre_measure
-        circuit.measure(job.measure.targets)
         programs.append(circuit)
 
     program_set = ProgramSet(programs, shots_per_executable=job.measure.shots)
@@ -769,18 +752,9 @@ def _extract_optimized_braket_observables(
     job: Job,
 ) -> Result:
     """Reconstruct grouped observable values from an existing program-set result."""
-    from mpqp.tools.pauli_grouping import pauli_monomial_eigenvalues
-
     assert isinstance(job.measure, ExpectationMeasure)
-    if job.measure.pre_transpiled is None:
-        eigenvalues = [
-            {monomial.name: pauli_monomial_eigenvalues(monomial) for monomial in group}
-            for group in job.measure.get_pauli_grouping()
-        ]
-    else:
-        eigenvalues, _ = (
-            job.measure.pre_transpiled
-        )  # pyright: ignore[reportGeneralTypeIssues]
+    job.measure.pre_transpile_observables(job.device)
+    eigenvalues, _ = job.measure.translated_pre_measures[job.device]
 
     expectation_values: dict[str, float] = {}
     for eigenvalues_by_name, program_result in zip(
@@ -980,7 +954,7 @@ def run_braket_observable(
 
     assert isinstance(job.device, AWSDevice)
     assert isinstance(job.circuit, QCircuit)
-    if job.circuit.transpiled_circuit is None:
+    if job.device not in job.circuit.transpiled_circuit:
         # Observable target ordering is handled by ``adjust_measure`` and the
         # Braket-specific execution helpers below. Reapplying the generic
         # measurement pre-circuit would duplicate those swaps.
@@ -988,7 +962,7 @@ def run_braket_observable(
             job.device, skip_pre_measure=True
         )
     else:
-        transpiled_circuit = job.circuit.transpiled_circuit
+        transpiled_circuit = job.circuit.transpiled_circuit[job.device]
         assert isinstance(transpiled_circuit, Circuit)
 
     if job.measure is None:
@@ -1065,11 +1039,10 @@ def submit_job_braket(
     device = get_braket_device(job.device, is_noisy=is_noisy)
     reservation_arn = provider_params.reservation_arn if provider_params else None
 
-    if job.circuit.transpiled_circuit is None:
+    if job.device not in job.circuit.transpiled_circuit:
         braket_circuit = job.circuit.to_other_device(job.device)
     else:
-        braket_circuit = job.circuit.transpiled_circuit
-
+        braket_circuit = job.circuit.transpiled_circuit[job.device]
     if TYPE_CHECKING:
         assert isinstance(braket_circuit, Circuit)
     if job.job_type == JobType.STATE_VECTOR:
@@ -1104,10 +1077,10 @@ def submit_job_braket(
         # TODO : [multi-obs] update this to take into account the case when we have list of Observables
         if TYPE_CHECKING:
             assert isinstance(job.measure, ExpectationMeasure)
-        if job.measure.observables[0].pre_transpiled is None:
+        if job.device not in job.measure.observables[0].pre_transpiled:
             herm_op = job.measure.observables[0].to_other_language(Language.BRAKET)
         else:
-            herm_op = job.measure.observables[0].pre_transpiled
+            herm_op = job.measure.observables[0].pre_transpiled[job.device]
         braket_circuit.expectation(  # pyright: ignore[reportAttributeAccessIssue]
             observable=herm_op, target=job.measure.targets
         )
@@ -1281,7 +1254,7 @@ def get_result_from_aws_task_arn(task_arn: str, job: Optional[Job] = None) -> Re
             from braket.circuits import Circuit
 
             assert isinstance(job.circuit, QCircuit)
-            original_circuit = job.circuit.transpiled_circuit
+            original_circuit = job.circuit.transpiled_circuit.get(device)
             result_circuit = (
                 deepcopy(original_circuit)
                 if isinstance(original_circuit, Circuit)

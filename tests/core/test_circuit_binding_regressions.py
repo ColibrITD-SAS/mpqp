@@ -41,7 +41,7 @@ def test_extracting_measurements_does_not_clear_source_transpilation_cache():
     assert isinstance(inner_binding, CircuitBinding)
     extracted_circuit = inner_binding.circuits[0]
     assert isinstance(extracted_circuit, QCircuit)
-    assert extracted_circuit.transpiled_circuit is None
+    assert extracted_circuit.transpiled_circuit == {}
 
 
 def test_zip_keeps_observables_on_their_own_register():
