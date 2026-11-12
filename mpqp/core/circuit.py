@@ -217,9 +217,10 @@ class QCircuit:
                 tket_Circuit,
             ],
         ] = {}
-        """A pre-transpiled circuit to skip repeated transpilation when running 
-        the circuit. Useful when working with a symbolic circuit that needs to
-        be executed with different parameters."""
+        """Transpiled circuits cached for each device to avoid repeated
+        transpilation when running the circuit. This is useful for symbolic
+        circuits executed with different parameter values.
+        """
         self.transpiled_noise_model = None
         """A pre-transpiled noise model that skips repeated transpilation when
         running the circuit. Currently, it is only useful in Qiskit when working
@@ -2290,6 +2291,17 @@ class QCircuit:
         return f'QCircuit({args_repr})'
 
     def transpiled_for_device(self, device: AvailableDevice):
+        """Return the transpiled circuit cached for a device.
+
+        If no circuit is cached for the device, it is transpiled, cached, and
+        returned.
+
+        Args:
+            device: Device for which the provider circuit is needed.
+
+        Returns:
+            The transpiled circuit for the selected device.
+        """
         if device not in self.transpiled_circuit:
             from mpqp.execution.devices import IBMDevice
 
@@ -2366,15 +2378,16 @@ class QCircuit:
     def bind_parameters(
         self, device: AvailableDevice, values: BindingParameters
     ) -> None:
-        """Bind values in the provider circuit cached for ``device``.
+        """Assign values to the cached provider circuit for a device.
 
-        The MPQP instructions are left unchanged. If no provider circuit is
-        cached yet, it is transpiled first. The cached provider representation
-        is then replaced by its bound counterpart.
+        If the provider circuit is not cached yet, it is transpiled first. The
+        original MPQP circuit is not changed, only its cached provider circuit
+        is replaced by the bound version.
 
         Args:
-            device: Device identifying the cached provider representation.
-            values: Values indexed by MPQP expressions or parameter names.
+            device: Device whose cached circuit should be bound.
+            values: The value of each parameter, keyed by its expression or
+                name.
 
         Raises:
             TypeError: If parameter binding is not implemented for the device's
@@ -2416,14 +2429,11 @@ class QCircuit:
             from pytket import Circuit as tket_Circuit
 
             assert isinstance(transpiled, tket_Circuit)
-            bound = transpiled.copy()
-            bound.symbol_substitution(
-                {  # pyright: ignore[reportArgumentType]
-                    symbol: param_values[str(symbol)]
-                    for symbol in bound.free_symbols()
-                    if str(symbol) in param_values
-                }
+            from mpqp.translation.tket import bind_tket_parameters
+
+            self.transpiled_circuit[device] = bind_tket_parameters(
+                transpiled,
+                param_values,
             )
-            self.transpiled_circuit[device] = bound
         else:
             raise TypeError(f"Unsupported transpiled circuit yet: {type(transpiled)}")
