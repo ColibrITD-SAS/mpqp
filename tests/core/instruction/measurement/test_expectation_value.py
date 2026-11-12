@@ -10,7 +10,23 @@ if TYPE_CHECKING:
 import numpy as np
 import pytest
 
-from mpqp import ExpectationMeasure, Language, Observable, QCircuit, X, pI, pX, pY, pZ
+from mpqp import (
+    ExpectationMeasure,
+    Language,
+    Observable,
+    QCircuit,
+    X,
+    pI,
+    pX,
+    pY,
+    pZ,
+    run,
+)
+from mpqp.core.instruction.measurement.pauli_string import (
+    CommutingTypes,
+    GroupingMethods,
+)
+from mpqp.execution.devices import AWSDevice, IBMDevice
 from mpqp.tools.errors import NumberQubitsError
 
 
@@ -34,6 +50,143 @@ def test_expectation_measure_fits_larger_circuit():
 
     assert circuit.nb_qubits == 3
     assert measurement.targets == [0]
+
+
+@pytest.mark.provider("qiskit")
+def test_pre_transpile_observables_caches_translation_per_device():
+    measurement = ExpectationMeasure(Observable(pZ))
+    observable = measurement.observables[0]
+    device = IBMDevice.AER_SIMULATOR
+
+    assert observable.pre_transpiled == {}
+    assert measurement.pre_transpile_observables(device) is None
+    cached = observable.pre_transpiled[device]
+
+    measurement.pre_transpile_observables(device)
+    assert observable.pre_transpiled[device] is cached
+
+
+@pytest.mark.provider("qiskit")
+def test_measurements_from_one_observable_keep_independent_translations():
+    observable = Observable(pZ)
+    first = ExpectationMeasure(observable)
+    second = ExpectationMeasure(observable)
+    device = IBMDevice.AER_SIMULATOR_STATEVECTOR
+    second.pre_transpile_observables(device)
+
+    first.observables[0].pauli_string = pX
+    first.pre_transpile_observables(device)
+
+    assert run(QCircuit([X(0), first]), device).expectation_values == pytest.approx(0)
+    assert run(QCircuit([X(0), second]), device).expectation_values == pytest.approx(-1)
+    assert observable.pauli_string == pZ
+
+
+@pytest.mark.provider("qiskit")
+@pytest.mark.parametrize("representation", ["matrix", "pauli", "diagonal"])
+def test_observable_mutation_clears_pre_transpiled_cache(representation: str):
+    measurement = ExpectationMeasure(Observable(pZ))
+    observable = measurement.observables[0]
+    device = IBMDevice.AER_SIMULATOR
+    measurement.pre_transpile_observables(device)
+
+    if representation == "matrix":
+        observable.matrix = np.array([[0, 1], [1, 0]])
+    elif representation == "pauli":
+        observable.pauli_string = pX
+    else:
+        observable.diagonal_elements = [1, 1]
+
+    assert observable.pre_transpiled == {}
+
+
+def test_observable_mutation_invalidates_cached_pauli_grouping():
+    measurement = ExpectationMeasure(
+        Observable(pX), grouping_method=GroupingMethods.GREEDY
+    )
+    first_grouping = measurement.get_pauli_grouping()
+
+    measurement.observables[0].pauli_string = pZ
+    second_grouping = measurement.get_pauli_grouping()
+
+    assert second_grouping is not first_grouping
+    assert second_grouping[0][0].short_name == "Z"
+
+
+def test_observables_collection_cannot_be_mutated_through_property():
+    measurement = ExpectationMeasure(Observable(pZ))
+    exposed_observables = measurement.observables
+
+    exposed_observables.append(Observable(pX))
+
+    assert measurement.nb_observables == 1
+
+
+def test_replacing_observables_clears_measurement_caches(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setattr(
+        QCircuit, "to_other_language", lambda *_args, **_kwargs: object()
+    )
+    measurement = ExpectationMeasure(
+        Observable(pZ), grouping_method=GroupingMethods.GREEDY
+    )
+    device = AWSDevice.BRAKET_LOCAL_SIMULATOR
+    measurement.get_pauli_grouping()
+    measurement.pre_transpile_observables(device)
+
+    measurement.observables = [Observable(pX)]
+
+    assert measurement.current_grouping is None
+    assert measurement.translated_pre_measures == {}
+    assert measurement.observables[0].pauli_string == pX
+
+
+@pytest.mark.parametrize(
+    "mutation", ["shots", "targets", "observable", "commuting_type"]
+)
+def test_pre_transpile_observables_invalidates_stale_aws_cache(
+    monkeypatch: pytest.MonkeyPatch, mutation: str
+):
+    monkeypatch.setattr(
+        QCircuit, "to_other_language", lambda *_args, **_kwargs: object()
+    )
+    measurement = ExpectationMeasure(
+        Observable(pX @ pZ),
+        targets=[1, 3],
+        shots=100,
+        grouping_method=GroupingMethods.GREEDY,
+    )
+    device = AWSDevice.BRAKET_LOCAL_SIMULATOR
+
+    assert measurement.pre_transpile_observables(device) is None
+    cached = measurement.translated_pre_measures[device]
+    measurement.pre_transpile_observables(device)
+    assert measurement.translated_pre_measures[device] is cached
+
+    if mutation == "shots":
+        measurement.shots = 0
+    elif mutation == "targets":
+        measurement.targets = [0, 2]
+    elif mutation == "observable":
+        measurement.observables[0].pauli_string = pY @ pZ
+    else:
+        measurement.commuting_type = CommutingTypes.FULL
+
+    measurement.pre_transpile_observables(device)
+    assert measurement.translated_pre_measures[device] is not cached
+
+
+@pytest.mark.provider("braket")
+def test_pre_transpile_observables_caches_aws_measurement_preparation():
+    measurement = ExpectationMeasure(Observable(pX @ pZ), targets=[1, 3], shots=100)
+    device = AWSDevice.BRAKET_LOCAL_SIMULATOR
+
+    assert measurement.pre_transpile_observables(device) is None
+    cached = measurement.translated_pre_measures[device]
+
+    measurement.pre_transpile_observables(device)
+    assert measurement.translated_pre_measures[device] is cached
 
 
 @pytest.mark.parametrize("targets", [[], [0, 1]])

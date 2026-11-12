@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import random
 from numbers import Complex
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Optional, Sequence
 
 import numpy as np
 import numpy.typing as npt
@@ -64,6 +64,7 @@ from mpqp import (
     Y,
     Z,
     pI,
+    pX,
     pZ,
     run,
 )
@@ -960,6 +961,382 @@ def test_variables_are_updated_after_substitution(
 
     assert substituted.variables() == expected_variables
     assert circuit.variables() == {theta, phi}
+
+
+@pytest.mark.provider("qiskit")
+def test_transpiled_for_device_reuses_template_for_multiple_values():
+    circuit = QCircuit([Ry(theta, 0)])
+    device = IBMDevice.AER_SIMULATOR_STATEVECTOR
+    template = circuit.transpiled_for_device(device)
+
+    assert isinstance(template, QiskitCircuit)
+    assert circuit.transpiled_for_device(device) is template
+
+    for value in (0.5, 1.0, 0.5):
+        result = run(circuit, device, values={theta: value})
+        assert abs(result.state_vector.vector[1]) ** 2 == pytest.approx(
+            np.sin(value / 2) ** 2
+        )
+        assert circuit.transpiled_circuit[device] is template
+        assert len(template.parameters) == 1
+
+
+@pytest.mark.parametrize(
+    "device",
+    [
+        pytest.param(
+            IBMDevice.AER_SIMULATOR_STATEVECTOR, marks=pytest.mark.provider("qiskit")
+        ),
+        pytest.param(
+            GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, marks=pytest.mark.provider("cirq")
+        ),
+        pytest.param(
+            AWSDevice.BRAKET_LOCAL_SIMULATOR, marks=pytest.mark.provider("braket")
+        ),
+    ],
+)
+def test_prepared_circuit_detects_shared_gate_target_edits(device: AvailableDevice):
+    gate = X(0)
+    circuit = QCircuit([gate], nb_qubits=2)
+    circuit.transpiled_for_device(device)
+    clone = circuit.without_measurements(deep_copy=False)
+    gate.targets = [1]
+
+    for current in (circuit, clone):
+        assert run(current, device).probabilities == pytest.approx([0, 1, 0, 0])
+
+
+@pytest.mark.provider("cirq")
+def test_implicit_cirq_cache_detects_gate_edits():
+    circuit = QCircuit([X(0)], nb_qubits=2)
+    device = GOOGLEDevice.CIRQ_LOCAL_SIMULATOR
+    assert run(circuit, device).probabilities == pytest.approx([0, 0, 1, 0])
+    circuit.instructions[0].targets = [1]
+    assert run(circuit, device).probabilities == pytest.approx([0, 1, 0, 0])
+
+
+@pytest.mark.provider("qiskit")
+def test_prepared_circuit_detects_parameter_edits():
+    gate = Ry(0.0, 0)
+    circuit = QCircuit([gate])
+    device = IBMDevice.AER_SIMULATOR_STATEVECTOR
+    template = circuit.transpiled_for_device(device)
+    gate.parameters[0] = np.pi
+    assert run(circuit, device).probabilities == pytest.approx([0, 1])
+    assert circuit.transpiled_for_device(device) is not template
+
+
+@pytest.mark.provider("qiskit")
+@pytest.mark.parametrize("shots", [0, 100])
+def test_direct_binding_executes_cached_circuit_without_substitution(
+    monkeypatch: pytest.MonkeyPatch, shots: int
+):
+    circuit = QCircuit([Ry(theta, 0), BasisMeasure(shots=shots)])
+    device = IBMDevice.AER_SIMULATOR
+    circuit.bind_parameters(device, {theta: np.pi})
+
+    def unexpected_substitution(*_args: Any, **_kwargs: Any):
+        raise AssertionError("A bound provider circuit needs no MPQP substitution")
+
+    monkeypatch.setattr(QCircuit, "subs", unexpected_substitution)
+    assert run(circuit, device).probabilities == pytest.approx([0, 1])
+
+
+@pytest.mark.provider("qiskit")
+@pytest.mark.parametrize(
+    "targets,nb_qubits,optim_diagonal",
+    [([0], 2, False), ([1], 2, False), ([0], 1, True)],
+)
+def test_direct_binding_survives_observable_preparation(
+    targets: list[int], nb_qubits: int, optim_diagonal: bool
+):
+    device = IBMDevice.AER_SIMULATOR_STATEVECTOR
+    measurement = ExpectationMeasure(
+        Observable(pZ), targets=targets, optim_diagonal=optim_diagonal
+    )
+    circuit = QCircuit([Ry(theta, targets[0]), measurement], nb_qubits=nb_qubits)
+    for value, expected in [(0.0, 1.0), (np.pi, -1.0)]:
+        circuit.bind_parameters(device, {theta: value})
+        assert run(circuit, device).expectation_values == pytest.approx(expected)
+    assert circuit.variables() == {theta}
+    assert run(
+        circuit, device, values={theta: 0.0}
+    ).expectation_values == pytest.approx(1)
+
+
+@pytest.mark.parametrize(
+    "device",
+    [
+        pytest.param(
+            IBMDevice.AER_SIMULATOR_STATEVECTOR, marks=pytest.mark.provider("qiskit")
+        ),
+        pytest.param(
+            GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, marks=pytest.mark.provider("cirq")
+        ),
+        pytest.param(
+            AWSDevice.BRAKET_LOCAL_SIMULATOR, marks=pytest.mark.provider("braket")
+        ),
+    ],
+)
+@pytest.mark.parametrize("targets", [[0, 2], [2, 0]])
+@pytest.mark.parametrize("shots", [0, 100])
+@pytest.mark.parametrize("diagonal", [False, True])
+def test_bound_observable_cache_survives_target_preparation(
+    monkeypatch: pytest.MonkeyPatch,
+    device: AvailableDevice,
+    targets: list[int],
+    shots: int,
+    diagonal: bool,
+):
+    observable = Observable((pZ if diagonal else pX) @ pI)
+    measurement = ExpectationMeasure(
+        observable,
+        targets=targets,
+        shots=shots,
+        optim_diagonal=diagonal,
+    )
+    circuit = QCircuit([Ry(theta, targets[0]), measurement], nb_qubits=3)
+
+    def unexpected_substitution(*_args: Any, **_kwargs: Any):
+        raise AssertionError("Observable preparation must preserve the native binding")
+
+    values = [(0.0, 1), (np.pi, -1)] if diagonal else [(np.pi / 2, 1), (-np.pi / 2, -1)]
+    for value, expected in values:
+        circuit.bind_parameters(device, {theta: value})
+        cached = circuit.transpiled_circuit[device]
+        with monkeypatch.context() as patch:
+            patch.setattr(QCircuit, "subs", unexpected_substitution)
+            assert run(circuit, device).expectation_values == pytest.approx(
+                expected, abs=1e-6
+            )
+        assert circuit.transpiled_circuit[device] is cached
+    assert circuit.variables() == {theta}
+    assert measurement.targets == targets
+
+
+@pytest.mark.provider("qiskit")
+def test_bind_parameters_updates_cached_provider_circuit():
+    from qiskit.quantum_info import Statevector
+
+    circuit = QCircuit([Ry(theta, 0)])
+    device = IBMDevice.AER_SIMULATOR_STATEVECTOR
+    circuit.transpiled_for_device(device)
+
+    assert circuit.bind_parameters(device, {theta: 0.5}) is None
+    bound = circuit.transpiled_circuit[device]
+
+    assert isinstance(bound, QiskitCircuit)
+    assert Statevector(bound).probabilities()[1] == pytest.approx(np.sin(0.25) ** 2)
+
+
+@pytest.mark.provider("qiskit")
+def test_bound_observable_preserves_prepared_noise_model():
+    circuit = QCircuit(
+        [
+            Ry(theta, 0),
+            BitFlip(0.25),
+            ExpectationMeasure(Observable(pZ)),
+        ]
+    )
+    device = IBMDevice.AER_SIMULATOR_DENSITY_MATRIX
+    for value, expected in [(0.0, 0.5), (np.pi, -0.5)]:
+        circuit.bind_parameters(device, {theta: value})
+        assert run(circuit, device).expectation_values == pytest.approx(expected)
+
+
+@pytest.mark.parametrize(
+    "device",
+    [
+        pytest.param(
+            IBMDevice.AER_SIMULATOR_STATEVECTOR, marks=pytest.mark.provider("qiskit")
+        ),
+        pytest.param(
+            AWSDevice.BRAKET_LOCAL_SIMULATOR, marks=pytest.mark.provider("braket")
+        ),
+        pytest.param(
+            GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, marks=pytest.mark.provider("cirq")
+        ),
+    ],
+)
+def test_cached_circuit_can_be_bound_repeatedly(device: AvailableDevice):
+    circuit = QCircuit([Ry(theta, 0)])
+    for value, expected in ((0.0, 0.0), (np.pi, 1.0)):
+        assert circuit.bind_parameters(device, {theta: value}) is None
+        assert run(circuit, device).probabilities[1] == pytest.approx(expected)
+
+    assert circuit.variables() == {theta}
+    circuit.add(X(0))
+    circuit.bind_parameters(device, {theta: 0.0})
+    assert run(circuit, device).probabilities[1] == pytest.approx(1)
+
+
+@pytest.mark.provider("quantinuum")
+def test_cached_tket_template_can_be_bound_repeatedly():
+    from pytket import Circuit
+    from sympy import pi
+
+    from mpqp.execution.devices import QUANTINUUMDevice
+
+    circuit = QCircuit([Ry(theta, 0)])
+    device = QUANTINUUMDevice.TKET_AER_STATEVECTOR_SIMULATOR
+    # Use a native template so this test is independent of Qiskit interop versions.
+    template = Circuit(1).Ry(theta / pi, 0)
+    circuit.transpiled_circuit[device] = template
+
+    for value, expected in ((0.0, 0.0), (np.pi, 1.0)):
+        circuit.bind_parameters(device, {theta: value})
+        assert run(circuit, device).probabilities[1] == pytest.approx(expected)
+
+    assert template.free_symbols() == {theta}
+    assert circuit.variables() == {theta}
+
+
+@pytest.mark.parametrize(
+    "device",
+    [
+        pytest.param(
+            GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, marks=pytest.mark.provider("cirq")
+        ),
+        pytest.param(ATOSDevice.MYQLM_CLINALG, marks=pytest.mark.provider("myqlm")),
+    ],
+)
+def test_cached_circuit_accepts_empty_run_values(device: AvailableDevice):
+    circuit = QCircuit([X(0)])
+    run(circuit, device)
+
+    assert run(circuit, device, values={}).probabilities[1] == pytest.approx(1)
+
+
+@pytest.mark.provider("cirq")
+def test_cached_symbolic_cirq_circuit_runs_with_different_values():
+    circuit = QCircuit([Ry(theta, 0)])
+    device = GOOGLEDevice.CIRQ_LOCAL_SIMULATOR
+    circuit.transpiled_for_device(device)
+
+    for value, expected in ((0.0, 0.0), (np.pi, 1.0)):
+        assert run(circuit, device, values={theta: value}).probabilities[
+            1
+        ] == pytest.approx(expected)
+    assert circuit.variables() == {theta}
+
+
+@pytest.mark.provider("qiskit")
+def test_substitution_discards_cached_provider_parameters():
+    circuit = QCircuit([Ry(theta, 0)])
+    device = IBMDevice.AER_SIMULATOR_STATEVECTOR
+    template = circuit.transpiled_for_device(device)
+
+    substituted = circuit.subs({theta: np.pi})
+
+    assert run(substituted, device).probabilities[1] == pytest.approx(1)
+    assert circuit.variables() == {theta}
+    assert circuit.transpiled_for_device(device) is template
+
+
+@pytest.mark.provider("qiskit")
+def test_cached_run_preserves_expression_substitution():
+    circuit = QCircuit([Ry(theta + phi, 0)])
+    device = IBMDevice.AER_SIMULATOR_STATEVECTOR
+    circuit.transpiled_for_device(device)
+
+    assert run(circuit, device, values={theta + phi: np.pi}).probabilities[
+        1
+    ] == pytest.approx(1)
+
+
+@pytest.mark.provider("cirq")
+def test_resizing_qubits_after_run_discards_cached_circuit():
+    circuit = QCircuit([X(0)])
+    device = GOOGLEDevice.CIRQ_LOCAL_SIMULATOR
+    run(circuit, device)
+
+    circuit.nb_qubits = 2
+
+    assert np.allclose(run(circuit, device).amplitudes, [0, 0, 1, 0])
+
+
+@pytest.mark.provider("qiskit")
+def test_resizing_cbits_discards_cached_registers():
+    circuit = QCircuit([X(0), BasisMeasure(shots=100)])
+    device = IBMDevice.AER_SIMULATOR
+    circuit.transpiled_for_device(device)
+
+    circuit.nb_cbits = 3
+
+    translated = circuit.transpiled_for_device(device)
+    assert isinstance(translated, QiskitCircuit)
+    assert translated.num_clbits == 3
+
+
+@pytest.mark.provider("braket")
+@pytest.mark.parametrize("deep_copy", [False, True])
+def test_without_noises_discards_cached_noise_instructions(deep_copy: bool):
+    circuit = QCircuit([X(0), BitFlip(0.5), BasisMeasure(shots=100)])
+    device = AWSDevice.BRAKET_LOCAL_SIMULATOR
+    template = circuit.transpiled_for_device(device)
+
+    clean = circuit.without_noises(deep_copy=deep_copy)
+
+    assert run(clean, device).counts == [0, 100]
+    assert circuit.is_noisy
+    assert circuit.transpiled_for_device(device) is template
+
+
+@pytest.mark.provider("qiskit")
+def test_transpiled_circuit_cache_is_per_device():
+    circuit = QCircuit([X(0)])
+    devices = (
+        IBMDevice.AER_SIMULATOR_STATEVECTOR,
+        IBMDevice.AER_SIMULATOR,
+    )
+    templates = [circuit.transpiled_for_device(device) for device in devices]
+
+    assert set(circuit.transpiled_circuit) == set(devices)
+    assert templates[0] is not templates[1]
+
+    circuit.add(X(0))
+    assert circuit.transpiled_circuit == {}
+
+
+@pytest.mark.provider("qiskit")
+@pytest.mark.parametrize("mutation", ["pop", "remove"])
+def test_transpiled_circuit_cache_is_cleared_by_removal(mutation: str):
+    circuit = QCircuit([X(0), X(0)])
+    device = IBMDevice.AER_SIMULATOR_STATEVECTOR
+    circuit.transpiled_for_device(device)
+
+    if mutation == "pop":
+        circuit.pop()
+    else:
+        circuit.remove(X(0))
+
+    assert circuit.transpiled_circuit == {}
+
+
+@pytest.mark.provider("qiskit")
+def test_shallow_copy_has_independent_transpilation_cache():
+    circuit = QCircuit([X(0)])
+    device = IBMDevice.AER_SIMULATOR_STATEVECTOR
+    template = circuit.transpiled_for_device(device)
+    clone = circuit.without_measurements(deep_copy=False)
+
+    clone.add(X(0))
+
+    assert clone.transpiled_circuit == {}
+    assert circuit.transpiled_circuit[device] is template
+
+
+@pytest.mark.provider("qiskit")
+def test_without_measurements_invalidates_only_clone_transpilation_cache():
+    circuit = QCircuit([X(0), BasisMeasure([0], shots=100)])
+    device = IBMDevice.AER_SIMULATOR
+    template = circuit.transpiled_for_device(device)
+
+    clone = circuit.without_measurements(deep_copy=False)
+
+    assert clone.measurements == []
+    assert clone.transpiled_circuit == {}
+    assert circuit.transpiled_circuit[device] is template
 
 
 @pytest.mark.provider("qiskit")

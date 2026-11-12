@@ -365,7 +365,9 @@ def test_observable_key_ignores_lazy_caches(
     _ = observable.matrix
     _ = observable.pauli_string
     _ = observable.diagonal_elements
-    monkeypatch.setattr(observable, "pre_transpiled", object())
+    monkeypatch.setattr(
+        observable, "pre_transpiled", {IBMDevice.AER_SIMULATOR: object()}
+    )
     assert object_key(observable) == before
     observable.matrix = np.diag([2, -2])
     assert object_key(observable) != before
@@ -503,7 +505,7 @@ def test_binding_matches_input_and_recorded_circuits():
     measurement = ExpectationMeasure(Observable(pZ))
     binding = CircuitBinding(circuits, measurements=measurement)
     with patch(
-        "mpqp.core._keys.Snapshot.__call__",
+        "mpqp.execution.result.Snapshot",
         side_effect=AssertionError("Unnecessary capture"),
     ):
         batch = run(binding, IBMDevice.AER_SIMULATOR)

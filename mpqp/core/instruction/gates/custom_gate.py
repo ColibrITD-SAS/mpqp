@@ -7,7 +7,6 @@ and executed transparently."""
 from __future__ import annotations
 
 from copy import copy
-from numbers import Complex
 from typing import TYPE_CHECKING, Optional, Union
 
 from mpqp.tools import Matrix
@@ -15,8 +14,9 @@ from mpqp.tools import Matrix
 if TYPE_CHECKING:
     from qiskit._accelerate.circuit import Parameter
     from mpqp.core.circuit import QCircuit
-    from sympy import Basic, Expr
+    from sympy import Basic
 
+from mpqp.core._types import BindingParameters
 from mpqp.core.instruction.gates.gate import Gate
 from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
 from mpqp.core.languages import Language
@@ -244,7 +244,7 @@ class CustomGate(Gate):
 
         return quantum_shannon_decomposition(self.matrix, self.targets)
 
-    def subs(self, values: "dict[Expr | str, Complex]") -> CustomGate:
+    def subs(self, values: BindingParameters) -> CustomGate:
         res = copy(self)
         res.definition = res.definition.subs(values)
         return res

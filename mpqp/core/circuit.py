@@ -34,7 +34,6 @@ could be used to add CNOT gates to your circuit, using the two registers
 from __future__ import annotations
 
 from copy import deepcopy
-from numbers import Complex
 from typing import (
     TYPE_CHECKING,
     Literal,
@@ -49,6 +48,7 @@ from warnings import warn
 import numpy as np
 import numpy.typing as npt
 
+from mpqp.core._types import BindingParameters
 from mpqp.core.instruction import Instruction
 from mpqp.core.instruction.barrier import Barrier
 from mpqp.core.instruction.breakpoint import Breakpoint
@@ -79,10 +79,12 @@ if TYPE_CHECKING:
     from qiskit_aer import AerSimulator
     from sympy import Expr
 
+    from mpqp.core._keys import ObjectKey
     from mpqp.execution.devices import (
         ATOSDevice,
         AvailableDevice,
         AWSDevice,
+        AZUREDevice,
         GOOGLEDevice,
         IBMDevice,
         QUANTINUUMDevice,
@@ -207,10 +209,23 @@ class QCircuit:
         self._user_nb_qubits: Optional[int] = None
         self._nb_qubits: int
 
-        self.transpiled_circuit: "Optional[Union[braket_Circuit, cirq_Circuit, myQLM_Circuit, QuantumCircuit, tket_Circuit]]" = (None)
+        self.transpiled_circuit: dict[
+            AvailableDevice,
+            Union[
+                braket_Circuit,
+                cirq_Circuit,
+                myQLM_Circuit,
+                QuantumCircuit,
+                tket_Circuit,
+            ],
+        ] = {}
         """A pre-transpiled circuit to skip repeated transpilation when running 
         the circuit. Useful when working with a symbolic circuit that needs to
         be executed with different parameters."""
+        self._transpilation_templates = self.transpiled_circuit.copy()
+        """Original provider circuits retained when a cached circuit is bound."""
+        self._transpilation_key: Optional[ObjectKey] = None
+        """Structural snapshot of the MPQP inputs used by provider caches."""
         self.transpiled_noise_model = None
         """A pre-transpiled noise model that skips repeated transpilation when
         running the circuit. Currently, it is only useful in Qiskit when working
@@ -371,6 +386,8 @@ class QCircuit:
             if isinstance(components, Measure):
                 self._measurement_indexes.append(instruction_index)
 
+        self._invalidate_transpilation()
+
     def pop(self, index: int = -1, recompute_dimensions: bool = True) -> Instruction:
         """Remove and return the instruction at ``index`` (the last one by
         default).
@@ -431,6 +448,7 @@ class QCircuit:
         ]
         if recompute_dimensions:
             self._recompute_dynamic_dimensions()
+        self._invalidate_transpilation()
         return instruction
 
     def remove(self, instructions: OneOrMany[Instruction]) -> None:
@@ -660,9 +678,11 @@ class QCircuit:
                         f"requested {nb_cbits}."
                     )
             self._user_nb_cbits = nb_cbits
+            self._invalidate_transpilation()
 
     def _set_nb_qubits_dynamic(self, nb_qubits: int):
         if not hasattr(self, "_nb_qubits") or nb_qubits != self._nb_qubits:
+            self._invalidate_transpilation()
             self._nb_qubits = nb_qubits
 
             for instruction in self._instructions:
@@ -753,6 +773,8 @@ class QCircuit:
 
             self.add(inst)
         self.noises.extend(other.noises)
+        if other.noises:
+            self._invalidate_transpilation()
 
     def to_dict(self) -> dict[str, int | str | list[str] | float | None]:
         """
@@ -1237,11 +1259,27 @@ class QCircuit:
             excluded_attrs.update(
                 {"_instructions", "_instruction_revision", "_measurement_indexes"}
             )
+        if "transpiled_circuit" in excluded_attrs:
+            excluded_attrs.update(
+                {
+                    "_transpilation_templates",
+                    "transpiled_noise_model",
+                    "_transpilation_key",
+                }
+            )
         new_obj = QCircuit()
         for attr, val in self.__dict__.items():
             if attr not in excluded_attrs:
-                if deep_copy is True:
+                if attr == "_transpilation_key":
+                    # Structural keys are immutable, even for deep clones.
+                    setattr(new_obj, attr, val)
+                elif deep_copy is True:
                     setattr(new_obj, attr, deepcopy(val))
+                elif attr in (
+                    "transpiled_circuit",
+                    "_transpilation_templates",
+                ):
+                    setattr(new_obj, attr, val.copy())
                 else:
                     setattr(new_obj, attr, val)
         return new_obj
@@ -1288,10 +1326,10 @@ class QCircuit:
                       └───┘
 
         """
-        new_circuit = self._clone_without(
-            ["instructions", "measurements", "_nb_cbits", "transpiled_circuit"],
-            deep_copy=deep_copy,
-        )
+        excluded_attrs = ["instructions", "measurements", "_nb_cbits"]
+        if self.measurements:
+            excluded_attrs.append("transpiled_circuit")
+        new_circuit = self._clone_without(excluded_attrs, deep_copy=deep_copy)
         instructions = self._non_measurement_instructions()
         new_circuit._instructions = (
             deepcopy(instructions) if deep_copy else instructions
@@ -1362,7 +1400,10 @@ class QCircuit:
                        0  1
 
         """
-        new_circuit = self._clone_without("noises", deep_copy=deep_copy)
+        excluded_attrs = ["noises"]
+        if self.noises:
+            excluded_attrs.append("transpiled_circuit")
+        new_circuit = self._clone_without(excluded_attrs, deep_copy=deep_copy)
         return new_circuit
 
     @overload
@@ -1614,7 +1655,7 @@ class QCircuit:
     @overload
     def to_other_device(
         self,
-        device: Union[IBMDevice, StaticIBMSimulatedDevice],
+        device: Union[IBMDevice, StaticIBMSimulatedDevice, AZUREDevice],
         skip_pre_measure: bool = False,
         native_gate_set: bool = False,
         backend_sim: Optional["AerSimulator"] = None,
@@ -1689,12 +1730,21 @@ class QCircuit:
         from mpqp.execution.devices import (
             ATOSDevice,
             AWSDevice,
+            AZUREDevice,
             GOOGLEDevice,
             IBMDevice,
             QUANTINUUMDevice,
         )
         from mpqp.execution.providers.ibm import JobType
         from mpqp.execution.simulated_devices import StaticIBMSimulatedDevice
+
+        if isinstance(device, AZUREDevice):
+            return self.to_other_device(
+                IBMDevice.AER_SIMULATOR,
+                skip_pre_measure=skip_pre_measure,
+                native_gate_set=native_gate_set,
+                backend_sim=backend_sim,
+            )
 
         nb_meas = len(self.measurements)
 
@@ -2168,7 +2218,7 @@ class QCircuit:
         """
         return len(self.noises) > 0
 
-    def subs(self, values: dict[Expr | str, Complex]) -> QCircuit:
+    def subs(self, values: BindingParameters) -> QCircuit:
         r"""Substitute the parameters of the circuit with values for each of the
         specified parameters. Optionally also remove all symbolic variables such
         as `\pi` (needed for example for circuit execution).
@@ -2210,8 +2260,9 @@ class QCircuit:
                                                  2    0  1
 
         """
-        new_circuit = deepcopy(self)
+        new_circuit = self._clone_without(["instructions", "transpiled_circuit"])
         new_circuit._instructions = [inst.subs(values) for inst in self._instructions]
+        new_circuit._measurement_indexes = self._measurement_indexes.copy()
         new_circuit._instruction_revision.value += 1
         return new_circuit
 
@@ -2272,6 +2323,90 @@ class QCircuit:
 
         return f'QCircuit({args_repr})'
 
+    def _invalidate_transpilation(self) -> None:
+        """Discard provider circuits and noise prepared for an earlier circuit."""
+        self.transpiled_circuit.clear()
+        self._transpilation_templates.clear()
+        self._transpilation_key = None
+        self.transpiled_noise_model = None
+
+    def _validate_transpilation(self) -> None:
+        """Detect edits to shared instructions, measurements and noise models."""
+        from mpqp.core._keys import object_key
+
+        if not self.transpiled_circuit:
+            return
+        try:
+            key = object_key(self)
+        except (TypeError, ValueError):
+            # Objects without a structural key remain executable without caching.
+            self._invalidate_transpilation()
+            return
+        if self._transpilation_key is not None and key != self._transpilation_key:
+            self._invalidate_transpilation()
+        self._transpilation_key = key
+
+    def _transpilation_template_for_device(self, device: AvailableDevice):
+        """Return the unbound provider circuit for parameter sweeps."""
+        prepared = self.transpiled_for_device(device)
+        return self._transpilation_templates.get(device, prepared)
+
+    def transpiled_for_device(self, device: AvailableDevice):
+        """Return the circuit prepared for ``device``, reusing it when available.
+
+        Changes to the circuit's instructions, measurements or noise models
+        discard previously prepared circuits, including direct bindings.
+        Observable targets are prepared using the same convention as execution.
+        A prepared observable circuit is executed directly; ``optim_diagonal``
+        does not replace it with a newly translated sampling circuit.
+
+        Args:
+            device: Device for which the circuit is prepared.
+
+        Returns:
+            The provider-native circuit for the device.
+        """
+        self._validate_transpilation()
+        if device in self.transpiled_circuit:
+            return self.transpiled_circuit[device]
+        from mpqp.execution.devices import AWSDevice, IBMDevice
+
+        circuit = self
+        has_observable = any(
+            isinstance(measurement, ExpectationMeasure)
+            for measurement in self.measurements
+        )
+        if has_observable:
+            from mpqp.execution.runner import generate_job
+
+            prepared_job = generate_job(self, device)
+            assert isinstance(prepared_job.circuit, QCircuit)
+            circuit = prepared_job.circuit
+
+        if self.is_noisy and isinstance(device, IBMDevice) and not device.is_remote():
+            from qiskit_aer import AerSimulator
+
+            from mpqp.execution.providers.ibm import generate_qiskit_noise_model
+
+            noise_model, circuit = generate_qiskit_noise_model(circuit)
+            self.transpiled_noise_model = noise_model
+            backend = AerSimulator(
+                method=device.value,
+                noise_model=noise_model,
+            )
+            self.transpiled_circuit[device] = circuit.to_other_device(
+                device,
+                backend_sim=backend,
+            )
+        else:
+            self.transpiled_circuit[device] = circuit.to_other_device(
+                device,
+                skip_pre_measure=has_observable and isinstance(device, AWSDevice),
+            )
+        prepared = self.transpiled_circuit[device]
+        self._validate_transpilation()
+        return prepared
+
     def variables(self) -> set[Expr]:
         """Returns all the symbolic parameters involved in this circuit.
 
@@ -2318,3 +2453,88 @@ class QCircuit:
             }
             self._variable_parameters = parameters
         return self._variables.copy()
+
+    def bind_parameters(
+        self, device: AvailableDevice, values: BindingParameters
+    ) -> None:
+        """Bind values in the provider circuit cached for ``device``.
+
+        The MPQP instructions are left unchanged. If no provider circuit is
+        cached yet, it is prepared first. Each call replaces the previous
+        binding with values applied to the original circuit, so the same
+        circuit can be bound repeatedly to different values.
+
+        A subsequent :func:`~mpqp.execution.runner.run` uses these values unless
+        explicit values are supplied. A :class:`~mpqp.core.binding.CircuitBinding`
+        uses the original symbolic template for its own parameter sets.
+
+        Args:
+            device: Device identifying the cached provider representation.
+            values: Values indexed by MPQP expressions or parameter names.
+        """
+        self._transpilation_templates.setdefault(
+            device, self.transpiled_for_device(device)
+        )
+        self.transpiled_circuit[device] = self._bound_transpiled_circuit(device, values)
+
+    def _bound_transpiled_circuit(
+        self, device: AvailableDevice, values: BindingParameters
+    ):
+        """Bind a provider template without modifying it or the MPQP circuit."""
+        from sympy import Expr, Symbol
+
+        if any(not isinstance(key, (str, Symbol)) for key in values) or any(
+            isinstance(value, Expr) and value.free_symbols for value in values.values()
+        ):
+            return self.subs(values).transpiled_for_device(device)
+
+        transpiled = self._transpilation_template_for_device(device)
+
+        param_values = {str(k): v for k, v in values.items()}
+
+        from mpqp.execution.devices import (
+            AWSDevice,
+            AZUREDevice,
+            IBMDevice,
+            QUANTINUUMDevice,
+        )
+        from mpqp.execution.simulated_devices import StaticIBMSimulatedDevice
+
+        if isinstance(device, (IBMDevice, StaticIBMSimulatedDevice, AZUREDevice)):
+            from qiskit import QuantumCircuit
+
+            assert isinstance(transpiled, QuantumCircuit)
+            qiskit_param_map = {
+                p: param_values[p.name]
+                for p in transpiled.parameters
+                if p.name in param_values
+            }
+            return (
+                transpiled.assign_parameters(qiskit_param_map, inplace=False)
+                if qiskit_param_map
+                else transpiled
+            )
+
+        elif isinstance(device, AWSDevice):
+            from braket.circuits import Circuit as braket_Circuit
+
+            assert isinstance(transpiled, braket_Circuit)
+            return transpiled.make_bound_circuit(
+                param_values  # pyright: ignore[reportArgumentType]
+            )
+
+        elif isinstance(device, QUANTINUUMDevice):
+            from pytket import Circuit as tket_Circuit
+
+            assert isinstance(transpiled, tket_Circuit)
+            bound = transpiled.copy()
+            bound.symbol_substitution(
+                {  # pyright: ignore[reportArgumentType]
+                    symbol: param_values[str(symbol)]
+                    for symbol in bound.free_symbols()
+                    if str(symbol) in param_values
+                }
+            )
+            return bound
+        else:
+            return self.subs(values).transpiled_for_device(device)
