@@ -244,6 +244,9 @@ def generate_job(
     """
     from ..core.binding import CircuitBinding
 
+    if isinstance(circuit, QCircuit):
+        circuit._validate_transpilation()  # pyright: ignore[reportPrivateUsage]
+
     if values is not None:
         if isinstance(circuit, CircuitBinding):
             raise ValueError("values must be specified in CircuitBinding")
@@ -274,6 +277,7 @@ def generate_job(
             else:
                 job = Job(JobType.SAMPLE, circuit, device)
         elif isinstance(measurement, ExpectationMeasure):
+            prepared_circuit = circuit
             m = adjust_measure(
                 measurement,
                 circuit,
@@ -281,6 +285,20 @@ def generate_job(
             )
             circuit = circuit.without_measurements(deep_copy=False)
             circuit.add(m)
+            # Provider caches already use this observable target convention.
+            # Adjusting metadata must not discard an existing native binding.
+            if device in prepared_circuit.transpiled_circuit:
+                circuit.transpiled_circuit[device] = (
+                    prepared_circuit.transpiled_circuit[device]
+                )
+                circuit.transpiled_noise_model = prepared_circuit.transpiled_noise_model
+                templates = (
+                    prepared_circuit._transpilation_templates  # pyright: ignore[reportPrivateUsage]
+                )
+                if device in templates:
+                    circuit._transpilation_templates.update(  # pyright: ignore[reportPrivateUsage]
+                        {device: templates[device]}
+                    )
             job = Job(
                 JobType.OBSERVABLE,
                 circuit,
@@ -419,7 +437,11 @@ def _run_single(
     if len(circuit.measurements) == 1:
         measure = circuit.measurements[0]
         if isinstance(measure, ExpectationMeasure):
-            if measure.optim_diagonal and measure.only_diagonal_observables():
+            if (
+                measure.optim_diagonal
+                and measure.only_diagonal_observables()
+                and device not in circuit.transpiled_circuit
+            ):
                 if (measure.shots == 0 and not device.supports_state_vector()) or (
                     measure.shots != 0 and not device.supports_samples()
                 ):

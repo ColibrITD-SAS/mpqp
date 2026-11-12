@@ -505,7 +505,7 @@ def test_binding_matches_input_and_recorded_circuits():
     measurement = ExpectationMeasure(Observable(pZ))
     binding = CircuitBinding(circuits, measurements=measurement)
     with patch(
-        "mpqp.core._keys.Snapshot.__call__",
+        "mpqp.execution.result.Snapshot",
         side_effect=AssertionError("Unnecessary capture"),
     ):
         batch = run(binding, IBMDevice.AER_SIMULATOR)

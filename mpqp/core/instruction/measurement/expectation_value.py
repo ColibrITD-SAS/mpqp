@@ -460,7 +460,9 @@ class ExpectationMeasure(Measure):
         optimize_measurement: Indicates if the Pauli grouping must be done to
             optimize the number of measurements. Default to True.
         optim_diagonal: Indicates if the computation of expectation value for
-            diagonal observables is optimized. Default to False.
+            diagonal observables is optimized. Default to False. An already
+            prepared provider circuit is executed directly instead of being
+            replaced by a newly translated sampling circuit.
 
     Warns:
         UserWarning: If the ``targets`` are not sorted and contiguous, some

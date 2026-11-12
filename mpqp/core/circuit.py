@@ -79,6 +79,7 @@ if TYPE_CHECKING:
     from qiskit_aer import AerSimulator
     from sympy import Expr
 
+    from mpqp.core._keys import ObjectKey
     from mpqp.execution.devices import (
         ATOSDevice,
         AvailableDevice,
@@ -223,6 +224,8 @@ class QCircuit:
         be executed with different parameters."""
         self._transpilation_templates = self.transpiled_circuit.copy()
         """Original provider circuits retained when a cached circuit is bound."""
+        self._transpilation_key: Optional[ObjectKey] = None
+        """Structural snapshot of the MPQP inputs used by provider caches."""
         self.transpiled_noise_model = None
         """A pre-transpiled noise model that skips repeated transpilation when
         running the circuit. Currently, it is only useful in Qiskit when working
@@ -1258,14 +1261,24 @@ class QCircuit:
             )
         if "transpiled_circuit" in excluded_attrs:
             excluded_attrs.update(
-                {"_transpilation_templates", "transpiled_noise_model"}
+                {
+                    "_transpilation_templates",
+                    "transpiled_noise_model",
+                    "_transpilation_key",
+                }
             )
         new_obj = QCircuit()
         for attr, val in self.__dict__.items():
             if attr not in excluded_attrs:
-                if deep_copy is True:
+                if attr == "_transpilation_key":
+                    # Structural keys are immutable, even for deep clones.
+                    setattr(new_obj, attr, val)
+                elif deep_copy is True:
                     setattr(new_obj, attr, deepcopy(val))
-                elif attr in ("transpiled_circuit", "_transpilation_templates"):
+                elif attr in (
+                    "transpiled_circuit",
+                    "_transpilation_templates",
+                ):
                     setattr(new_obj, attr, val.copy())
                 else:
                     setattr(new_obj, attr, val)
@@ -2314,10 +2327,38 @@ class QCircuit:
         """Discard provider circuits and noise prepared for an earlier circuit."""
         self.transpiled_circuit.clear()
         self._transpilation_templates.clear()
+        self._transpilation_key = None
         self.transpiled_noise_model = None
+
+    def _validate_transpilation(self) -> None:
+        """Detect edits to shared instructions, measurements and noise models."""
+        from mpqp.core._keys import object_key
+
+        if not self.transpiled_circuit:
+            return
+        try:
+            key = object_key(self)
+        except (TypeError, ValueError):
+            # Objects without a structural key remain executable without caching.
+            self._invalidate_transpilation()
+            return
+        if self._transpilation_key is not None and key != self._transpilation_key:
+            self._invalidate_transpilation()
+        self._transpilation_key = key
+
+    def _transpilation_template_for_device(self, device: AvailableDevice):
+        """Return the unbound provider circuit for parameter sweeps."""
+        prepared = self.transpiled_for_device(device)
+        return self._transpilation_templates.get(device, prepared)
 
     def transpiled_for_device(self, device: AvailableDevice):
         """Return the circuit prepared for ``device``, reusing it when available.
+
+        Changes to the circuit's instructions, measurements or noise models
+        discard previously prepared circuits, including direct bindings.
+        Observable targets are prepared using the same convention as execution.
+        A prepared observable circuit is executed directly; ``optim_diagonal``
+        does not replace it with a newly translated sampling circuit.
 
         Args:
             device: Device for which the circuit is prepared.
@@ -2325,31 +2366,46 @@ class QCircuit:
         Returns:
             The provider-native circuit for the device.
         """
-        if device not in self.transpiled_circuit:
-            from mpqp.execution.devices import IBMDevice
+        self._validate_transpilation()
+        if device in self.transpiled_circuit:
+            return self.transpiled_circuit[device]
+        from mpqp.execution.devices import AWSDevice, IBMDevice
 
-            if (
-                self.is_noisy
-                and isinstance(device, IBMDevice)
-                and not device.is_remote()
-            ):
-                from qiskit_aer import AerSimulator
+        circuit = self
+        has_observable = any(
+            isinstance(measurement, ExpectationMeasure)
+            for measurement in self.measurements
+        )
+        if has_observable:
+            from mpqp.execution.runner import generate_job
 
-                from mpqp.execution.providers.ibm import generate_qiskit_noise_model
+            prepared_job = generate_job(self, device)
+            assert isinstance(prepared_job.circuit, QCircuit)
+            circuit = prepared_job.circuit
 
-                noise_model, circuit = generate_qiskit_noise_model(self)
-                self.transpiled_noise_model = noise_model
-                backend = AerSimulator(
-                    method=device.value,
-                    noise_model=noise_model,
-                )
-                self.transpiled_circuit[device] = circuit.to_other_device(
-                    device,
-                    backend_sim=backend,
-                )
-            else:
-                self.transpiled_circuit[device] = self.to_other_device(device)
-        return self.transpiled_circuit[device]
+        if self.is_noisy and isinstance(device, IBMDevice) and not device.is_remote():
+            from qiskit_aer import AerSimulator
+
+            from mpqp.execution.providers.ibm import generate_qiskit_noise_model
+
+            noise_model, circuit = generate_qiskit_noise_model(circuit)
+            self.transpiled_noise_model = noise_model
+            backend = AerSimulator(
+                method=device.value,
+                noise_model=noise_model,
+            )
+            self.transpiled_circuit[device] = circuit.to_other_device(
+                device,
+                backend_sim=backend,
+            )
+        else:
+            self.transpiled_circuit[device] = circuit.to_other_device(
+                device,
+                skip_pre_measure=has_observable and isinstance(device, AWSDevice),
+            )
+        prepared = self.transpiled_circuit[device]
+        self._validate_transpilation()
+        return prepared
 
     def variables(self) -> set[Expr]:
         """Returns all the symbolic parameters involved in this circuit.
@@ -2408,6 +2464,10 @@ class QCircuit:
         binding with values applied to the original circuit, so the same
         circuit can be bound repeatedly to different values.
 
+        A subsequent :func:`~mpqp.execution.runner.run` uses these values unless
+        explicit values are supplied. A :class:`~mpqp.core.binding.CircuitBinding`
+        uses the original symbolic template for its own parameter sets.
+
         Args:
             device: Device identifying the cached provider representation.
             values: Values indexed by MPQP expressions or parameter names.
@@ -2428,9 +2488,7 @@ class QCircuit:
         ):
             return self.subs(values).transpiled_for_device(device)
 
-        transpiled = self._transpilation_templates.get(device)
-        if transpiled is None:
-            transpiled = self.transpiled_for_device(device)
+        transpiled = self._transpilation_template_for_device(device)
 
         param_values = {str(k): v for k, v in values.items()}
 

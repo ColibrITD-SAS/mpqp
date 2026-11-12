@@ -387,6 +387,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
             circuit_id = id(circuit)
             translated_circuit = translated_circuits.get(circuit_id)
             if translated_circuit is None:
+                circuit._validate_transpilation()  # pyright: ignore[reportPrivateUsage]
                 if device not in circuit.transpiled_circuit:
                     translated_circuit = (
                         circuit + QCircuit(binding.noises)
@@ -396,7 +397,9 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                         apply_noise_to_braket_circuit,
                     )
 
-                    transpiled_circuit = circuit.transpiled_circuit[device]
+                    transpiled_circuit = circuit._transpilation_templates.get(  # pyright: ignore[reportPrivateUsage]
+                        device, circuit.transpiled_circuit[device]
+                    )
                     if TYPE_CHECKING:
                         assert isinstance(transpiled_circuit, braket_Circuit)
                     translated_circuit = apply_noise_to_braket_circuit(

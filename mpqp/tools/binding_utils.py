@@ -65,7 +65,9 @@ def __translate_binding_circuits(
                             circuit + QCircuit(cb.noises)
                         ).to_other_device(device)
                     else:
-                        translated_circuit = circuit.transpiled_for_device(device)
+                        translated_circuit = circuit._transpilation_template_for_device(  # pyright: ignore[reportPrivateUsage]
+                            device
+                        )
                     result.update({id(circuit): translated_circuit})
                 elif isinstance(device, IBMDevice):
                     if cb.is_noisy:
@@ -88,6 +90,7 @@ def __translate_binding_circuits(
                             backend_sim=backend_sim,
                         )
                     else:
+                        circuit._validate_transpilation()  # pyright: ignore[reportPrivateUsage]
                         if device not in circuit.transpiled_circuit:
                             circuit.transpiled_circuit[device] = (
                                 circuit.to_other_device(
@@ -96,7 +99,10 @@ def __translate_binding_circuits(
                                     backend_sim=backend_sim,
                                 )
                             )
-                        translated_circuit = circuit.transpiled_circuit[device]
+                            circuit._validate_transpilation()  # pyright: ignore[reportPrivateUsage]
+                        translated_circuit = circuit._transpilation_templates.get(  # pyright: ignore[reportPrivateUsage]
+                            device, circuit.transpiled_circuit[device]
+                        )
                     result.update({id(circuit): translated_circuit})
                 else:
                     raise NotImplementedError
