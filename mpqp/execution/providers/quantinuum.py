@@ -42,6 +42,20 @@ if TYPE_CHECKING:
 
 _NexusItem = TypeVar("_NexusItem")
 
+# Quantinuum Nexus currently limits each job to 300 programs. The Nexus SDK
+# does not expose this limit through its API or backend configuration.
+_NEXUS_MAX_PROGRAMS_PER_JOB = 300
+
+
+def _validate_nexus_program_count(program_count: int, nexus_job_type: str) -> None:
+    """Reject a Nexus job that contains more programs than Quantinuum Nexus accepts."""
+    if program_count > _NEXUS_MAX_PROGRAMS_PER_JOB:
+        raise ValueError(
+            "Quantinuum Nexus accepts at most "
+            f"{_NEXUS_MAX_PROGRAMS_PER_JOB} programs per job, but the "
+            f"{nexus_job_type} job contains {program_count}."
+        )
+
 
 def run_quantinuum(
     job: Job, quantinuum_params: Optional[QuantinuumParams] = None
@@ -1010,6 +1024,14 @@ def submit_tket_circuits_to_nexus(
     Returns:
         A reference to the Nexus execution job.
     """
+    _validate_nexus_program_count(len(tket_circuits), "compilation")
+    execution_program_count = (
+        len(parameter_bindings)
+        if parameter_bindings is not None
+        else len(tket_circuits)
+    )
+    _validate_nexus_program_count(execution_program_count, "execution")
+
     import qnexus as qnx
 
     if TYPE_CHECKING:
