@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from mpqp.execution import Result
+from mpqp.execution import BatchResult, Result
 from mpqp.execution.connection.aws_connection import get_all_task_ids as aws_ids
 from mpqp.execution.connection.azure_connection import get_all_job_ids as azure_ids
 from mpqp.execution.connection.google_connection import get_all_job_ids as cirq_ids
@@ -34,7 +34,7 @@ from mpqp.execution.providers.quantinuum import get_result_from_quantinuum_job_i
 
 def get_remote_result(
     job_data: str | Job, device: Optional[AvailableDevice] = None
-) -> Result:
+) -> Result | BatchResult:
     """Retrieve and parse a remote result from a job id or a Job. When passing
     a job id, the device on which the job was submitted must also be provided.
     If the job is still running, the call blocks until the job is done.
@@ -46,7 +46,7 @@ def get_remote_result(
             ``job_data`` is the identifier of the job.
 
     Returns:
-        The result associated with the desired remote job in parameter.
+        The result or batch of results associated with the desired remote job.
 
     Note:
         Retrieving results for jobs with multiple remote ids is not supported.
@@ -54,6 +54,7 @@ def get_remote_result(
         require the original :class:`~mpqp.execution.job.Job`, rather than only
         its ARN, to reconstruct the requested observables.
         Retrieval of Braket circuit-binding results is not supported for now.
+        Quantinuum circuit-binding results also require the original job.
 
     Examples:
         >>> print(get_remote_result('Job141933', ATOSDevice.QLM_LINALG))
