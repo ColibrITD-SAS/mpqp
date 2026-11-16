@@ -79,6 +79,16 @@ class BindingMode(Enum):
     single element to the length of the longest axis."""
 
 
+def _binding_contains_measurements(binding: CircuitBinding) -> bool:
+    """Return whether this binding contains a measurement, directly or in a nested binding."""
+    if binding.measurements is not None:
+        return True
+    return any(
+        isinstance(circuit, CircuitBinding) and _binding_contains_measurements(circuit)
+        for circuit in binding.circuits
+    )
+
+
 class CircuitBinding:
     """Group related circuit executions for provider optimizations.
 
@@ -352,6 +362,15 @@ class CircuitBinding:
                 if is_expectation
                 else JobType.STATE_VECTOR if self.shots == 0 else JobType.SAMPLE
             )
+            if any(
+                isinstance(circuit, CircuitBinding)
+                and _binding_contains_measurements(circuit)
+                and circuit.job_type != self.job_type
+                for circuit in circuits
+            ):
+                raise ValueError(
+                    "Nested CircuitBindings cannot combine different job types."
+                )
 
         if (
             self.job_type != JobType.STATE_VECTOR
