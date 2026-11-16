@@ -21,6 +21,11 @@ selected by the binding. Copying the measurement keeps the original binding
 unchanged and allows the same measurement to receive the correct targets for
 each circuit size.
 
+:func:`prepare_binding_execution_groups` expands a binding into the executions
+it describes without translating their circuits. Executions using the same
+circuit and measurement are grouped so they can share one provider translation.
+Each execution keeps its parameter values and original position in the binding.
+
 :func:`translate_binding_circuits` stores each translated circuit under the
 :func:`id` of its original circuit. :func:`translate_binding_measurements` uses
 both the measurement's :func:`id` and the number of qubits in the circuit where
@@ -43,6 +48,7 @@ from mpqp.core.binding import (
 )
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.measurement.measure import Measure
+from mpqp.execution._execution_context import PreparedBindingExecutionGroup
 from mpqp.execution.devices import AvailableDevice, AWSDevice, IBMDevice
 
 if TYPE_CHECKING:
@@ -76,6 +82,74 @@ def create_binding_execution_circuit(
     if measurement is not None:
         execution_circuit.add(deepcopy(measurement))
     return execution_circuit
+
+
+def prepare_binding_execution_groups(
+    cb: CircuitBinding,
+    device: AvailableDevice,
+) -> list[PreparedBindingExecutionGroup]:
+    """Expand and group the executions described by a binding before provider translation.
+
+    Executions using the same original circuit and prepared measurement are
+    grouped so a provider can translate their circuit once. Each execution
+    keeps its parameter values and its position in the binding.
+
+    Args:
+        cb: Circuit binding to expand and group.
+        device: Device associated with the execution jobs.
+
+    Returns:
+        Each original circuit, its prepared execution circuit, and the
+        executions that can share its provider translation.
+    """
+    from mpqp.execution._execution_context import ExecutionContext
+    from mpqp.execution.job import Job
+
+    execution_groups: dict[tuple[int, object, int], PreparedBindingExecutionGroup] = {}
+
+    for index, (circuit, values, measurement) in enumerate(cb.unroll()):
+        execution_circuit = create_binding_execution_circuit(circuit, measurement)
+        prepared_measurement = (
+            execution_circuit.measurements[0]
+            if execution_circuit.measurements
+            else None
+        )
+        measurement_key: object = (
+            None
+            if prepared_measurement is None
+            else (
+                type(prepared_measurement),
+                tuple(prepared_measurement.targets),
+                tuple(getattr(prepared_measurement, "c_targets", None) or ()),
+                tuple(
+                    repr(instruction)
+                    for instruction in prepared_measurement.pre_measure
+                ),
+            )
+        )
+        group_key = (id(circuit), measurement_key, circuit.nb_qubits)
+        execution_group = execution_groups.get(group_key)
+        if execution_group is None:
+            execution_group = PreparedBindingExecutionGroup(
+                original_circuit=circuit,
+                execution_circuit=execution_circuit,
+                contexts=[],
+            )
+            execution_groups[group_key] = execution_group
+
+        execution_group.contexts.append(
+            ExecutionContext(
+                job=Job(
+                    cb.job_type,
+                    execution_circuit,
+                    device,
+                    values=values,
+                ),
+                index=index,
+            )
+        )
+
+    return list(execution_groups.values())
 
 
 def __translate_binding_circuits(

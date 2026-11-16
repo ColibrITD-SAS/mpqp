@@ -6,9 +6,12 @@ from numbers import Real
 from typing import TYPE_CHECKING
 
 from mpqp.core.languages import Language
-from mpqp.execution._execution_context import ExecutionContext
+from mpqp.execution._execution_context import (
+    PreparedBindingExecutionGroup,
+    TranslatedBindingExecutionGroup,
+)
 from mpqp.execution.devices import QUANTINUUMDevice
-from mpqp.execution.job import Job, JobType
+from mpqp.execution.job import JobType
 
 if TYPE_CHECKING:
     from pytket.circuit import Circuit as tket_Circuit
@@ -245,7 +248,7 @@ def bind_tket_parameters(
 
 def circuitbinding_to_tket(
     binding: "CircuitBinding", device: QUANTINUUMDevice
-) -> list[tuple["tket_Circuit", list[ExecutionContext]]]:
+) -> list[TranslatedBindingExecutionGroup]:
     """Translate the executions in a circuit binding to TKET.
 
     Executions that use the same circuit and measurement share one symbolic
@@ -280,59 +283,50 @@ def circuitbinding_to_tket(
         Parameter values are assigned after the TKET circuit is compiled for
         the selected backend.
     """
-    translated_executions: dict[
-        tuple[int, object, int],
-        tuple[tket_Circuit, list[ExecutionContext]],
-    ] = {}
+    from mpqp.tools.binding_utils import prepare_binding_execution_groups
 
-    from mpqp.tools.binding_utils import create_binding_execution_circuit
+    execution_groups = prepare_binding_execution_groups(binding, device)
+    return translate_binding_execution_groups(
+        execution_groups,
+        device,
+        binding.job_type,
+    )
 
-    for index, (circuit, values, measurement) in enumerate(binding.unroll()):
-        context_circuit = create_binding_execution_circuit(circuit, measurement)
-        context_measurement = (
-            context_circuit.measurements[0] if context_circuit.measurements else None
-        )
-        measurement_key: object = (
-            None
-            if context_measurement is None
-            else (
-                type(context_measurement),
-                tuple(context_measurement.targets),
-                tuple(getattr(context_measurement, "c_targets", None) or ()),
-                tuple(
-                    repr(instruction) for instruction in context_measurement.pre_measure
-                ),
+
+def translate_binding_execution_groups(
+    execution_groups: list[PreparedBindingExecutionGroup],
+    device: QUANTINUUMDevice,
+    job_type: JobType,
+) -> list[TranslatedBindingExecutionGroup]:
+    """Translate prepared binding executions to TKET.
+
+    Args:
+        execution_groups: Binding executions prepared before provider
+            translation.
+        device: Quantinuum device for which the circuits are translated.
+        job_type: Type of job represented by the binding.
+
+    Returns:
+        Each symbolic TKET circuit with the executions that share it.
+    """
+    translated_executions = []
+    for execution_group in execution_groups:
+        if execution_group.execution_circuit.measurements:
+            tket_circuit = mpqp_to_tket(
+                execution_group.execution_circuit,
+                skip_measurements=job_type == JobType.STATE_VECTOR,
             )
-        )
-        group_key = (id(circuit), measurement_key, circuit.nb_qubits)
-        translated_execution = translated_executions.get(group_key)
-        if translated_execution is None:
-            if context_measurement is None:
-                tket_circuit = circuit.transpiled_for_device(device)
-                if TYPE_CHECKING:
-                    assert isinstance(tket_circuit, tket_Circuit)
-            else:
-                tket_circuit = mpqp_to_tket(
-                    context_circuit,
-                    skip_measurements=binding.job_type == JobType.STATE_VECTOR,
-                )
-            contexts: list[ExecutionContext] = []
-            translated_execution = (
-                tket_circuit,
-                contexts,
+        else:
+            tket_circuit = execution_group.original_circuit.transpiled_for_device(
+                device
             )
-            translated_executions[group_key] = translated_execution
-
-        translated_execution[1].append(
-            ExecutionContext(
-                job=Job(
-                    binding.job_type,
-                    context_circuit,
-                    device,
-                    values=values,
-                ),
-                index=index,
+            if TYPE_CHECKING:
+                assert isinstance(tket_circuit, tket_Circuit)
+        translated_executions.append(
+            TranslatedBindingExecutionGroup(
+                circuit=tket_circuit,
+                contexts=execution_group.contexts,
             )
         )
 
-    return list(translated_executions.values())
+    return translated_executions

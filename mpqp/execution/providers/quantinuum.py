@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 from collections import Counter
+from collections.abc import Iterable
 from numbers import Complex
 from typing import TYPE_CHECKING, Optional, TypeVar
 from warnings import warn
@@ -13,12 +14,17 @@ from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.measurement import BasisMeasure, ExpectationMeasure
 from mpqp.core.instruction.measurement.pauli_string import CommutingTypes
 from mpqp.core.languages import Language
-from mpqp.execution._execution_context import ExecutionContext
+from mpqp.execution._execution_context import (
+    ExecutionContext,
+    PreparedBindingExecutionGroup,
+    TranslatedBindingExecutionGroup,
+)
 from mpqp.execution.connection.quantinuum_connection import get_quantinuum_config
 from mpqp.execution.devices import QUANTINUUMDevice
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.providers.providers_params import QuantinuumParams
 from mpqp.execution.result import BatchResult, Result, Sample, StateVector
+from mpqp.tools.binding_utils import prepare_binding_execution_groups
 from mpqp.tools.errors import (
     DeviceJobIncompatibleError,
     ModifiedShotsNumberWarning,
@@ -115,12 +121,33 @@ def run_quantinuum_binding(
         )
 
     try:
-        translated_executions = job.circuit.to_other_device(job.device)
+        prepared_executions = prepare_binding_execution_groups(
+            job.circuit,
+            job.device,
+        )
+        execution_contexts = _ordered_binding_execution_contexts(prepared_executions)
+        for execution_context in execution_contexts:
+            check_job_compatibility(execution_context.job)
 
+        if job.device.is_remote() and job.job_type == JobType.OBSERVABLE:
+            return run_nexus_observable_circuit_binding(
+                job,
+                prepared_executions,
+                quantinuum_params,
+            )
+
+        from mpqp.translation.tket import translate_binding_execution_groups
+
+        translated_executions = translate_binding_execution_groups(
+            prepared_executions,
+            job.device,
+            job.job_type,
+        )
         if job.device.is_remote():
             return run_nexus_circuit_binding(
                 job, translated_executions, quantinuum_params
             )
+
         return run_tket_circuit_binding(job, translated_executions, quantinuum_params)
     except Exception as error:
         job.status = JobStatus.ERROR
@@ -290,19 +317,25 @@ def run_tket_local(
     return extract_result([backend_result], job)
 
 
-def _binding_execution_contexts(
-    translated_executions: list[tuple["tket_Circuit", list[ExecutionContext]]],
+def _ordered_binding_execution_contexts(
+    execution_groups: Iterable[
+        PreparedBindingExecutionGroup | TranslatedBindingExecutionGroup
+    ],
 ) -> list[ExecutionContext]:
-    """Flatten grouped binding contexts in their original unroll order."""
+    """Return binding execution contexts in their original unroll order."""
     return sorted(
-        [context for _, contexts in translated_executions for context in contexts],
+        [
+            context
+            for execution_group in execution_groups
+            for context in execution_group.contexts
+        ],
         key=lambda context: context.index,
     )
 
 
 def run_tket_circuit_binding(
     job: Job,
-    translated_executions: list[tuple["tket_Circuit", list[ExecutionContext]]],
+    translated_executions: list[TranslatedBindingExecutionGroup],
     quantinuum_params: Optional[QuantinuumParams] = None,
 ) -> BatchResult:
     """Run a circuit binding on a local TKET backend.
@@ -330,8 +363,10 @@ def run_tket_circuit_binding(
             0 if quantinuum_params is None else quantinuum_params.optimisation_level
         )
 
-        provider_circuits = [circuit for circuit, _ in translated_executions]
-        execution_contexts = _binding_execution_contexts(translated_executions)
+        provider_circuits = [
+            execution_group.circuit for execution_group in translated_executions
+        ]
+        execution_contexts = _ordered_binding_execution_contexts(translated_executions)
         for execution_context in execution_contexts:
             check_job_compatibility(execution_context.job)
 
@@ -361,11 +396,11 @@ def run_tket_circuit_binding(
                     ),
                     execution_context,
                 )
-                for compiled_circuit, (_, contexts) in zip(
+                for compiled_circuit, translated_execution in zip(
                     compiled_circuits,
                     translated_executions,
                 )
-                for execution_context in contexts
+                for execution_context in translated_execution.contexts
             ],
             key=lambda execution: execution[1].index,
         )
@@ -530,7 +565,7 @@ def run_nexus_remote(
 
 def run_nexus_circuit_binding(
     job: Job,
-    translated_executions: list[tuple["tket_Circuit", list[ExecutionContext]]],
+    translated_executions: list[TranslatedBindingExecutionGroup],
     quantinuum_params: Optional[QuantinuumParams] = None,
 ) -> BatchResult:
     """Submit a circuit binding as one Quantinuum Nexus execution job.
@@ -545,6 +580,7 @@ def run_nexus_circuit_binding(
         Results ordered like :meth:`CircuitBinding.unroll`.
     """
     try:
+        execution_contexts = _ordered_binding_execution_contexts(translated_executions)
         execute_job_ref, group_counts = _submit_nexus_binding_executions(
             job,
             translated_executions,
@@ -553,7 +589,47 @@ def run_nexus_circuit_binding(
         backend_results = fetch_nexus_results(execute_job_ref)
         return _extract_nexus_binding_results(
             job,
-            translated_executions,
+            execution_contexts,
+            group_counts,
+            backend_results,
+        )
+    except Exception as error:
+        job.status = JobStatus.ERROR
+        job.status_message = str(error)
+        raise
+
+
+def run_nexus_observable_circuit_binding(
+    job: Job,
+    prepared_executions: list[PreparedBindingExecutionGroup],
+    quantinuum_params: Optional[QuantinuumParams] = None,
+) -> BatchResult:
+    """Run an observable circuit binding on Quantinuum Nexus.
+
+    Each prepared execution group is converted into the sample circuits required
+    for its Pauli groups. The circuits are submitted together, and the results are
+    returned in the original binding order.
+
+    Args:
+        job: Quantinuum job containing the original circuit binding.
+        prepared_executions: Binding executions resolved and grouped before
+            provider translation.
+        quantinuum_params: Quantinuum-specific compilation parameters.
+
+    Returns:
+        Results in the same order as :meth:`CircuitBinding.unroll`.
+    """
+    try:
+        execution_contexts = _ordered_binding_execution_contexts(prepared_executions)
+        execute_job_ref, group_counts = _submit_nexus_observable_executions(
+            job,
+            prepared_executions,
+            quantinuum_params,
+        )
+        backend_results = fetch_nexus_results(execute_job_ref)
+        return _extract_nexus_binding_results(
+            job,
+            execution_contexts,
             group_counts,
             backend_results,
         )
@@ -580,12 +656,33 @@ def submit_nexus_circuit_binding(
         )
 
     try:
-        translated_executions = job.circuit.to_other_device(job.device)
-        execute_job_ref, _ = _submit_nexus_binding_executions(
-            job,
-            translated_executions,
-            provider_params,
+        prepared_executions = prepare_binding_execution_groups(
+            job.circuit,
+            job.device,
         )
+        execution_contexts = _ordered_binding_execution_contexts(prepared_executions)
+        for execution_context in execution_contexts:
+            check_job_compatibility(execution_context.job)
+
+        if job.job_type == JobType.OBSERVABLE:
+            execute_job_ref, _ = _submit_nexus_observable_executions(
+                job,
+                prepared_executions,
+                provider_params,
+            )
+        else:
+            from mpqp.translation.tket import translate_binding_execution_groups
+
+            translated_executions = translate_binding_execution_groups(
+                prepared_executions,
+                job.device,
+                job.job_type,
+            )
+            execute_job_ref, _ = _submit_nexus_binding_executions(
+                job,
+                translated_executions,
+                provider_params,
+            )
     except Exception as error:
         job.status = JobStatus.ERROR
         job.status_message = str(error)
@@ -598,89 +695,100 @@ def submit_nexus_circuit_binding(
     return job.id, execute_job_ref
 
 
+def _submit_nexus_observable_executions(
+    job: Job,
+    prepared_executions: list[PreparedBindingExecutionGroup],
+    provider_params: Optional[QuantinuumParams],
+) -> tuple["ExecuteJobRef", list[int]]:
+    """Translate and submit the sample circuits for an observable binding."""
+    if TYPE_CHECKING:
+        assert isinstance(job.device, QUANTINUUMDevice)
+
+    from mpqp.translation.tket import mpqp_to_tket
+
+    warn(
+        "Nexus evaluates observable CircuitBindings through sampling, "
+        "using one sample circuit per Pauli group."
+    )
+    provider_circuits: list[tket_Circuit] = []
+    observable_executions: list[tuple[int, list[int], ExecutionContext]] = []
+    for prepared_execution in prepared_executions:
+        measurement_circuit_indexes: dict[str, list[int]] = {}
+        for context in prepared_execution.contexts:
+            if not isinstance(context.job.measure, ExpectationMeasure):
+                raise DeviceJobIncompatibleError(
+                    "Every Quantinuum observable binding execution must use "
+                    "an ExpectationMeasure."
+                )
+            measurement_key = repr(context.job.measure)
+            group_circuit_indexes = measurement_circuit_indexes.get(measurement_key)
+            if group_circuit_indexes is None:
+                group_circuits = _nexus_observable_circuits(context.job)
+                group_circuit_indexes = list(
+                    range(
+                        len(provider_circuits),
+                        len(provider_circuits) + len(group_circuits),
+                    )
+                )
+                provider_circuits.extend(
+                    mpqp_to_tket(circuit) for circuit in group_circuits
+                )
+                measurement_circuit_indexes[measurement_key] = group_circuit_indexes
+            observable_executions.append(
+                (context.index, group_circuit_indexes, context)
+            )
+
+    group_counts: list[int] = []
+    shot_counts: list[int] = []
+    parameter_bindings = []
+    for _, group_circuit_indexes, execution_context in sorted(
+        observable_executions,
+        key=lambda execution: execution[0],
+    ):
+        if TYPE_CHECKING:
+            assert isinstance(execution_context.job.measure, ExpectationMeasure)
+        group_counts.append(len(group_circuit_indexes))
+        shot_counts.extend(
+            [execution_context.job.measure.shots] * len(group_circuit_indexes)
+        )
+        parameter_bindings.extend(
+            (circuit_index, execution_context.job.values)
+            for circuit_index in group_circuit_indexes
+        )
+
+    execute_job_ref = submit_tket_circuits_to_nexus(
+        job,
+        provider_circuits,
+        shot_counts,
+        name=f"mpqp-binding-observable-{job.device.value}",
+        description="mpqp:circuit-binding-observable",
+        provider_params=provider_params,
+        parameter_bindings=parameter_bindings,
+    )
+    return execute_job_ref, group_counts
+
+
 def _submit_nexus_binding_executions(
     job: Job,
-    translated_executions: list[tuple["tket_Circuit", list[ExecutionContext]]],
+    translated_executions: list[TranslatedBindingExecutionGroup],
     provider_params: Optional[QuantinuumParams],
 ) -> tuple["ExecuteJobRef", list[int]]:
     """Validate and submit translated binding executions as one Nexus job."""
     if TYPE_CHECKING:
         assert isinstance(job.device, QUANTINUUMDevice)
 
-    execution_contexts = _binding_execution_contexts(translated_executions)
+    execution_contexts = _ordered_binding_execution_contexts(translated_executions)
     for execution_context in execution_contexts:
         check_job_compatibility(execution_context.job)
 
-    if job.job_type == JobType.OBSERVABLE:
-        from mpqp.translation.tket import mpqp_to_tket
-
-        warn(
-            "Nexus evaluates observable CircuitBindings through sampling, "
-            "using one sample circuit per Pauli group."
-        )
-        provider_circuits: list[tket_Circuit] = []
-        observable_executions: list[tuple[int, list[int], ExecutionContext]] = []
-        for _, contexts in translated_executions:
-            measurement_circuit_indexes: dict[str, list[int]] = {}
-            for context in contexts:
-                if not isinstance(context.job.measure, ExpectationMeasure):
-                    raise DeviceJobIncompatibleError(
-                        "Every Quantinuum observable binding execution must use "
-                        "an ExpectationMeasure."
-                    )
-                measurement_key = repr(context.job.measure)
-                group_circuit_indexes = measurement_circuit_indexes.get(measurement_key)
-                if group_circuit_indexes is None:
-                    group_circuits = _nexus_observable_circuits(context.job)
-                    group_circuit_indexes = list(
-                        range(
-                            len(provider_circuits),
-                            len(provider_circuits) + len(group_circuits),
-                        )
-                    )
-                    provider_circuits.extend(
-                        mpqp_to_tket(circuit) for circuit in group_circuits
-                    )
-                    measurement_circuit_indexes[measurement_key] = group_circuit_indexes
-                observable_executions.append(
-                    (context.index, group_circuit_indexes, context)
-                )
-
-        group_counts: list[int] = []
-        shot_counts: list[int] = []
-        parameter_bindings = []
-        for _, group_circuit_indexes, execution_context in sorted(
-            observable_executions,
-            key=lambda execution: execution[0],
-        ):
-            if TYPE_CHECKING:
-                assert isinstance(execution_context.job.measure, ExpectationMeasure)
-            group_counts.append(len(group_circuit_indexes))
-            shot_counts.extend(
-                [execution_context.job.measure.shots] * len(group_circuit_indexes)
-            )
-            parameter_bindings.extend(
-                (circuit_index, execution_context.job.values)
-                for circuit_index in group_circuit_indexes
-            )
-
-        execute_job_ref = submit_tket_circuits_to_nexus(
-            job,
-            provider_circuits,
-            shot_counts,
-            name=f"mpqp-binding-observable-{job.device.value}",
-            description="mpqp:circuit-binding-observable",
-            provider_params=provider_params,
-            parameter_bindings=parameter_bindings,
-        )
-        return execute_job_ref, group_counts
-
-    provider_circuits = [circuit for circuit, _ in translated_executions]
+    provider_circuits = [
+        execution_group.circuit for execution_group in translated_executions
+    ]
     indexed_bindings = sorted(
         [
             (context.index, circuit_index, context)
-            for circuit_index, (_, contexts) in enumerate(translated_executions)
-            for context in contexts
+            for circuit_index, execution_group in enumerate(translated_executions)
+            for context in execution_group.contexts
         ],
         key=lambda execution: execution[0],
     )
@@ -714,12 +822,11 @@ def _submit_nexus_binding_executions(
 
 def _extract_nexus_binding_results(
     job: Job,
-    translated_executions: list[tuple["tket_Circuit", list[ExecutionContext]]],
+    execution_contexts: list[ExecutionContext],
     group_counts: list[int],
     backend_results: list["BackendResult"],
 ) -> BatchResult:
     """Build one MPQP result for each CircuitBinding execution from the results returned by Nexus."""
-    execution_contexts = _binding_execution_contexts(translated_executions)
     if len(group_counts) != len(execution_contexts):
         raise ValueError(
             "The number of Nexus result groups does not match the number of "
@@ -757,10 +864,9 @@ def _extract_nexus_binding_results(
 
 def _nexus_binding_group_counts(
     job: Job,
-    translated_executions: list[tuple["tket_Circuit", list[ExecutionContext]]],
+    execution_contexts: list[ExecutionContext],
 ) -> list[int]:
     """Return the number of Nexus result items used by each binding execution."""
-    execution_contexts = _binding_execution_contexts(translated_executions)
     if job.job_type != JobType.OBSERVABLE:
         return [1] * len(execution_contexts)
 
@@ -1353,11 +1459,15 @@ def get_result_from_quantinuum_job_id(
             raise DeviceJobIncompatibleError(
                 "A Quantinuum CircuitBinding result requires a QUANTINUUMDevice."
             )
-        translated_executions = job.circuit.to_other_device(job.device)
-        group_counts = _nexus_binding_group_counts(job, translated_executions)
+        prepared_executions = prepare_binding_execution_groups(
+            job.circuit,
+            job.device,
+        )
+        execution_contexts = _ordered_binding_execution_contexts(prepared_executions)
+        group_counts = _nexus_binding_group_counts(job, execution_contexts)
         return _extract_nexus_binding_results(
             job,
-            translated_executions,
+            execution_contexts,
             group_counts,
             backend_results,
         )

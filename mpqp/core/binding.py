@@ -41,11 +41,13 @@ from mpqp.tools.generics import OneOrMany
 
 if TYPE_CHECKING:
     from braket.program_sets import ProgramSet
-    from pytket.circuit import Circuit as tket_Circuit
     from qiskit.primitives.containers import EstimatorPubLike
     from qiskit_aer import AerSimulator
 
-    from mpqp.execution._execution_context import ExecutionContext
+    from mpqp.execution._execution_context import (
+        ExecutionContext,
+        TranslatedBindingExecutionGroup,
+    )
     from mpqp.execution.devices import (
         AvailableDevice,
         AWSDevice,
@@ -533,21 +535,21 @@ class CircuitBinding:
     @overload
     def to_other_device(
         self, device: QUANTINUUMDevice, backend_sim: Optional[AerSimulator] = None
-    ) -> list[tuple[tket_Circuit, list[ExecutionContext]]]: ...
+    ) -> list[TranslatedBindingExecutionGroup]: ...
     @overload
     def to_other_device(
         self, device: AvailableDevice, backend_sim: Optional[AerSimulator] = None
     ) -> (
         list[tuple[EstimatorPubLike, list[ExecutionContext]]]
         | tuple[ProgramSet, list[Any]]
-        | list[tuple[tket_Circuit, list[ExecutionContext]]]
+        | list[TranslatedBindingExecutionGroup]
     ): ...
     def to_other_device(
         self, device: AvailableDevice, backend_sim: Optional[AerSimulator] = None
     ) -> (
         list[tuple[EstimatorPubLike, list[ExecutionContext]]]
         | tuple[ProgramSet, list[Any]]
-        | list[tuple[tket_Circuit, list[ExecutionContext]]]
+        | list[TranslatedBindingExecutionGroup]
     ):
         """Translate a binding for the selected provider.
 
