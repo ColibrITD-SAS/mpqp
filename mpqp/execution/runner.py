@@ -248,7 +248,10 @@ def generate_job(
             raise ValueError("values must be specified in CircuitBinding")
         circuit = circuit.subs(values)
         if device in circuit.transpiled_circuit:
-            circuit.bind_parameters(device, values)
+            circuit.transpiled_circuit[device] = circuit.bind_parameters(
+                device,
+                values,
+            )
 
     if isinstance(circuit, CircuitBinding):
         job = Job(circuit.job_type, circuit, device)
@@ -764,10 +767,12 @@ def submit(
     provider_params: Optional[ProviderParams] = None,
 ) -> tuple[str | list[str], Job]:
     """Submit the job related to the circuit on the remote backend provided in
-    parameter. The submission returns a ``job_id`` that can be used to retrieve
-    the :class:`~mpqp.execution.result.Result` later using the
-    :func:`~mpqp.execution.remote_handler.get_remote_result`
-    function.
+    parameter. The submission returns the provider's ``job_id`` and the
+    associated MPQP :class:`~mpqp.execution.job.Job`.
+
+    For Quantinuum CircuitBinding and observable submissions, retrieve the
+    result with the returned MPQP job: ``get_remote_result(job)``. The job ID
+    alone does not contain enough information for MPQP to rebuild these results.
 
     If the circuit contains symbolic variables (see section :ref:`VQA` for more
     information), the ``values`` parameter is used perform the necessary
@@ -784,7 +789,8 @@ def submit(
 
     Returns:
         The job id or ids provided by the remote device after
-        submission and the associated MPQP job.
+        submission and the associated MPQP job. Keep the returned job when
+        submitting a Quantinuum CircuitBinding or observable job.
 
     Example:
         >>> circuit = QCircuit([H(0), CNOT(0,1), BasisMeasure([0,1], shots=10)])

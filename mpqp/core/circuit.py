@@ -2377,17 +2377,20 @@ class QCircuit:
 
     def bind_parameters(
         self, device: AvailableDevice, values: BindingParameters
-    ) -> None:
-        """Assign values to the cached provider circuit for a device.
+    ) -> QuantumCircuit | braket_Circuit | tket_Circuit:
+        """Return the cached provider circuit with parameter values assigned.
 
         If the provider circuit is not cached yet, it is transpiled first. The
-        original MPQP circuit is not changed, only its cached provider circuit
-        is replaced by the bound version.
+        cached symbolic circuit and the original MPQP circuit are not changed,
+        so another set of values can be assigned later.
 
         Args:
             device: Device whose cached circuit should be bound.
             values: The value of each parameter, keyed by its expression or
                 name.
+
+        Returns:
+            A separate provider circuit containing the assigned values.
 
         Raises:
             TypeError: If parameter binding is not implemented for the device's
@@ -2411,17 +2414,13 @@ class QCircuit:
                 for p in transpiled.parameters
                 if p.name in param_values
             }
-            self.transpiled_circuit[device] = (
-                transpiled.assign_parameters(qiskit_param_map, inplace=False)
-                if qiskit_param_map
-                else transpiled
-            )
+            return transpiled.assign_parameters(qiskit_param_map, inplace=False)
 
         elif isinstance(device, AWSDevice):
             from braket.circuits import Circuit as braket_Circuit
 
             assert isinstance(transpiled, braket_Circuit)
-            self.transpiled_circuit[device] = transpiled.make_bound_circuit(
+            return transpiled.make_bound_circuit(
                 param_values  # pyright: ignore[reportArgumentType]
             )
 
@@ -2431,7 +2430,7 @@ class QCircuit:
             assert isinstance(transpiled, tket_Circuit)
             from mpqp.translation.tket import bind_tket_parameters
 
-            self.transpiled_circuit[device] = bind_tket_parameters(
+            return bind_tket_parameters(
                 transpiled,
                 param_values,
             )
