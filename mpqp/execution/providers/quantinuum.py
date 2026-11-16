@@ -63,6 +63,27 @@ def _validate_nexus_program_count(program_count: int, nexus_job_type: str) -> No
         )
 
 
+def _validate_nexus_parameter_bindings(
+    tket_circuits: list["tket_Circuit"],
+    parameter_bindings: Optional[list[tuple[int, "BindingParameters | None"]]],
+) -> None:
+    """Check that each execution references an existing circuit and has valid
+    parameter values before submitting to Nexus.
+    """
+    if parameter_bindings is None:
+        return
+
+    from mpqp.translation.tket import bind_tket_parameters
+
+    for circuit_index, values in parameter_bindings:
+        if circuit_index < 0 or circuit_index >= len(tket_circuits):
+            raise ValueError(
+                "Cannot prepare this Nexus execution because circuit index "
+                f"{circuit_index} does not exist."
+            )
+        bind_tket_parameters(tket_circuits[circuit_index], values)
+
+
 def run_quantinuum(
     job: Job, quantinuum_params: Optional[QuantinuumParams] = None
 ) -> Result | BatchResult:
@@ -1137,6 +1158,7 @@ def submit_tket_circuits_to_nexus(
         else len(tket_circuits)
     )
     _validate_nexus_program_count(execution_program_count, "execution")
+    _validate_nexus_parameter_bindings(tket_circuits, parameter_bindings)
 
     import qnexus as qnx
 
@@ -1201,12 +1223,6 @@ def submit_tket_circuits_to_nexus(
         downloaded_circuits: dict[int, tket_Circuit] = {}
         execution_circuit_refs = []
         for execution_index, (circuit_index, values) in enumerate(parameter_bindings):
-            if circuit_index < 0 or circuit_index >= len(compiled_circuit_refs):
-                raise ValueError(
-                    "A Nexus binding execution references missing circuit "
-                    f"index {circuit_index}."
-                )
-
             if not tket_circuits[circuit_index].free_symbols():
                 execution_circuit_refs.append(compiled_circuit_refs[circuit_index])
                 continue
@@ -1427,8 +1443,9 @@ def get_result_from_quantinuum_job_id(
 
     Args:
         job_id: ID of the remote Quantinuum Nexus job.
-        job: Original MPQP job used for submission. Required when retrieving
-            an observable result.
+        job: Original MPQP job returned at submission. It is required for
+            circuit-binding and observable results because the Nexus job ID
+            does not contain the MPQP information needed to reconstruct them.
 
     Returns:
         The result converted to our format.

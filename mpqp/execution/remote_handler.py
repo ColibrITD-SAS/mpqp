@@ -54,7 +54,8 @@ def get_remote_result(
         require the original :class:`~mpqp.execution.job.Job`, rather than only
         its ARN, to reconstruct the requested observables.
         Retrieval of Braket circuit-binding results is not supported for now.
-        Quantinuum circuit-binding results also require the original job.
+        Quantinuum circuit-binding and observable results also require the
+        original job returned by :func:`~mpqp.execution.runner.submit`.
 
     Examples:
         >>> print(get_remote_result('Job141933', ATOSDevice.QLM_LINALG))
