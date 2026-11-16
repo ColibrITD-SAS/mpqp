@@ -24,9 +24,88 @@ from mpqp import (
 )
 from mpqp.core.binding import BindingMode, CircuitBinding
 from mpqp.core.instruction.measurement.measure import Measure
-from mpqp.execution.job import JobType
+from mpqp.execution.job import Job, JobType
 from mpqp.execution.providers.providers_params import QiskitParams
-from mpqp.execution.result import BatchResult
+from mpqp.execution.result import BatchResult, Result, StateVector
+
+
+def test_extracting_measurements_does_not_clear_source_transpilation_cache():
+    circuit = QCircuit([X(0), BasisMeasure()])
+    source_cache = {IBMDevice.AER_SIMULATOR: object()}
+    setattr(circuit, "transpiled_circuit", source_cache)
+
+    binding = CircuitBinding(circuit)
+
+    assert circuit.transpiled_circuit is source_cache
+    inner_binding = binding.circuits[0]
+    assert isinstance(inner_binding, CircuitBinding)
+    extracted_circuit = inner_binding.circuits[0]
+    assert isinstance(extracted_circuit, QCircuit)
+    assert extracted_circuit.transpiled_circuit is None
+
+
+def test_zip_keeps_observables_on_their_own_register():
+    circuits = [QCircuit(3), QCircuit(4)]
+    measurements = [
+        ExpectationMeasure(Observable(pI @ pI @ pZ)),
+        ExpectationMeasure(Observable(pI @ pI @ pI @ pZ)),
+    ]
+    original = deepcopy(measurements)
+    binding = CircuitBinding(circuits, measurements=measurements, mode=BindingMode.ZIP)
+    for _ in range(2):
+        executions = binding.unroll()
+        assert [c.nb_qubits for c, _, _ in executions] == [3, 4]
+        assert [
+            m.observables[  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
+                0
+            ].nb_qubits
+            for _, _, m in executions
+        ] == [
+            3,
+            4,
+        ]
+    assert measurements == original
+    assert all(not c.measurements for c in circuits)
+
+
+@pytest.mark.parametrize("mode", list(BindingMode))
+@pytest.mark.parametrize("nested", [False, True])
+def test_shared_measure_is_embedded_per_resolved_circuit(
+    mode, nested  # pyright: ignore[reportMissingParameterType]
+):
+    circuits = [QCircuit(3), QCircuit(4)]
+    # Reordered targets also exercise adjust_measure's in-place reordering path.
+    measurement = ExpectationMeasure(Observable(pZ @ pX), targets=[2, 0])
+    original = deepcopy(measurement)
+    branches = [CircuitBinding(c) for c in circuits] if nested else circuits
+    binding = CircuitBinding(branches, measurements=measurement, mode=mode)
+    for _ in range(2):
+        executions = binding.unroll()
+        assert len(executions) == 2
+        for (circuit, _, adjusted), expected in zip(
+            executions, [pX @ pI @ pZ, pX @ pI @ pZ @ pI]
+        ):
+            assert (
+                adjusted.targets  # pyright: ignore[reportOptionalMemberAccess]
+                == list(range(circuit.nb_qubits))
+            )
+            np.testing.assert_allclose(
+                adjusted.observables[  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
+                    0
+                ].matrix,
+                Observable(expected).matrix,
+            )
+    assert measurement == original
+
+
+def test_product_rejects_measurement_too_wide_for_one_circuit():
+    binding = CircuitBinding(
+        [QCircuit(3), QCircuit(4)],
+        measurements=ExpectationMeasure(Observable(pI @ pI @ pI @ pZ)),
+        mode=BindingMode.PRODUCT,
+    )
+    with pytest.raises(ValueError, match="resolved circuit"):
+        binding.unroll()
 
 
 @pytest.mark.parametrize("lengths", list(product((1, 2), repeat=3)))
@@ -202,7 +281,14 @@ def test_provider_parameters_forwarded(many_circuits: bool, many_devices: bool):
         else IBMDevice.AER_SIMULATOR
     )
     params = QiskitParams(instance="selected-instance")
-    with patch.object(runner, "_run_single", return_value=None) as execute:
+    with patch.object(
+        runner,
+        "_run_single",
+        side_effect=lambda circuit, device, *args: Result(
+            Job(JobType.STATE_VECTOR, circuit, device),
+            StateVector(np.array([1, 0], dtype=np.complex128)),
+        ),
+    ) as execute:
         runner.run(circuits, devices, provider_params=params)
     assert execute.call_count == (2 if many_circuits else 1) * (
         2 if many_devices else 1

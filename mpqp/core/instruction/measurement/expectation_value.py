@@ -85,6 +85,7 @@ class Observable:
         self.pre_transpiled = None
 
         if isinstance(observable, PauliString):
+            self._key_source = "_pauli_string"
             self.nb_qubits = observable.nb_qubits
             self._pauli_string = observable.simplify()
         else:
@@ -119,15 +120,18 @@ class Observable:
                         )
 
                     self._matrix = observable
+                    self._key_source = "_matrix"
 
                 else:
                     self._is_diagonal = True
                     self._diag_elements = observable.real.flatten().astype(np.float64)
+                    self._key_source = "_diag_elements"
 
             # correspond to isinstance(observable, list)
             else:
                 self._is_diagonal = True
                 self._diag_elements = np.array(observable, dtype=np.float64)
+                self._key_source = "_diag_elements"
 
     @property
     def matrix(self) -> Matrix:
@@ -178,6 +182,7 @@ class Observable:
             )
 
         self._matrix = matrix
+        self._key_source = "_matrix"
         self._pauli_string = None
         self._diag_elements = None
         self._is_diagonal = None
@@ -185,6 +190,7 @@ class Observable:
     @pauli_string.setter
     def pauli_string(self, pauli_string: PauliString):
         self._pauli_string = pauli_string
+        self._key_source = "_pauli_string"
         self._matrix = None
         self._diag_elements = None
         self._is_diagonal = None
@@ -202,6 +208,7 @@ class Observable:
         self._is_diagonal = True
         self._pauli_string = None
         self._matrix = None
+        self._key_source = "_diag_elements"
 
     def is_matrix_set(self):
         """Returns if the matrix is already set in the observable."""
@@ -371,12 +378,10 @@ class Observable:
             return QLMObservable(self.nb_qubits, matrix=self.matrix)
         elif language == Language.BRAKET:
             if self._pauli_string:
-                from braket.circuits.observables import Sum, TensorProduct
+                from braket.circuits.observables import Sum
 
                 obs = self.pauli_string.to_other_language(Language.BRAKET)
-                if isinstance(obs, TensorProduct):
-                    return Sum([obs])
-                return obs
+                return obs if isinstance(obs, Sum) else Sum([obs])
             else:
                 from braket.circuits.observables import Hermitian
 
@@ -422,7 +427,9 @@ class ExpectationMeasure(Measure):
 
     Args:
         targets: List of indices referring to the qubits on which the measure
-            will be applied.
+            will be applied. Defaults to the first qubits matching the
+            observable's size. These targets stay fixed when the circuit is
+            resized. The number of targets must match the observable's size.
         observable: Observable used for the measure.
         shots: Number of shots to be performed.
         commuting_type: Type of commutation (grouped in an Enum) used for Pauli grouping when optimizing the observables measurement.
@@ -437,6 +444,10 @@ class ExpectationMeasure(Measure):
         UserWarning: If the ``targets`` are not sorted and contiguous, some
             additional swaps will be needed. This will change the performance if
             your circuit is run on noisy hardware.
+
+    Raises:
+        NumberQubitsError: If the number of targets does not match the
+            observable's size.
 
     Examples:
         >>> obs = Observable(np.diag([0.7, -1, 1, 1]))
@@ -512,6 +523,7 @@ class ExpectationMeasure(Measure):
 
         if targets is None:
             self.targets = list(range(self.observables[0].nb_qubits))
+        self._dynamic = False
         self._check_targets_order()
 
     @property
@@ -526,10 +538,6 @@ class ExpectationMeasure(Measure):
         """Ensures target qubits are ordered and contiguous, rearranging them if
         necessary (private)."""
 
-        if len(self.targets) == 0:
-            self._pre_measure: list[Gate] = []
-            return
-
         if self.nb_qubits != self.observables[0].nb_qubits:
             raise NumberQubitsError(
                 f"Target size {self.nb_qubits} doesn't match observable size "
@@ -539,6 +547,9 @@ class ExpectationMeasure(Measure):
         self._pre_measure: list[Gate] = []
         """List of Gates added before the expectation measurement to correctly swap
         target qubits when their are not ordered or contiguous."""
+        if len(self.targets) == 0:
+            return
+
         targets_is_ordered = all(
             [self.targets[i] > self.targets[i - 1] for i in range(1, len(self.targets))]
         )

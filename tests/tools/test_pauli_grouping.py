@@ -1,13 +1,14 @@
 import pytest
+from numpy.testing import assert_allclose
 
 from mpqp import (
     AWSDevice,
     ExpectationMeasure,
     GOOGLEDevice,
     IBMDevice,
-    QUANTINUUMDevice,
     Observable,
     QCircuit,
+    QUANTINUUMDevice,
     pI,
     pX,
     pY,
@@ -56,7 +57,10 @@ def exec_expectation_value_check(device: AvailableDevice):
             ).expectation_values
         )
     assert isinstance(true_result, dict)
-    assert all(
-        round(true_result[f"observable_{i}"], 6) == round(single_exp_values[i], 6)
-        for i in range(len(true_result))
+    # Cirq's default simulator uses single precision.
+    assert_allclose(
+        [true_result[f"observable_{i}"] for i in range(len(obs))],
+        single_exp_values,
+        rtol=0,
+        atol=1e-6,
     )

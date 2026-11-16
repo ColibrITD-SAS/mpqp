@@ -18,7 +18,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
     from braket.circuits import Observable as BraketObservable
     from braket.program_sets import CircuitBinding as BraketBinding
 
-    from mpqp.core.binding import BindingParameters
+    from mpqp.core.binding import BindingExecution, BindingParameters
     from mpqp.core.circuit import QCircuit
     from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
     from mpqp.core.instruction.measurement.measure import Measure
@@ -117,6 +117,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
             T  : │  0  │  1  │
         """
         from mpqp.core.circuit import QCircuit
+        from mpqp.execution.providers.aws import apply_noise_to_braket_circuit
         from mpqp.core.instruction import (
             Barrier,
             BasisMeasure,
@@ -130,11 +131,21 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
         from mpqp.core.instruction.gates.custom_gate import CustomGate
         from mpqp.core.instruction.gates.gate import Gate
         from mpqp.core.instruction.gates.native_gates import CRk
+
+        from mpqp.core.instruction import (
+            Measure,
+            Breakpoint,
+            Barrier,
+            ControlledGate,
+            BasisMeasure,
+        )
         from mpqp.core.languages import Language
-        from mpqp.execution.providers.aws import apply_noise_to_braket_circuit
+        from mpqp.core.circuit import QCircuit
+
+        instructions = circuit.with_measurement(deep_copy=False)
 
         if len(circuit.noises) != 0:
-            if any(isinstance(instr, CRk) for instr in circuit.instructions):
+            if any(isinstance(instr, CRk) for instr in instructions):
                 raise NotImplementedError(
                     "Cannot simulate noisy circuit with CRk gate due to "
                     "an error on AWS Braket side."
@@ -146,11 +157,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
         # Otherwise the circuit can remain non continuous.
         if circuit._user_nb_qubits is not None:  # pyright: ignore[reportPrivateUsage]
             used_qubits = set().union(
-                *(
-                    inst.connections()
-                    for inst in circuit.instructions
-                    if isinstance(inst, Gate)
-                )
+                *(inst.connections() for inst in instructions if isinstance(inst, Gate))
             )
             if len(used_qubits) != circuit.nb_qubits:
                 from copy import deepcopy
@@ -165,8 +172,9 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                     ],
                     nb_qubits=circuit.nb_qubits,
                 ) + deepcopy(circuit)
+                instructions = circuit.with_measurement(deep_copy=False)
 
-        for instruction in circuit.instructions + circuit.measurements:
+        for instruction in instructions:
             targets = [target for target in instruction.targets]
             if isinstance(instruction, (Barrier, Breakpoint)):
                 continue
@@ -217,7 +225,10 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
         return braket_circuit
 
     def _grouped_cb_to_programset(
-        binding: "CircuitBinding", device: "AWSDevice"
+        binding: "CircuitBinding",
+        device: "AWSDevice",
+        *,
+        resolved: "list[BindingExecution] | None" = None,
     ) -> "tuple[ProgramSet, list[list[tuple[QCircuit, Measure | None, BindingParameters | None, int, int, int | None]]]]":
         """Translate a binding while sharing one Braket program per circuit.
 
@@ -230,6 +241,8 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
         Args:
             binding: Binding containing the circuits, values and measurements.
             device: AWS device targeted by the program set.
+            resolved: Executions already resolved for this run. When omitted,
+                the binding is resolved during translation.
 
         Returns:
             The grouped program set and one ordered context list per program
@@ -368,7 +381,9 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
         translated_circuits: dict[int, braket_Circuit] = {}
 
         result_index = 0
-        for circuit, values, measure in binding.unroll():
+        for circuit, values, measure in (
+            binding.unroll() if resolved is None else resolved
+        ):
             circuit_id = id(circuit)
             translated_circuit = translated_circuits.get(circuit_id)
             if translated_circuit is None:
@@ -641,7 +656,10 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
         return ProgramSet(entries, binding.shots), entry_contexts
 
     def circuitbinding_to_programset(
-        binding: "CircuitBinding", device: "AWSDevice"
+        binding: "CircuitBinding",
+        device: "AWSDevice",
+        *,
+        resolved: "list[BindingExecution] | None" = None,
     ) -> "tuple[ProgramSet, list[Any]]":
         """Convert an MPQP circuit binding to an AWS Braket ``ProgramSet``.
 
@@ -649,6 +667,8 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
             binding: Binding containing the circuits, values and measurements
                 to translate.
             device: AWS device targeted by the program set.
+            resolved: Executions already resolved for this run. When omitted,
+                the binding is resolved during translation.
 
         Returns:
             The translated program set together with ordered context tuples
@@ -665,4 +685,4 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                 and binding.measurements[0].optimize_measurement
             ):
                 return _cb_to_programset_pauli_grouping(binding, device, True)"""
-        return _grouped_cb_to_programset(binding, device)
+        return _grouped_cb_to_programset(binding, device, resolved=resolved)

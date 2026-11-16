@@ -18,6 +18,7 @@ restrictive. :func:`find` allow us a much more versatile search using an
 from __future__ import annotations
 
 from abc import ABCMeta
+from dataclasses import dataclass
 
 # from functools import update_wrapper
 from inspect import getsource
@@ -25,6 +26,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    Generic,
     Iterable,
     Iterator,
     Sequence,
@@ -66,6 +68,19 @@ Matrix = Union[
 ]
 """Type alias denoting all the matrices we consider (either matrices of complex 
 or of ``sympy`` expressions, given to ``numpy`` as objects)"""
+
+
+@dataclass(slots=True)
+class Shared(Generic[T]):
+    """Mutable value holder that several objects can share.
+
+    Objects referencing the same container observe changes to its value.
+
+    Args:
+        value: Value held by the shared container.
+    """
+
+    value: T
 
 
 def flatten_generator(lst: ArbitraryNestedSequence[T]) -> Iterator[T]:

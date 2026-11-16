@@ -86,7 +86,7 @@ def _qiskit_parameter_adder(
 
     if isinstance(param, Expr):
         if not param.free_symbols:
-            return float(param.evalf())  # pyright: ignore[reportArgumentType]
+            return float(param.evalf())
 
         symbols = tuple(sorted(param.free_symbols, key=default_sort_key))
         parameters: list["ParameterExpression"] = []
@@ -139,7 +139,7 @@ def _sympy_to_braket_param(
             return FreeParameterExpression(val.xreplace(normalized_symbols))
         else:
             try:
-                return float(val.evalf())  # pyright: ignore[reportArgumentType]
+                return float(val.evalf())
             except Exception as e:
                 raise ValueError(f"Failed to evaluate sympy expression `{val}`: {e}")
     else:
@@ -1223,8 +1223,8 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
         )
         return np.array(
             [
-                [c, -eg * s],  # pyright: ignore[reportOperatorIssue]
-                [ep * s, eg * ep * c],  # pyright: ignore[reportOperatorIssue]
+                [c, -eg * s],
+                [ep * s, eg * ep * c],
             ]
         )
 
@@ -1367,7 +1367,7 @@ class Rz(RotationGate, SingleQubitGate):
 
     def to_canonical_matrix(self):
         e = exp(symbolic_product(-0.5j, self.parameters[0]))
-        return np.array([[e, 0], [0, 1 / e]])  # pyright: ignore[reportOperatorIssue]
+        return np.array([[e, 0], [0, 1 / e]])
 
 
 class Rxx(RotationGate, ComposedGate):

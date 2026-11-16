@@ -4,3 +4,4 @@ from .display import *
 from .errors import *
 from .generics import *
 from .maths import *
+from .qiskit import get_qiskit_function

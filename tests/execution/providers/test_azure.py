@@ -1,5 +1,5 @@
 """Add ``--long`` to the cli args to run free test but with account (disabled by default)
-Add ``--long-cost`` to the cli args to run test with credits (disabled by default)"""
+Add ``--long-costly`` to the cli args to run test with credits (disabled by default)"""
 
 import sys
 
@@ -21,6 +21,11 @@ from mpqp import (
     Y,
     run,
 )
+from mpqp.execution.providers.azure import (
+    get_result_from_azure_job_id,
+    submit_job_azure,
+)
+from mpqp.execution.runner import generate_job
 
 sampling_devices_cost = [
     AZUREDevice.IONQ_SIMULATOR,
@@ -126,8 +131,24 @@ def azure_sample(gates: list[Gate], basis_states: list[str]):
     assert isinstance(batch, BatchResult)
 
 
+@pytest.mark.provider("azure")
+def remote_azure_execution_binds_job_id():
+    circuit = QCircuit([H(0), BasisMeasure([0], shots=1)])
+    job = generate_job(circuit, AZUREDevice.IONQ_SIMULATOR)
+
+    job_id, azure_job = submit_job_azure(job)
+
+    assert job_id == azure_job.id()
+    assert job.id == azure_job.id()
+
+    result = get_result_from_azure_job_id(job_id)
+
+    assert result.job.id == job_id
+
+
 if "--long" in sys.argv:
     test_running_remote_azure_sample = azure_sample
 
-if "--long-cost" in sys.argv:
+if "--long-costly" in sys.argv:
     test_running_remote_azure_sample_cost = azure_sample_cost
+    test_remote_azure_execution_binds_job_id = remote_azure_execution_binds_job_id
