@@ -203,36 +203,9 @@ You should have received you username and password by email.
 AWS Braket
 ^^^^^^^^^^
 
-For configuring access to AWS Braket, you first need to have ``awscli`` installed on your machine. To check if it is
-already installed, you can run this command:
-
-.. code-block:: console
-
-    $ aws --version
-
-- For ``Windows``, installing ``mpqp`` can be sufficient since the Python package ``aws-configure`` (in the requirements) also installs ``awscli`` locally. If it is not the case, you can execute the following command (in a terminal where you have admin access) to install ``awscliV2``:
-
-    .. code-block:: console
-
-        > msiexec.exe /i https://awscli.amazonaws.com/AWSCLIV2.msi
-
-- For ``MacOS``, on some versions, the installation of ``aws-configure`` can be sufficient. If it is not the case, you can install it using ``brew``:
-
-    .. code-block:: console
-
-        $ brew install awscli
-
-    or execute the script we prepared for installing ``awscliv2``:
-
-    .. code-block:: console
-
-        $ ./mpqp/mpqp_scripts/awscli_installation/mac_awscli_install.sh
-
-- For ``Linux``, one can use the dedicated script for installing ``awscliv2``:
-
-    .. code-block:: console
-
-        $ ./mpqp/mpqp_scripts/awscli_installation/linux_awscli_install.sh
+After installing the ``braket`` extra, run ``setup_connections`` and select
+``Amazon Braket``. The AWS CLI is optional: MPQP can configure access directly
+using your AWS credentials.
 
 
 Amazon Web Services propose two different ways to authenticate for access remote services (including remote
@@ -247,8 +220,8 @@ script and select AWS configuration, you will have to choose between one of the 
     "Third-party service" as usecase), or use an existing one. You
     should save the secret access key because you will not be able to recover it later.
     This will give you your key and your secret, but for the configuration, you
-    also need to input a region (for example ``us-east-1``). In short, when running ``setup_connections``,
-    it will execute the ``aws configure`` command that will ask you the following credentials:
+    also need to input a region (for example ``us-east-1``). When running
+    ``setup_connections``, select ``IAM`` and enter the following credentials:
 
     + ``AWS Access Key ID``,
     + ``AWS Secret Access Key``,

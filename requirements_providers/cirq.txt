@@ -8,3 +8,9 @@ cirq-google==1.6.1 ; python_version >= "3.11"
 cirq-ionq==1.6.1 ; python_version >= "3.11"
 cirq-aqt==1.6.1 ; python_version >= "3.11"
 qsimcirq
+
+# Cirq 1.5/1.6 require Protobuf <6. These releases start requiring Protobuf 6.
+google-api-core<2.34
+googleapis-common-protos<1.75.1
+proto-plus<1.28.3
+grpcio-status<1.72
