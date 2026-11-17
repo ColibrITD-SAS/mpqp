@@ -26,7 +26,7 @@ from ...tools.errors import (
 from ..connection.qlm_connection import get_QLMaaSConnection
 from ..devices import ATOSDevice
 from ..job import Job, JobStatus, JobType
-from ..result import Result, Sample, StateVector
+from ..result import BatchResult, Result, Sample, StateVector
 
 if TYPE_CHECKING:
     from qat.core.qpu.qpu import QPUHandler
@@ -681,6 +681,40 @@ def extract_result(
         return extract_sample_result(myqlm_result[0], job, device)
     else:
         return extract_observable_result(myqlm_result, job, device)
+
+
+def run_atos_pseudo_circuitbinding(job: Job) -> BatchResult:
+    from mpqp.tools.binding_utils import (
+        translate_binding_circuits,
+        translate_binding_measurements,
+    )
+    from mpqp.core import CircuitBinding
+
+    if TYPE_CHECKING:
+        assert isinstance(job.circuit, CircuitBinding)
+    translated_circuits = translate_binding_circuits(job.circuit, job.device)
+    translate_measurements = translate_binding_measurements(job.circuit, job.device)
+    results = []
+
+    for c, v, m in job.circuit.unroll():
+        translated_circuit = translated_circuits[id(c)]
+        translated_measurement = (
+            translate_measurements[id(m)] if m is not None else None
+        )
+        atos_params = {str(key): v[key] for key in v.keys()} if v is not None else None
+
+        if translated_measurement is not None:
+            translated_circuit = translated_circuit + translated_measurement
+        if atos_params is not None:
+            translated_circuit = translated_circuit.bind_variables(atos_params)
+
+        local_job = Job(job.job_type, c, job.device, m, v)
+        if job.device.is_remote():
+            results.append(run_QLM(local_job))
+        else:
+            results.append(run_myQLM(local_job))
+
+    return BatchResult(results)
 
 
 def run_atos(job: Job) -> Result:

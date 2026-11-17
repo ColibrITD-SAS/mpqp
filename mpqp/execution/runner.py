@@ -529,8 +529,9 @@ def _run_circuit_binding(
             )
         result = run_ibm(job, qiskit_params=provider_params)
     elif isinstance(device, ATOSDevice):
-        raise NotImplementedError(f"Device {device} not handled")
-        result = run_atos(jobs)  # TODO
+        from mpqp.execution.providers.atos import run_atos_pseudo_circuitbinding
+
+        result = run_atos_pseudo_circuitbinding(job)  # TODO
     elif isinstance(device, AWSDevice):
         if provider_params is not None and not isinstance(
             provider_params, BraketParams
