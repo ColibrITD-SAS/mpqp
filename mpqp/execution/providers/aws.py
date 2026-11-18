@@ -13,7 +13,10 @@ from mpqp.core.instruction.measurement import (
     Observable,
 )
 from mpqp.core.languages import Language
-from mpqp.execution.connection.aws_connection import get_braket_device
+from mpqp.execution.connection.aws_connection import (
+    get_boto3_session,
+    get_braket_device,
+)
 from mpqp.execution.devices import AWSDevice
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.result import Result, Sample, StateVector
@@ -565,8 +568,7 @@ def extract_result(
 
 
 def get_result_from_aws_task_arn(task_arn: str) -> Result:
-    """Retrieves the result, described by the job_id in parameter, from the
-    remote QLM and converts it into an mpqp result.
+    """Retrieve an Amazon Braket task result from its ARN.
 
     If the job is still running, we wait (blocking) until it is DONE.
 
@@ -576,11 +578,12 @@ def get_result_from_aws_task_arn(task_arn: str) -> Result:
     Raises:
         AWSBraketRemoteExecutionError: When the status of the task is unknown.
     """
-    from braket.aws import AwsQuantumTask
+    from braket.aws import AwsQuantumTask, AwsSession
     from braket.tasks import GateModelQuantumTaskResult
 
-    task: QuantumTask = AwsQuantumTask(task_arn)
-    # catch an error if the id is not correct (wrong ID, wrong region, ...) ?
+    task_region = task_arn.split(":")[3]
+    aws_session = AwsSession(boto_session=get_boto3_session(region_name=task_region))
+    task: QuantumTask = AwsQuantumTask(task_arn, aws_session=aws_session)
 
     status = task.state()
 
