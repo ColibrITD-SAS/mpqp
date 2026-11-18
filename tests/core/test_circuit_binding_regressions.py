@@ -55,11 +55,11 @@ def test_nested_optimization_checks_measurements_at_every_level(
         ),
     )
 
-    assert binding.optimize_measurement is expected
+    assert binding.all_measurement_optimized is expected
 
 
 def test_unmeasured_binding_does_not_request_measurement_optimization():
-    assert not CircuitBinding(CircuitBinding(QCircuit(1))).optimize_measurement
+    assert not CircuitBinding(CircuitBinding(QCircuit(1))).all_measurement_optimized
 
 
 @pytest.mark.provider("braket")
@@ -83,8 +83,8 @@ def test_outer_measurement_keeps_nested_parameter_sweep_grouped(mode: BindingMod
         mode=mode,
     )
 
-    assert not sweep.optimize_measurement
-    assert binding.optimize_measurement
+    assert not sweep.all_measurement_optimized
+    assert binding.all_measurement_optimized
     program_set, _ = binding.to_other_device(AWSDevice.BRAKET_LOCAL_SIMULATOR)
     result = run(binding, AWSDevice.BRAKET_LOCAL_SIMULATOR)
 

@@ -436,11 +436,11 @@ class CircuitBinding:
         from mpqp.execution.runner import adjust_measure
         from mpqp.tools.binding_utils import (
             broadcast_axis,
-            expand_branch,
             combine_zipped_options,
-            product_values,
-            product_measurements,
             execution_key,
+            expand_branch,
+            product_measurements,
+            product_values,
         )
 
         raw_parent_values = (
@@ -536,17 +536,23 @@ class CircuitBinding:
         return f"CircuitBinding(circuits={repr(self.circuits)}, values={repr(self.value)}, measurements={repr(self.measurements)}, mode={repr(self.mode)}, noises={repr(self.noises)}, shots={repr(self.shots)})"
 
     @property
-    def optimize_measurement(self) -> bool:
-        """Whether all measurements in this observable binding enable Pauli grouping.
+    def all_measurement_optimized(self) -> bool:
+        """Check whether all measurements in this observable binding enable
+        Pauli grouping.
 
         Unmeasured nested bindings do not disable optimization supplied at
-        another level. Returns ``False`` for non-observable bindings.
+        another level. ``True`` if this is a binding containing only observable
+        measurements and they all enable Pauli grouping, otherwise ``False``.
 
         Example:
             >>> inner = CircuitBinding(QCircuit(1))
             >>> measure = ExpectationMeasure(Observable(pZ))
-            >>> CircuitBinding(inner, measurements=measure).optimize_measurement
+            >>> CircuitBinding(inner, measurements=measure).all_measurement_optimized
             True
+
+        Note:
+            The cost grows with the number of circuits, nested bindings, and
+            measurements. Parameter rows do not affect this check.
         """
         from mpqp.core.instruction.measurement import ExpectationMeasure
         from mpqp.execution.job import JobType
