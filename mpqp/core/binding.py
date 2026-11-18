@@ -567,6 +567,21 @@ class CircuitBinding:
 
         return all_measurements_optimized(self)
 
+    def all_measurements(self) -> list[Measure]:
+        """Return all of the measurements contained in the CircuitBinding."""
+
+        def _all_measurements(
+            binding: "CircuitBinding", measures: list[Measure]
+        ) -> list[Measure]:
+            for circuit in binding.circuits:
+                if isinstance(circuit, CircuitBinding):
+                    _all_measurements(circuit, measures)
+            if binding.measurements is not None:
+                measures.extend(binding.measurements)
+            return measures
+
+        return _all_measurements(self, [])
+
     @overload
     def to_other_device(
         self, device: AWSDevice, backend_sim: Optional[AerSimulator] = None

@@ -17,7 +17,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
 
     from braket.program_sets import CircuitBinding as BraketBinding
 
-    from dataclasses import dataclass
+    from dataclasses import dataclass, field
 
     from mpqp.core.binding import BindingParameters
     from mpqp.core.circuit import QCircuit
@@ -34,6 +34,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
         import numpy.typing as npt
         import numpy as np
         from mpqp import Gate
+        from braket.circuits import Observable as BraketObservable
 
     @dataclass(frozen=True)
     class BraketPauliGroupingContext:
@@ -68,17 +69,16 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
         """Index of the Pauli group in the measurement's grouping, if optimized."""
         group_index: Optional[int] = None
 
-        """If not optimized, stored the index of the observable in the measurement's observables."""
-        observable_index: Optional[int] = None
-
         """If optimized, store the Pauli monomials to be executed."""
-        monomials: tuple[PauliStringMonomial, ...] = ()
+        monomials: list[list[PauliStringMonomial]] = field(default_factory=list)
 
         """If optimized, store the eigenvalues of the Pauli monomials used to compute the expectation value."""
-        eigenvalues: Optional[Mapping[str, npt.NDArray[np.float64]]] = None
+        eigenvalues: Optional[list[Mapping[str, npt.NDArray[np.float64]]]] = field(
+            default_factory=list
+        )
 
-        """If not optimized, store the number of Braket executables occupied by the observable."""
-        executable_span: Optional[int] = None
+        """If not optimized, store the number of monomials of all of the individual PauliStrings in the measure."""
+        executable_spans: list[int] = field(default_factory=list)
 
     def braket_to_mpqp(qcircuit: "BraketCircuit") -> "QCircuit":
 
@@ -332,10 +332,56 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
             converted[str(key)] = float(value)
         return converted
 
+    def observable_translation_info(
+        measure: ExpectationMeasure,
+    ) -> tuple[list["BraketObservable"], list[int]]:
+        """Translate the observables of one expectation measurement.
+
+        Each returned item contains the original measurement, translated
+        Braket observable, executable span and observable index required
+        to reconstruct the MPQP result. All items from the same
+        :class:`ExpectationMeasure` are aggregated into one MPQP
+        :class:`Result`. A Braket ``Sum`` occupies several physical
+        executables but still produces one expectation value.
+
+        Args:
+            measure: Expectation measurement to translate.
+
+        Returns:
+            Ordered observable translation information suitable for a
+            Braket ``CircuitBinding``. Repeated calls for the same
+            measurement instance reuse the cached translation.
+
+        Warns:
+            UserWarning: If an observable matrix must first be converted
+                to a Pauli string.
+        """
+        from mpqp.core.languages import Language
+        from braket.circuits.observables import Sum
+
+        if any(observable.is_matrix_set for observable in measure.observables):
+            warn(
+                "To translate observables from CircuitBindings to braket we "
+                "need to translate the matrix to pauli string. This process "
+                "might impact performances on big matrices."
+            )
+        flatten_translation: list[Any] = []
+        lengths = []
+        for observable in measure.observables:
+            translated = observable.pauli_string.to_other_language(Language.BRAKET)
+            if isinstance(translated, Sum):
+                flatten_translation.extend(translated.summands)
+            else:
+                flatten_translation.append(translated)
+            lengths.append(len(observable.pauli_string.monomials))
+
+        translation_info = (flatten_translation, lengths)
+        return translation_info
+
     def _cb_to_programset_pauli_grouping(
         binding: CircuitBinding,
         device: AWSDevice,
-    ) -> tuple[ProgramSet, list[list[BraketPauliGroupingContext]]]:
+    ) -> tuple[ProgramSet, list[BraketPauliGroupingContext]]:
         """Translate an MPQP binding to Braket and group compatible Pauli terms.
 
         Pauli grouping is applied independently to every
@@ -370,168 +416,105 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
             adapter does not yet reconstruct grouped probability contexts.
         """
 
-        from braket.circuits.observables import Sum
         from braket.program_sets import CircuitBinding as BraketBinding
         from braket.program_sets import ProgramSet
-        from braket.circuits import Circuit as BraketCircuit
-        from collections import OrderedDict
 
-        from mpqp.core.instruction.measurement.pauli_string import CommutingTypes
-        from mpqp.core.languages import Language
         from mpqp.tools.pauli_grouping import pauli_monomial_eigenvalues
+        from mpqp.tools.binding_utils import (
+            translate_binding_circuits,
+        )
+        from mpqp.execution.devices import AWSDevice
 
         executions = binding.unroll()
-        grouped_measurements = {
-            id(measurement)
-            for _, _, measurement in executions
-            if isinstance(measurement, ExpectationMeasure)
-            and measurement.optimize_measurement
-            and measurement.commuting_type == CommutingTypes.QUBITWISE
-        }
-        if not grouped_measurements:
-            return _grouped_cb_to_programset(binding, device)
         if binding.shots == 0:
             raise ValueError("Braket ProgramSets are not available with zero shots.")
 
-        translated_circuits: dict[int, BraketCircuit] = {}
-        diagonal_cache: dict[tuple[int, int], dict[str, npt.NDArray[np.float64]]] = {}
-        grouped_entries: "OrderedDict[tuple[Any, ...], dict[str, Any]]" = OrderedDict()
+        translated_circuits: dict[int, BraketCircuit] = translate_binding_circuits(
+            binding, AWSDevice.BRAKET_LOCAL_SIMULATOR
+        )
+        eigenvalues_cache: dict[str, dict[str, npt.NDArray[np.float64]]] = {}
+        # grouped_entries: "OrderedDict[tuple[Any, ...], dict[str, Any]]" = OrderedDict()
         entries: list[Any] = []
-        entry_contexts: list[list[BraketPauliGroupingContext]] = []
+        entry_contexts: list[BraketPauliGroupingContext] = []
 
         for result_index, (circuit, values, measurement) in enumerate(executions):
-            if not isinstance(measurement, ExpectationMeasure):
+            if measurement is None:
                 raise ValueError(
-                    "Pauli-grouped Braket bindings require ExpectationMeasure "
-                    "executions."
+                    "Cannot have a STATEVECTOR job with braket's ProgramSets."
                 )
-
             circuit_id = id(circuit)
-            provider_circuit = translated_circuits.get(circuit_id)
-            if provider_circuit is None:
-                from braket.circuits import Circuit as BraketCircuit
+            provider_circuit = translated_circuits[circuit_id]
+            braket_values = [_braket_values(values)] if values is not None else None
+            if isinstance(measurement, ExpectationMeasure):
+                if measurement.optimize_measurement:
+                    grouping = measurement.get_pauli_grouping()
+                    all_eigenvalues = []
+                    for group in grouping:
+                        eigenvalues = {}
+                        for monom in group:
+                            eigenvalue = eigenvalues_cache.get(str(monom))
+                            if eigenvalue is None:
+                                eigenvalue = {
+                                    monom.name: pauli_monomial_eigenvalues(monom)
+                                }
+                                eigenvalues_cache[str(monom)] = eigenvalue
+                            eigenvalues.update(eigenvalue)
+                        all_eigenvalues.append(eigenvalues)
 
-                if isinstance(circuit.transpiled_circuit, BraketCircuit):
-                    from mpqp.execution.providers.aws import (
-                        apply_noise_to_braket_circuit,
-                    )
-
-                    provider_circuit = apply_noise_to_braket_circuit(
-                        circuit.transpiled_circuit,
-                        noises=binding.noises or [],
-                        nb_qubits=circuit.nb_qubits,
-                    )
-                else:
-                    provider_circuit = (
-                        circuit + QCircuit(binding.noises or [])
-                    ).to_other_device(device)
-                translated_circuits[circuit_id] = provider_circuit
-
-            if id(measurement) in grouped_measurements:
-                grouping = measurement.get_pauli_grouping()
-                for group_index, group in enumerate(grouping):
-                    group_key = (id(measurement), group_index)
-                    eigenvalues = diagonal_cache.get(group_key)
-                    if eigenvalues is None:
-                        eigenvalues = {
-                            monomial.name: pauli_monomial_eigenvalues(monomial)
-                            for monomial in group
-                        }
-                        for diagonal in eigenvalues.values():
-                            diagonal.setflags(write=False)
-                        diagonal_cache[group_key] = eigenvalues
-                    parameter_schema = (
-                        tuple(sorted(str(parameter) for parameter in values))
-                        if values is not None
-                        else None
-                    )
-                    key = (
-                        circuit_id,
-                        id(measurement),
-                        group_index,
-                        parameter_schema,
-                    )
-                    entry = grouped_entries.get(key)
-                    if entry is None:
-                        entry = {
-                            "circuit": provider_circuit
+                        executable_circuit = (
+                            provider_circuit
                             + _group_measurement_circuit(
                                 measurement, group, circuit.nb_qubits
-                            ),
-                            "input_sets": [],
-                            "contexts": [],
-                        }
-                        grouped_entries[key] = entry
-                    if values is not None:
-                        entry[
-                            "input_sets"
-                        ].append(  # pyright: ignore[reportAttributeAccessIssue]
-                            _braket_values(values)
+                            )
                         )
-                    entry[
-                        "contexts"
-                    ].append(  # pyright: ignore[reportAttributeAccessIssue]
+                        entries.append(
+                            BraketBinding(executable_circuit, input_sets=braket_values)
+                            if braket_values
+                            else executable_circuit
+                        )
+                    entry_contexts.append(
                         BraketPauliGroupingContext(
                             circuit=circuit,
                             measurement=measurement,
                             values=values,
                             result_index=result_index,
                             optimized=True,
-                            group_index=group_index,
-                            monomials=tuple(group),
-                            eigenvalues=eigenvalues.copy(),
+                            monomials=grouping,
+                            eigenvalues=all_eigenvalues,
                         )
                     )
-                continue
-
-            for observable_index, observable in enumerate(measurement.observables):
-                provider_observable = observable.pauli_string.to_other_language(
-                    Language.BRAKET
-                )
-                span = (
-                    len(provider_observable)
-                    if isinstance(provider_observable, Sum)
-                    else 1
-                )
-                entries.append(
-                    BraketBinding(
-                        provider_circuit,
-                        input_sets=(
-                            [_braket_values(values)] if values is not None else None
-                        ),
-                        observables=(
-                            provider_observable
-                            if isinstance(provider_observable, Sum)
-                            else [provider_observable]
-                        ),
+                else:
+                    braket_obs, executable_spans = observable_translation_info(
+                        measurement
                     )
-                )
-                entry_contexts.append(
-                    [
+                    entries.append(
+                        BraketBinding(
+                            provider_circuit,
+                            input_sets=braket_values,
+                            observables=braket_obs,
+                        )
+                    )
+                    entry_contexts.append(
                         BraketPauliGroupingContext(
                             circuit=circuit,
                             measurement=measurement,
                             values=values,
                             result_index=result_index,
                             optimized=False,
-                            observable_index=observable_index,
-                            executable_span=span,
+                            executable_spans=executable_spans,
                         )
-                    ]
-                )
-
-        for entry in grouped_entries.values():
-            contexts: list[BraketPauliGroupingContext] = entry["contexts"]
-            input_sets: list[dict[str, float]] = entry["input_sets"]
-            if input_sets:
-                entries.append(BraketBinding(entry["circuit"], input_sets=input_sets))
-                entry_contexts.append(contexts)
+                    )
             else:
-                # A bare circuit has no binding axis that can retain multiplicity.
-                # Repeated logical executions therefore need distinct entries.
-                for context in contexts:
-                    entries.append(entry["circuit"])
-                    entry_contexts.append([context])
+                targets = measurement.targets
+                executable_circuit = provider_circuit.copy()
+                executable_circuit.measure(targets)
+                if braket_values is not None:
+                    entries.append(BraketBinding(executable_circuit, braket_values))
+                else:
+                    entries.append(executable_circuit)
+                entry_contexts.append(
+                    BraketPauliGroupingContext(circuit, measurement, values, 0, False)
+                )
 
         return ProgramSet(entries, binding.shots), entry_contexts
 

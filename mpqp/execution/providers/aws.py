@@ -380,12 +380,12 @@ def run_circuit_binding(
 
             expected_executions = 0
             for context in contexts:
-                if context.executable_span is None:
+                if len(context.executable_spans) == 0:
                     raise ValueError(
                         "Observable execution context is missing its executable "
                         "span."
                     )
-                expected_executions += context.executable_span
+                expected_executions += context.executable_spans
             if len(execution.entries) != expected_executions:
                 raise ValueError(
                     "Braket returned a different number of observable executions "

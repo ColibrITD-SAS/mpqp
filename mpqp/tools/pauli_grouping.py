@@ -117,6 +117,7 @@ def reconstruct_full_counts(counts: dict[str, float], length: int):
 
     Args:
         counts: dictionary taking as keys the binary state that was measured
+        length: size of the counts to be reconstructed, should be 2^nb_qubits in most cases.
     """
     sorted_values: list[float] = []
     for i in range(length):
@@ -131,6 +132,7 @@ def reconstruct_full_counts(counts: dict[str, float], length: int):
 def build_pauli_monomial_expectation_value(
     measure: ExpectationMeasure, monomial_values: dict[str, float]
 ) -> tuple[dict[str, float], dict[str, float]]:
+    """Build the expectation values of PauliString observables in measure from a dictionary containing the expectation values of the monomials."""
     exp_values: dict[str, float] = {}
     error: dict[str, float] = {}
     for i, obs in enumerate(measure.observables):
@@ -141,7 +143,8 @@ def build_pauli_monomial_expectation_value(
                 assert isinstance(monoms.coef, (int, float))
             local += monomial_values[monoms.name] * monoms.coef
         exp_values.update({f"observable_{i}": local})
-        error.update({f"observable_{i}": 0.0})
+        variance = (1.0 - local**2) / measure.shots if measure.shots != 0 else 0.0
+        error.update({f"observable_{i}": variance})
     return (exp_values, error)
 
 
