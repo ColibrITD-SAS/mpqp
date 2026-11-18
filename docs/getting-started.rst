@@ -248,9 +248,10 @@ before saving the connection.
     + ``AWS session token``
     + ``AWS region``
 
-    MPQP stores them in an AWS profile named ``mpqp-temporary``. Removing the
-    Amazon Braket connection deletes this profile. When the credentials expire,
-    obtain new credentials and configure this option again.
+    MPQP stores them in an AWS profile named ``mpqp-temporary`` and does not
+    overwrite an existing profile that it did not create. Removing the Amazon
+    Braket connection deletes this profile. When the credentials expire, obtain
+    new credentials and configure this option again.
 
 AWS CLI v2 is required only for configuring and renewing IAM Identity Center
 profiles. The Python package does not install it. Follow the official `AWS CLI

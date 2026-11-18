@@ -9,6 +9,7 @@ mpqp
 
 
     circuit
+    binding
     gates
     measures
     noise

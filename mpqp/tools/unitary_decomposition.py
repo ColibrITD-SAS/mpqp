@@ -7,6 +7,7 @@ import math
 from typing import Optional, Union
 
 import numpy as np
+import numpy.typing as npt
 from scipy.linalg import cossin
 
 from mpqp.core.circuit import QCircuit
@@ -175,41 +176,33 @@ def _decompose(
         Vv, MuxRzv, Wv = _unitary_SVD(V12)
 
         # Extracts the rotations of both multiplexed Rz for later decomposition
-        du = np.asarray(
+        du: npt.NDArray[np.float64] = np.asarray(
             np.angle(
-                MuxRzu.diagonal()  # pyright: ignore[reportCallIssue, reportArgumentType]
-            )
+                np.asarray(MuxRzu, dtype=np.complex128).diagonal(),
+            ),
+            dtype=np.float64,
         )
         for i in range(len(du) // 2):
             du[i] *= -1
 
-        dv = np.asarray(
+        dv: npt.NDArray[np.float64] = np.asarray(
             np.angle(
-                MuxRzv.diagonal()  # pyright: ignore[reportCallIssue, reportArgumentType]
-            )
+                np.asarray(MuxRzv, dtype=np.complex128).diagonal(),
+            ),
+            dtype=np.float64,
         )
         for i in range(len(dv) // 2):
             dv[i] *= -1
 
         # Now recursively decompose every obtained matrices.
         circuit = _decompose(Wv, circuit, targets, position + 1)
-        circuit = _gray_code_decomposition(
-            dv, circuit, targets, position, Rz  # pyright: ignore[reportArgumentType]
-        )
+        circuit = _gray_code_decomposition(dv, circuit, targets, position, Rz)
         circuit = _decompose(Vv, circuit, targets, position + 1)
 
-        circuit = _gray_code_decomposition(
-            thetas,
-            circuit,
-            targets,
-            position,
-            Ry,  # pyright: ignore[reportArgumentType]
-        )
+        circuit = _gray_code_decomposition(thetas, circuit, targets, position, Ry)
 
         circuit = _decompose(Wu, circuit, targets, position + 1)
-        circuit = _gray_code_decomposition(
-            du, circuit, targets, position, Rz  # pyright: ignore[reportArgumentType]
-        )
+        circuit = _gray_code_decomposition(du, circuit, targets, position, Rz)
         circuit = _decompose(Vu, circuit, targets, position + 1)
 
         return circuit
@@ -218,21 +211,28 @@ def _decompose(
 def _optimize_circuit(circuit: QCircuit) -> QCircuit:
     """
     Optimize the circuit of the decomposition by removing useless CNOT gates.
+
+    Dimensions are not recomputed: :func:`_decompose` applies single-qubit
+    rotations on every target qubit and only CNOTs are removed here, so the
+    qubits used by the circuit cannot change.
     """
-    length = len(circuit.instructions)
+    instructions = circuit.instructions
+    length = len(instructions)
     i = 0
     while i < length - 2:
-        if isinstance(circuit.instructions[i], CNOT):
+        if isinstance(instructions[i], CNOT):
             j = i + 1
-            while isinstance(circuit.instructions[j], CNOT):
-                if circuit.instructions[i] == circuit.instructions[j]:
-                    circuit.instructions.pop(j)
-                    circuit.instructions.pop(i)
+            while isinstance(instructions[j], CNOT):
+                if instructions[i] == instructions[j]:
+                    circuit.pop(j, recompute_dimensions=False)
+                    circuit.pop(i, recompute_dimensions=False)
+                    del instructions[j], instructions[i]
                     length -= 2
                     i -= 1
                     break
                 j += 1
         i += 1
+
     return circuit
 
 

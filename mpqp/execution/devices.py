@@ -240,7 +240,7 @@ class IBMDevice(AvailableDevice):
                 )
             )
             return {Rx, Ry, Rz, X, Y, Z, H, CNOT, CZ, S, S_dagger, SWAP}
-        else:
+        elif native_set:
             compatibilities: dict[IBMDeviceFamily, set[type[Gate]]] = {
                 IBMDeviceFamily.HERON: {CZ, Id, Rx, Rz, X, Rzz},
                 IBMDeviceFamily.NIGHTHAWK: {CZ, Id, Rx, Rz, X},
@@ -259,6 +259,7 @@ class IBMDevice(AvailableDevice):
                 return compatibilities[family[self]]
             else:
                 return set()
+        return set()
 
 
 class IBMDeviceFamily(Enum):

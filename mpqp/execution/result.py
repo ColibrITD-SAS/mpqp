@@ -23,17 +23,42 @@ from __future__ import annotations
 
 import math
 import random
+from collections.abc import Iterator
+from copy import copy
 from numbers import Complex
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Union, overload
 
 import numpy as np
 import numpy.typing as npt
 
+from mpqp.core._keys import Snapshot, circuits_match
+from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
+from mpqp.core.instruction.measurement.measure import Measure
 from mpqp.execution import Job, JobStatus, JobType
 from mpqp.execution.devices import AvailableDevice
 from mpqp.tools.display import clean_1D_array, clean_number_repr
 from mpqp.tools.errors import ResultAttributeError
+
+
+class _Unset:
+    def __repr__(self) -> str:
+        return "<unspecified>"
+
+
+_UNSET = _Unset()
+
+
+def _validate_matching_criteria(
+    circuit: object, device: object, measurement: object
+) -> None:
+    """Validate runtime inputs independently of the public type annotations."""
+    if circuit is not None and not isinstance(circuit, QCircuit):
+        raise TypeError("circuit must be a QCircuit or None")
+    if device is not None and not isinstance(device, AvailableDevice):
+        raise TypeError("device must be an AvailableDevice or None")
+    if not isinstance(measurement, (_Unset, Measure, type(None))):
+        raise TypeError("measurement must be a Measure or None")
 
 
 class StateVector:
@@ -285,6 +310,12 @@ class Result:
         errors: Information about the error or the variance in the measurement.
         shots: Number of shots of the experiment (equal to zero if the exact
             value was required).
+        label: Display label for this result. When omitted, the recorded circuit's
+            label is used. Batch execution may assign an automatic display name
+            without changing the circuit label.
+        input_circuit: Circuit supplied to a binding for this run, before its
+            measurements are extracted or execution is prepared. Retained by
+            reference. ``None`` when this association is unavailable.
 
     Examples:
         >>> job = Job(JobType.STATE_VECTOR, QCircuit(2), ATOSDevice.MYQLM_CLINALG)
@@ -327,7 +358,14 @@ class Result:
         errors: Optional[float | dict[Any, Any]] = None,
         shots: int = 0,
         g_phase_handling: bool = True,
+        label: Optional[str] = None,
+        *,
+        input_circuit: Optional[QCircuit] = None,
     ):
+        from mpqp.core.binding import CircuitBinding
+
+        if isinstance(job.circuit, CircuitBinding):
+            job = copy(job)
         self.job = job
         """See parameter description."""
         self._expectation_values = None
@@ -340,7 +378,24 @@ class Result:
         self.error = errors
         """See parameter description."""
         self._data = data
-
+        self.label = label
+        self.input_circuit = input_circuit
+        """See parameter description."""
+        if isinstance(job.circuit, CircuitBinding):
+            if len(job.circuit.circuits) == 1:
+                if TYPE_CHECKING:
+                    assert job.circuit.measurements
+                # Keep the binding's measurement when unwrapping its circuit.
+                job._measurement = (  # pyright: ignore[reportPrivateUsage]
+                    job.circuit.measurements[0]
+                )
+                job.circuit = job.circuit.circuits[0]
+            else:
+                raise ValueError(
+                    "The `Result` class should be only use to hold the result of "
+                    "a single job. Use a `BatchResult` for more complex circuit "
+                    "bindings."
+                )
         if data is None:
             if job.status != JobStatus.ERROR:
                 raise TypeError("Result data cannot be None unless job.status == ERROR")
@@ -350,22 +405,22 @@ class Result:
         if job.job_type == JobType.OBSERVABLE:
             if not isinstance(data, float) and not isinstance(data, dict):
                 raise TypeError(
-                    "Wrong type of data in the Result. "
-                    "Expecting float or dict[str, float] for expectation value of observable(s),"
-                    f"but got {type(data).__name__}"
+                    "Wrong type of data in the Result. Expecting `float` or "
+                    "`dict[str, float]` for expectation value of observable(s),"
+                    f"but got `{type(data).__name__}`"
                 )
             else:
                 self._expectation_values = data
         elif job.job_type == JobType.STATE_VECTOR:
             if not isinstance(data, StateVector):
                 raise TypeError(
-                    "Wrong type of data in the result. Expecting StateVector"
+                    "Wrong type of data in the result. Expecting `StateVector`"
                 )
             else:
                 self._state_vector = data
                 gphase = (
-                    job.circuit.input_g_phase
-                    + job.circuit._generated_g_phase  # pyright: ignore[reportPrivateUsage]
+                    job.circuit.input_g_phase  # pyright: ignore[reportAttributeAccessIssue]
+                    + job.circuit._generated_g_phase  # pyright: ignore[reportPrivateUsage,reportAttributeAccessIssue]
                 )
                 if g_phase_handling and gphase != 0:
                     # Reverse the global phase introduced when using CustomGate, due to Qiskit decomposition in QASM2
@@ -374,33 +429,35 @@ class Result:
         elif job.job_type == JobType.SAMPLE:
             if not isinstance(data, list):
                 raise TypeError(
-                    "Wrong type of data in the result (not a list). Expecting list of Sample"
+                    "Wrong type of data in the result (not a list). Expecting "
+                    "`list` of `Sample`"
                 )
             if self.job.measure is None:
                 raise ValueError(
                     f"{self.job=} has no measure, making the counting impossible"
                 )
+            nb_qubits = self.job.measure.nb_qubits
+            if nb_qubits == 0:
+                nb_qubits = self.job.circuit.nb_qubits
+            shots = self.job.measure.shots
             self._samples = data
             is_counts = all([sample.count is not None for sample in data])
             is_probas = all([sample.probability is not None for sample in data])
             if is_probas:
-                probas = [0.0] * (2**self.job.measure.nb_qubits)
+                probas = [0.0] * (2**nb_qubits)
                 for sample in data:
                     probas[sample.index] = sample.probability
                 self._probabilities = np.array(probas, dtype=float)
 
                 if not is_counts:
                     counts = [
-                        int(count)
-                        for count in np.round(
-                            self.job.measure.shots * self._probabilities
-                        )
+                        int(count) for count in np.round(shots * self._probabilities)
                     ]
                     self._counts = counts
                     for sample in self._samples:
                         sample.count = self._counts[sample.index]
             if is_counts:
-                counts: list[int] = [0] * (2**self.job.measure.nb_qubits)
+                counts: list[int] = [0] * (2**nb_qubits)
                 for sample in data:
                     if TYPE_CHECKING:
                         assert sample.count is not None
@@ -511,23 +568,26 @@ class Result:
         return self._counts
 
     def __str__(self):
-        label = "" if self.job.circuit.label is None else self.job.circuit.label + ", "
-        header = f"Result: {label}{type(self.device).__name__}, {self.device.name}"
+        from mpqp import QCircuit
 
+        if not isinstance(self.job.circuit, QCircuit):
+            raise ValueError(
+                "Result's job should be made for one individual circuit not a CircuitBinding."
+            )
+
+        display_label = self.label if self.label is not None else self.job.circuit.label
+        label = "" if display_label is None else display_label + ", "
+        val = f"\n  Variables: {self.job.values}" if self.job.values else ""
+        header = (
+            f"Result: {label}{type(self.device).__name__}, {self.device.name}" + val
+        )
         if self.job.status == JobStatus.ERROR:
             return f"{header}\n  Status: ERROR\n  Message: {self.job.status_message}"
-
         if self.job.job_type == JobType.SAMPLE:
-            measures = self.job.circuit.measurements
-            if not len(measures) == 1:
-                raise ValueError(
-                    "Mismatch between the number of measurements and the job type."
-                )
-            measure = measures[0]
+            measure = self.job.measure
+
             if not isinstance(measure, BasisMeasure):
                 raise ValueError("Mismatch between measurements type and job type.")
-
-            # assert all(sample.probability is not None for sample in self.samples)
 
             probabilities = [
                 sample.probability
@@ -558,9 +618,16 @@ class Result:
 
         if self.job.job_type == JobType.OBSERVABLE:
             if isinstance(self.expectation_values, float):
+                if self.job.measure:
+                    from mpqp import ExpectationMeasure
+
+                    assert isinstance(self.job.measure, ExpectationMeasure)
+                    observables = f"\n  Observables: {[o.pauli_string for o in self.job.measure.observables]}"
+                else:
+                    observables = ""
                 return f"""{header}
   Expectation value: {self.expectation_values}
-  Error/Variance: {self.error}"""
+  Error/Variance: {self.error}""" + observables
             else:
                 if TYPE_CHECKING:
                     assert isinstance(self.expectation_values, dict)
@@ -611,7 +678,16 @@ class Result:
         plt.xlabel("State")
         plt.ylabel("Counts")
         device = self.job.device
-        plt.title(f"{self.job.circuit.label}, {type(device).__name__}\n{device.name}")
+        from mpqp import QCircuit
+
+        if not self.label is None:
+            label = self.label
+        else:
+            if isinstance(self.job.circuit, QCircuit):
+                label = "" if self.job.circuit.label is None else self.job.circuit.label
+            else:
+                label = ""
+        plt.title(f"{label}, {type(device).__name__}\n{device.name}")
 
         if show:
             plt.show()
@@ -736,7 +812,11 @@ class Result:
         Uses :func:`~mpqp.local_storage.load.get_results_with_result`.
 
         Example:
-            >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR), StateVector([1, 0, 0, 0]), 0, 0)
+            >>> result = Result(Job(
+            ...     JobType.STATE_VECTOR,
+            ...     QCircuit([], nb_qubits=2, label="circuit 1"),
+            ...     IBMDevice.AER_SIMULATOR
+            ... ), StateVector([1, 0, 0, 0]), 0, 0)
             >>> for result in result.load_similar(): # doctest: +ELLIPSIS
             ...     print(repr(result))
             Result(Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR), StateVector(...), 0, 0)
@@ -749,6 +829,9 @@ class Result:
     def save(self):
         """Save a result to the local storage and returns the corresponding
         local ``id`` to be used when the result needs to be retrieved.
+
+        The result's display label and associated binding input circuit are
+        preserved when it is saved and loaded.
 
         Uses :func:`~mpqp.local_storage.save.insert_results`."""
         from mpqp.local_storage.save import insert_results
@@ -787,7 +870,13 @@ class Result:
 
 
 class BatchResult:
-    """Class used to handle several Result instances.
+    """Group execution results and filter their recorded metadata.
+
+    Use :meth:`get_matching` to select runs by circuit, device, or measurement.
+    Integer indexing, slicing, iteration, and ``len(batch)`` refer to individual
+    runs in execution order, including repeated circuits and multiple devices.
+    The :attr:`results` property returns an independent list; editing that list
+    does not change the batch.
 
     Args:
         results: List of results.
@@ -839,29 +928,235 @@ class BatchResult:
           Probabilities: [0.25, 0.25, 0.25, 0.25]
           Number of qubits: 2
 
+        >>> batch_result.get_matching(measurement=result2.job.measure).results == [result2]
+        True
+
+    Note:
+        Filtering uses each result's current circuit, device, and measurement.
+        See :meth:`get_matching` for the effects of editing this metadata.
+
     """
 
     def __init__(self, results: list[Result]):
-        self.results = results
-        """See parameter description."""
+        self._results = list(results)
+
+    @property
+    def results(self) -> list[Result]:
+        """Results in execution order, returned as an independent list."""
+        return list(self)
+
+    def __iter__(self) -> Iterator[Result]:
+        return iter(self._results)
 
     def __str__(self):
-        header = f"BatchResult: {len(self.results)} results\n"
+        header = f"BatchResult: {len(self)} results\n"
         body = "\n".join(
-            "    " + line
-            for result in self.results
-            for line in str(result).splitlines()
+            "    " + line for result in self for line in str(result).splitlines()
         )
         return header + body
 
     def __repr__(self):
         return f"BatchResult({self.results})"
 
-    def __getitem__(self, index: int):
-        return self.results[index]
+    @overload
+    def __getitem__(self, index: int) -> Result: ...
+
+    @overload
+    def __getitem__(self, index: slice) -> list[Result]: ...
+
+    def __getitem__(self, index: int | slice) -> Result | list[Result]:
+        """Retrieve results by position in execution order.
+
+        Args:
+            index: Integer position or slice.
+
+        Returns:
+            The matching result, or a list for a slice.
+
+        Raises:
+            IndexError: If the integer position is out of range.
+            TypeError: If the index is not an integer or slice.
+        """
+        return self._results[index]
+
+    def get_matching(
+        self,
+        *,
+        circuit: Optional[QCircuit] = None,
+        device: Optional[AvailableDevice] = None,
+        measurement: Optional[Measure] | _Unset = _UNSET,
+    ) -> BatchResult:
+        """Retrieve runs whose input or recorded metadata matches supplied criteria.
+
+        Criteria combine with AND. Comparisons happen only when this method is
+        called, and only for the supplied criteria. Constructing or executing a
+        batch does not build structural snapshots for filtering. A device-only
+        query does not inspect circuits or measurements. Repeated circuits and
+        runs on multiple devices retain every individual result.
+
+        Circuit matching includes dimensions, ordered instructions, parameters,
+        measurements, noise, input global phase, and the labels of all objects.
+        Changing a circuit, gate, measurement, or observable label changes its
+        matching criteria. Automatically generated result display names are
+        separate from circuit labels. Inferred-size bookkeeping and execution
+        caches are ignored. Matching uses exact structural values:
+        numerically close matrices and different observable representations are
+        not interchangeable. Existing public equality and numerical equivalence
+        methods are unchanged.
+
+        Args:
+            circuit: Complete circuit supplied to a binding or recorded on the
+                result's job, including any measurements in that circuit. A
+                structural match against either selects the run. ``None``
+                leaves the circuit unrestricted.
+            device: Recorded device. ``None`` leaves the device unrestricted.
+            measurement: Recorded job measurement. Omission leaves measurements
+                unrestricted; ``None`` selects runs without an explicit measure.
+                An explicit zero-shot :class:`~mpqp.core.instruction.measurement.basis_measure.BasisMeasure`
+                is distinct from having no measurement.
+
+        Returns:
+            A new batch in execution order, including repeated runs. Call
+            ``get_matching`` again to refine it, iterate over it, or use
+            ``list(matches)`` to obtain a list. No criteria returns a copy of
+            the full batch; no matches returns an empty batch. The container
+            is independent and contains the same :class:`Result` instances.
+
+        Raises:
+            TypeError: If a criterion has the wrong type, or a component needed
+                for structural comparison is unsupported.
+
+        Examples:
+            Filter a batch containing repeated runs. All executions below use
+            the local Qiskit simulator:
+
+            >>> from copy import deepcopy
+            >>> device = IBMDevice.AER_SIMULATOR
+            >>> circuit = QCircuit([H(0)])
+            >>> other = QCircuit([X(0), BasisMeasure([0], shots=16)])
+            >>> batch = run([circuit, other, deepcopy(other)], device)  # doctest: +QISKIT
+            >>> matches = batch.get_matching(circuit=other)  # doctest: +QISKIT
+            >>> len(matches)  # doctest: +QISKIT
+            2
+            >>> batch.get_matching(circuit=deepcopy(other)).results == matches.results  # doctest: +QISKIT
+            True
+
+            Refine a selection, or iterate over it as over the original batch:
+
+            >>> refined = matches.get_matching(device=device)  # doctest: +QISKIT
+            >>> isinstance(refined, BatchResult)  # doctest: +QISKIT
+            True
+            >>> list(refined) == list(matches)  # doctest: +QISKIT
+            True
+            >>> refined[0] is batch[1]  # doctest: +QISKIT
+            True
+
+            Combine criteria, or search by measurement across circuits:
+
+            >>> measurement = other.measurements[0]
+            >>> batch.get_matching(  # doctest: +QISKIT
+            ...     device=device, measurement=measurement
+            ... ).results == matches.results
+            True
+            >>> batch.get_matching(  # doctest: +QISKIT
+            ...     circuit=other, device=device, measurement=measurement
+            ... ).results == matches.results
+            True
+            >>> batch.get_matching(measurement=measurement).results == matches.results  # doctest: +QISKIT
+            True
+
+            Binding inputs can be queried without adding separately supplied
+            measurements to their circuits:
+
+            >>> from mpqp import CircuitBinding, ExpectationMeasure, Observable, pZ
+            >>> inputs = [QCircuit([X(0)]), QCircuit([H(0)])]
+            >>> binding = CircuitBinding(inputs,
+            ...     measurements=ExpectationMeasure(Observable(pZ)))
+            >>> bound = run(binding, device)  # doctest: +QISKIT
+            >>> len(bound.get_matching(circuit=deepcopy(inputs[0])))  # doctest: +QISKIT
+            1
+            >>> len(bound.get_matching(circuit=bound[0].job.circuit))  # doctest: +QISKIT
+            1
+
+            Labels must match as well as the computation:
+
+            >>> renamed = deepcopy(other)
+            >>> renamed.label = "another experiment"
+            >>> batch.get_matching(circuit=renamed)  # doctest: +QISKIT
+            BatchResult([])
+
+            Omitted criteria are unrestricted. Missing matches return an empty
+            batch; ``measurement=None`` selects runs with no explicit measurement:
+
+            >>> len(batch.get_matching())  # doctest: +QISKIT
+            3
+            >>> batch.get_matching(measurement=None).results == [batch[0]]  # doctest: +QISKIT
+            True
+            >>> batch.get_matching(circuit=QCircuit([X(0)]))  # doctest: +QISKIT
+            BatchResult([])
+            >>> batch[:2] == batch.get_matching()[:2]  # doctest: +QISKIT
+            True
+
+            Editing recorded metadata changes subsequent matches:
+
+            >>> recorded = batch[0].job.circuit  # doctest: +QISKIT
+            >>> original = deepcopy(recorded)  # doctest: +QISKIT
+            >>> recorded.label = "edited experiment"  # doctest: +QISKIT
+            >>> batch.get_matching(circuit=original)  # doctest: +QISKIT
+            BatchResult([])
+            >>> batch.get_matching(circuit=recorded).results == [batch[0]]  # doctest: +QISKIT
+            True
+
+        Note:
+            Matching uses the current metadata held by each result, rather than
+            a historical snapshot of submitted inputs. Editing a recorded
+            circuit, measurement, nested object, label, or job device can change
+            future matches, including after an earlier query. Editing original
+            inputs may also affect matching when mutable objects are shared.
+            For stable matching, keep result metadata unchanged and edit
+            independent copies instead. Filtered batches share the same results,
+            so metadata changes are visible through every selection.
+
+            Binding results also retain their supplied circuit by reference.
+            Circuit queries match either this input or the recorded circuit,
+            so separately supplied binding measurements need not be added to
+            the input circuit to query its results. Editing that input can
+            change subsequent matches. This association survives saving and
+            loading; older stored results only have their recorded circuit.
+
+            Recorded circuits and measurements may reflect parameter
+            substitution or preparation for execution. They can therefore differ
+            from the original inputs. Inspect ``result.job.circuit`` and
+            ``result.job.measure`` when constructing a query. Circuit matching
+            compares complete circuits: omitting measurements from a query does
+            not act as a wildcard for measurements embedded in either circuit.
+        """
+        _validate_matching_criteria(circuit, device, measurement)
+        if circuit is None and device is None and isinstance(measurement, _Unset):
+            return BatchResult(self._results)
+        snapshot = Snapshot()
+
+        def matches(result: Result) -> bool:
+            # Reject cheap criteria first; unrelated large objects are untouched.
+            if device is not None and result.device != device:
+                return False
+            if not isinstance(measurement, _Unset):
+                recorded_measurement = result.job.measure
+                if recorded_measurement is None or measurement is None:
+                    if recorded_measurement is not measurement:
+                        return False
+                elif snapshot(recorded_measurement) != snapshot(measurement):
+                    return False
+            if circuit is None:
+                return True
+            return circuits_match(
+                result.input_circuit, circuit, snapshot
+            ) or circuits_match(result.job.circuit, circuit, snapshot)
+
+        return BatchResult([result for result in self._results if matches(result)])
 
     def __len__(self) -> int:
-        return len(self.results)
+        return len(self._results)
 
     def plot(self, show: bool = True):
         """Display the result(s) using ``matplotlib.pyplot``.
@@ -885,10 +1180,10 @@ class BatchResult:
         """
         from matplotlib import pyplot as plt
 
-        n_cols = math.ceil((len(self.results) + 1) // 2)
-        n_rows = math.ceil(len(self.results) / n_cols)
+        n_cols = math.ceil((len(self) + 1) // 2)
+        n_rows = math.ceil(len(self) / n_cols)
 
-        for index, result in enumerate(self.results):
+        for index, result in enumerate(self):
             plt.subplot(n_rows, n_cols, index + 1)
 
             result.plot(show=False)

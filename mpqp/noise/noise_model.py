@@ -58,12 +58,13 @@ class NoiseModel(ABC):
     operation will apply to all qubits.
 
     Args:
-        targets: Qubits affected by this noise. Defaults to all qubits.
+        targets: Qubits affected by this noise. ``None`` applies the noise to all
+            qubits as the circuit grows.
         gates: Gates affected by this noise. Defaults to all gates.
 
     Raises:
-        ValueError: When the target list is empty, or the target indices are duplicated
-            or negative. When the size of the gate is higher than the number of target qubits.
+        ValueError: When the target indices are duplicated or negative. When the
+            size of the gate is higher than the number of target qubits.
     """
 
     def __init__(
@@ -110,6 +111,13 @@ class NoiseModel(ABC):
     def connections(self) -> set[int]:
         """Qubits to which this is connected (applied to)."""
         return set(self.targets)
+
+    @property
+    def min_nb_qubits(self) -> int:
+        """Minimum number of qubits required by this noise channel,
+        independently of its target selection.
+        """
+        return 1
 
     @abstractmethod
     def to_kraus_operators(self) -> list[npt.NDArray[np.complex128]]:
@@ -291,6 +299,11 @@ class DimensionalNoiseModel(NoiseModel, ABC):
         self.dimension = dimension
         """Dimension of the depolarizing noise model."""
         self.check_dimension()
+
+    @property
+    def min_nb_qubits(self) -> int:
+        """Minimum number of qubits required by this noise channel."""
+        return self.dimension
 
     def check_dimension(self):
         if 0 < len(self.targets) < self.dimension:

@@ -34,24 +34,22 @@ def jobs_local_storage_to_mpqp(jobs: Optional[list[DictDB] | DictDB]) -> list[Jo
     from numpy import complex64  # pyright: ignore[reportUnusedImport]
     from numpy import complex128  # pyright: ignore[reportUnusedImport]
 
+    stored_jobs = [jobs] if isinstance(jobs, dict) else jobs
     jobs_mpqp = []
-    if isinstance(jobs, dict):
+
+    for stored_job in stored_jobs:
         jobs_mpqp.append(
             Job(
-                eval("JobType." + jobs['type']),
-                eval(eval(jobs['circuit'])),
-                eval(jobs['device']),
+                eval("JobType." + stored_job['type']),
+                eval(eval(stored_job['circuit'])),
+                eval(stored_job['device']),
+                measurement=(
+                    None
+                    if stored_job['measure'] is None
+                    else eval(eval(stored_job['measure']))
+                ),
             )
         )
-    else:
-        for job in jobs:
-            jobs_mpqp.append(
-                Job(
-                    eval("JobType." + job['type']),
-                    eval(eval(job['circuit'])),
-                    eval(job['device']),
-                )
-            )
 
     return jobs_mpqp
 
@@ -77,36 +75,31 @@ def results_local_storage_to_mpqp(
         Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR), [Sample(...), ...], None, 1024)
 
     """
+    # can be used when we call eval.
+    import numpy as np  # pyright: ignore[reportUnusedImport]
+
     if results is None:
         return []
     results_mpqp = []
-    if isinstance(results, dict):
-        error = eval(eval(results['error'])) if results['error'] is not None else None
-        job = fetch_jobs_with_id(results['job_id'])
+    stored_results = [results] if isinstance(results, dict) else results
+    for result in stored_results:
+        error = None if result['error'] is None else eval(eval(result['error']))
+        job = fetch_jobs_with_id(result['job_id'])
         if len(job) == 0:
             raise ValueError("Job not found for result, can not be instantiated.")
+        input_circuit = result.get('input_circuit')
         results_mpqp.append(
             Result(
                 jobs_local_storage_to_mpqp(job)[0],
-                eval(eval(results['data'])),
+                eval(eval(result['data'])),
                 error,
-                results['shots'],
+                result['shots'],
+                label=result.get('label'),
+                input_circuit=(
+                    None if input_circuit is None else eval(eval(input_circuit))
+                ),
             )
         )
-    else:
-        for result in results:
-            error = None if result['error'] is None else eval(eval(result['error']))
-            job = fetch_jobs_with_id(result['job_id'])
-            if len(job) == 0:
-                raise ValueError("Job not found for result, can not be instantiated.")
-            results_mpqp.append(
-                Result(
-                    jobs_local_storage_to_mpqp(job)[0],
-                    eval(eval(result['data'])),
-                    error,
-                    result['shots'],
-                )
-            )
 
     return results_mpqp
 

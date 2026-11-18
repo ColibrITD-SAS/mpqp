@@ -211,6 +211,8 @@ def test_remote_quantinuum_jobs():
         QCircuit([X(0), BasisMeasure([0], shots=100)]),
         QUANTINUUMDevice.NEXUS_AER_SIMULATOR,
     )
+    assert isinstance(sample_result.job.id, str)
+    assert sample_result.job.id
     assert sample_result.counts == [0, 100]
 
     state_vector_result = run(
@@ -228,10 +230,13 @@ def test_remote_quantinuum_jobs():
             ExpectationMeasure(Observable(pX + 2 * pZ), shots=100),
         ]
     )
-    _, sampled_job = submit(
+    job_id, sampled_job = submit(
         sampled_circuit,
         QUANTINUUMDevice.NEXUS_AER_SIMULATOR,
     )
+    assert sampled_job.id == job_id
+
     sampled_result = get_remote_result(sampled_job)
+    assert sampled_result.job.id == job_id
     assert isinstance(sampled_result.expectation_values, float)
     assert np.isclose(sampled_result.expectation_values, 1, atol=0.3)
