@@ -57,6 +57,8 @@ def local_braket_remote(monkeypatch: pytest.MonkeyPatch) -> Mock:
     from braket.tasks.program_set_quantum_task_result import ProgramSetQuantumTaskResult
 
     simulator = LocalSimulator()
+    boto3_session = Mock()
+    braket_session = Mock()
     remote_task = Mock()
     remote_task.id = "arn:aws:braket:us-east-1:123456789012:quantum-task/test"
     remote_task.state.return_value = "COMPLETED"
@@ -87,6 +89,14 @@ def local_braket_remote(monkeypatch: pytest.MonkeyPatch) -> Mock:
     monkeypatch.setattr(
         "mpqp.execution.providers.aws.get_braket_device",
         Mock(return_value=Mock(run=run_locally)),
+    )
+    monkeypatch.setattr(
+        "mpqp.execution.providers.aws.get_boto3_session",
+        Mock(return_value=boto3_session),
+    )
+    monkeypatch.setattr(
+        "braket.aws.AwsSession",
+        Mock(return_value=braket_session),
     )
     monkeypatch.setattr("braket.aws.AwsQuantumTask", Mock(return_value=remote_task))
     return remote_task
