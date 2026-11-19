@@ -24,12 +24,12 @@ On this page, you will find:
 
 ## Installation
 
-MPQP supports Python 3.10 through 3.13 on Windows, Linux, and macOS. We are 
-dependant on the SDKs we support to enable various python versions and OS 
-support, for instance, MPQP was validated on Ubuntu LTS 20.04, while Ubuntu 
+MPQP supports Python 3.11 through 3.13 on Windows, Linux, and macOS. We are
+dependant on the SDKs we support to enable various python versions and OS
+support, for instance, MPQP was validated on Ubuntu LTS 20.04, while Ubuntu
 18.04 is not supported because myQLM does not support it.
 
-The preferred installation method is with the `pipy` repo. Install MPQP with 
+The preferred installation method is with the `pipy` repo. Install MPQP with
 its built-in Qiskit Aer simulation support:
 
 ```console
@@ -38,14 +38,14 @@ pip install mpqp
 
 Provider integrations are available as optional extras:
 
-| Provider integration | Install command |
-| --- | --- |
+| Provider integration | Install command              |
+| -------------------- | ---------------------------- |
 | IBM Quantum and IonQ | `pip install "mpqp[qiskit]"` |
-| Amazon Braket | `pip install "mpqp[braket]"` |
-| Google Cirq | `pip install "mpqp[cirq]"` |
-| Azure Quantum | `pip install "mpqp[azure]"` |
-| Eviden myQLM/Qaptiva | `pip install "mpqp[myqlm]"` |
-| All providers | `pip install "mpqp[all]"` |
+| Amazon Braket        | `pip install "mpqp[braket]"` |
+| Google Cirq          | `pip install "mpqp[cirq]"`   |
+| Azure Quantum        | `pip install "mpqp[azure]"`  |
+| Eviden myQLM/Qaptiva | `pip install "mpqp[myqlm]"`  |
+| All providers        | `pip install "mpqp[all]"`    |
 
 Extras can be combined, for example:
 
@@ -60,13 +60,13 @@ MPQP currently targets the following primary SDK versions. The linked
 requirement files are the source of truth for all transitive dependencies and
 Python-version-specific constraints.
 
-| Provider integration | Primary SDK versions | Requirements |
-| --- | --- | --- |
-| Qiskit | Qiskit 2.3.1, Qiskit Aer 0.17.2, IBM Runtime 0.45.1, IonQ 1.0.2 | [core](requirements.txt), [provider](requirements_providers/qiskit.txt) |
-| Amazon Braket | SDK 1.112.1 on Python 3.11+, 1.106.5 on Python 3.10; local simulator 1.32.0 | [provider](requirements_providers/braket.txt) |
-| Cirq | 1.6.1 on Python 3.11+, 1.5.0 on Python 3.10 | [provider](requirements_providers/cirq.txt) |
-| Azure Quantum | 3.6.1 | [provider](requirements_providers/azure.txt) |
-| myQLM/Qaptiva | 1.12.4 | [provider](requirements_providers/myqlm.txt) |
+| Provider integration | Primary SDK versions                                            | Requirements                                                            |
+| -------------------- | --------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Qiskit               | Qiskit 2.3.1, Qiskit Aer 0.17.2, IBM Runtime 0.45.1, IonQ 1.0.2 | [core](requirements.txt), [provider](requirements_providers/qiskit.txt) |
+| Amazon Braket        | SDK 1.112.1; local simulator 1.32.0                             | [provider](requirements_providers/braket.txt)                           |
+| Cirq                 | 1.7.0                                                           | [provider](requirements_providers/cirq.txt)                             |
+| Azure Quantum        | 3.6.1                                                           | [provider](requirements_providers/azure.txt)                            |
+| myQLM/Qaptiva        | 1.12.4                                                          | [provider](requirements_providers/myqlm.txt)                            |
 
 </details>
 
@@ -84,9 +84,9 @@ from mpqp import BasisMeasure, CNOT, IBMDevice, QCircuit, X, run
 
 circuit = QCircuit([H(0), H(1), Rx(0,0), CNOT(1,2), Y(2)])
 print(circuit)
-#      ┌───┐┌───────┐     
+#      ┌───┐┌───────┐
 # q_0: ┤ H ├┤ Rx(0) ├─────
-#      ├───┤└───────┘     
+#      ├───┤└───────┘
 # q_1: ┤ H ├────■─────────
 #      └───┘  ┌─┴─┐  ┌───┐
 # q_2: ───────┤ X ├──┤ Y ├
