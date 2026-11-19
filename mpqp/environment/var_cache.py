@@ -17,6 +17,7 @@ class InstalledProviders(Flag):
     CIRQ = auto()
     BRAKET = auto()
     MY_QLM = auto()
+    MIMIQ = auto()
 
 
 def installed_providers() -> InstalledProviders:
@@ -42,6 +43,9 @@ def installed_providers() -> InstalledProviders:
 
     if find_spec("qat") is not None:
         flags |= InstalledProviders.MY_QLM
+
+    if find_spec("mimiqcircuits") is not None:
+        flags |= InstalledProviders.MIMIQ
 
     return flags
 

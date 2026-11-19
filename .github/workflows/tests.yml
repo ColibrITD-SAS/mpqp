@@ -40,13 +40,14 @@ on:
           - "braket"
           - "myqlm"
           - "quantinuum"
+          - "mimiq"
 jobs:
   tests:
     runs-on: ubuntu-latest
     strategy:
       matrix: 
         python-version: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('["{0}"]', github.event.inputs.python_v) || '["3.10", "3.11", "3.12", "3.13"]') }}
-        provider: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('["{0}"]', github.event.inputs.providers) || ((github.ref_name == 'main' || github.base_ref == 'main') && '["all", "qiskit", "cirq", "braket", "myqlm", "quantinuum"]' || '["all"]')) }}
+        provider: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('["{0}"]', github.event.inputs.providers) || ((github.ref_name == 'main' || github.base_ref == 'main') && '["all", "qiskit", "cirq", "braket", "myqlm", "quantinuum", "mimiq"]' || '["all"]')) }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -97,3 +98,25 @@ jobs:
           pip install -r requirements-dev.txt
       - name: Run type checker
         run: pyright
+
+  mimiq:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.commit_ref || github.ref }}
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+      - name: Install MIMIQ dependencies
+        run: pip install ".[mimiq]" pytest
+      - name: Run offline MIMIQ tests and doctests
+        run: >-
+          python -m pytest tests/execution/test_mimiq.py tests/test_doc.py
+          -k mimiq --providers mimiq --seed 7

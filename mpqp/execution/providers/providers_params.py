@@ -135,3 +135,44 @@ class QuantinuumParams(ProviderParams):
     ):
         self.optimisation_level = optimisation_level
         self.commutation_strategy = commutation_strategy
+
+
+class MimiqParams(ProviderParams):
+    """Execution settings for MIMIQ simulators.
+
+    Args:
+        seed: Nonnegative random seed smaller than ``2**63``, or ``None``.
+        bonddim: Maximum MPS bond dimension, from 1 to 4096. A larger value can
+            improve accuracy at increased memory and execution cost.
+        entdim: Cloud MPS entangling dimension, from 4 to 64.
+        timelimit: Cloud execution time limit in minutes.
+
+    Raises:
+        TypeError: If an option has an inappropriate type.
+        ValueError: If an option is outside its supported range.
+    """
+
+    def __init__(
+        self,
+        seed: Optional[int] = None,
+        bonddim: int = 256,
+        entdim: int = 16,
+        timelimit: int = 30,
+    ):
+        options = {
+            'seed': (seed, 0, 2**63 - 1),
+            'bonddim': (bonddim, 1, 4096),
+            'entdim': (entdim, 4, 64),
+            'timelimit': (timelimit, 1, None),
+        }
+        for name, (value, minimum, maximum) in options.items():
+            if value is None and name == 'seed':
+                continue
+            if type(value) is not int:
+                raise TypeError(f'{name} must be an integer.')
+            if value < minimum or (maximum is not None and value > maximum):
+                raise ValueError(f'{name} is outside its supported range.')
+        self.seed = seed
+        self.bonddim = bonddim
+        self.entdim = entdim
+        self.timelimit = timelimit

@@ -40,6 +40,7 @@ from .devices import (
     AWSDevice,
     AZUREDevice,
     IBMDevice,
+    MIMIQDevice,
     QUANTINUUMDevice,
 )
 
@@ -194,9 +195,12 @@ class Job:
                 for job_id in job_ids:
                     if TYPE_CHECKING:
                         assert isinstance(job_id, str)
+                    from .providers.mimiq import get_mimiq_job_status
+
                     status_getter: dict[
                         type[AvailableDevice], Callable[[str], JobStatus]
                     ] = {
+                        MIMIQDevice: get_mimiq_job_status,
                         ATOSDevice: get_qlm_job_status,
                         IBMDevice: get_ibm_job_status,
                         AWSDevice: get_aws_job_status,

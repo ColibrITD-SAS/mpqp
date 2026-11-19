@@ -28,6 +28,7 @@ from .execution.devices import (
     AZUREDevice,
     GOOGLEDevice,
     IBMDevice,
+    MIMIQDevice,
     QUANTINUUMDevice,
 )
 from .execution.remote_handler import get_all_remote_job_ids

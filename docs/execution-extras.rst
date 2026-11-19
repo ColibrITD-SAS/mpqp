@@ -148,3 +148,21 @@ through the ``provider_params`` argument of
 :func:`~mpqp.execution.runner.run`.
 
 .. automodule:: mpqp.execution.providers.providers_params
+
+MIMIQ
+^^^^^
+
+Connection
+__________
+
+.. automodule:: mpqp.execution.connection.mimiq_connection
+
+Execution
+_________
+
+.. automodule:: mpqp.execution.providers.mimiq
+
+Parameters
+__________
+
+.. autoclass:: mpqp.execution.providers.providers_params.MimiqParams

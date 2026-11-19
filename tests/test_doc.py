@@ -249,11 +249,13 @@ PROVIDER_QISKIT = register_optionflag("QISKIT")
 PROVIDER_BRAKET = register_optionflag("BRAKET")
 PROVIDER_CIRQ = register_optionflag("CIRQ")
 PROVIDER_QUANTINUUM = register_optionflag("QUANTINUUM")
+PROVIDER_MIMIQ = register_optionflag("MIMIQ")
 register_optionflag("FUNC_NEED_MYQLM")
 register_optionflag("FUNC_NEED_QISKIT")
 register_optionflag("FUNC_NEED_BRAKET")
 register_optionflag("FUNC_NEED_CIRQ")
 register_optionflag("FUNC_NEED_QUANTINUUM")
+register_optionflag("FUNC_NEED_MIMIQ")
 register_optionflag("REMOTE_RUN")
 
 PROVIDER_FLAGS = {
@@ -262,6 +264,7 @@ PROVIDER_FLAGS = {
     "braket": PROVIDER_BRAKET,
     "cirq": PROVIDER_CIRQ,
     "quantinuum": PROVIDER_QUANTINUUM,
+    "mimiq": PROVIDER_MIMIQ,
 }
 
 

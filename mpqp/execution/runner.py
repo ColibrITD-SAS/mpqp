@@ -40,6 +40,7 @@ from mpqp.execution.devices import (
     AZUREDevice,
     GOOGLEDevice,
     IBMDevice,
+    MIMIQDevice,
     QUANTINUUMDevice,
 )
 from mpqp.execution.job import Job, JobStatus, JobType
@@ -48,8 +49,10 @@ from mpqp.execution.providers.aws import run_braket, submit_job_braket
 from mpqp.execution.providers.azure import run_azure, submit_job_azure
 from mpqp.execution.providers.google import run_google
 from mpqp.execution.providers.ibm import run_ibm, submit_remote_ibm
+from mpqp.execution.providers.mimiq import run_mimiq, submit_mimiq
 from mpqp.execution.providers.providers_params import (
     BraketParams,
+    MimiqParams,
     ProviderParams,
     QiskitParams,
     QuantinuumParams,
@@ -440,6 +443,10 @@ def _run_single(
         ):
             raise NotImplementedError(f"Noisy simulations not supported on {device}.")
 
+    if isinstance(device, MIMIQDevice):
+        if provider_params is not None and not isinstance(provider_params, MimiqParams):
+            raise TypeError('provider_params must be a MimiqParams instance.')
+        return run_mimiq(job, provider_params)
     if isinstance(device, (IBMDevice, StaticIBMSimulatedDevice)):
         if provider_params is not None and not isinstance(
             provider_params, QiskitParams
@@ -778,7 +785,11 @@ def submit(
     job = generate_job(circuit, device, values)
     job.status = JobStatus.INIT
 
-    if isinstance(device, IBMDevice):
+    if isinstance(device, MIMIQDevice):
+        if provider_params is not None and not isinstance(provider_params, MimiqParams):
+            raise TypeError('provider_params must be a MimiqParams instance.')
+        job_id, _ = submit_mimiq(job, provider_params)
+    elif isinstance(device, IBMDevice):
         if provider_params is not None and not isinstance(
             provider_params, QiskitParams
         ):
