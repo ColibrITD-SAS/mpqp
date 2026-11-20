@@ -211,10 +211,8 @@ class CircuitBinding:
         )
         from mpqp.execution.job import JobType
 
-        if circuits == []:
-            raise ValueError(
-                "At least one Circuit/CircuitBinding must be provided to a CircuitBinding."
-            )
+        if isinstance(circuits, Sequence) and len(circuits) == 0:
+            raise ValueError("CircuitBinding requires at least one circuit.")
 
         if mode == BindingMode.ZIP:
             lengths = [
@@ -262,6 +260,8 @@ class CircuitBinding:
 
         if isinstance(values, Sequence):
             parameters = list(values)
+            if not parameters:
+                raise ValueError("CircuitBinding values cannot be empty.")
         elif values is not None:
             parameters = [values]
         else:
@@ -314,6 +314,8 @@ class CircuitBinding:
                 if isinstance(measurements, Measure)
                 else list(measurements)
             )
+            if not measurements:
+                raise ValueError("CircuitBinding measurements cannot be empty.")
             measurements = [copy(measure) for measure in measurements]
             is_expectation = isinstance(measurements[0], ExpectationMeasure)
 
