@@ -28,6 +28,7 @@ from mpqp.execution.providers.aws import (
     _ordered_measurement_probabilities,  # pyright: ignore[reportPrivateUsage]
 )
 from mpqp.execution.providers.aws import (
+    get_result_from_aws_task_arn,
     optional_reservation_arn,
     run_braket,
     submit_job_braket,
@@ -38,6 +39,7 @@ from mpqp.execution.result import BatchResult, Sample
 from mpqp.execution.runner import generate_job
 from mpqp.measures import pI, pX, pZ
 from mpqp.noise import BitFlip
+from mpqp.tools.errors import AWSBraketRemoteExecutionError
 
 if TYPE_CHECKING:
     from braket.circuits import Circuit
@@ -55,6 +57,8 @@ def local_braket_remote(monkeypatch: pytest.MonkeyPatch) -> Mock:
     from braket.tasks.program_set_quantum_task_result import ProgramSetQuantumTaskResult
 
     simulator = LocalSimulator()
+    boto3_session = Mock()
+    braket_session = Mock()
     remote_task = Mock()
     remote_task.id = "arn:aws:braket:us-east-1:123456789012:quantum-task/test"
     remote_task.state.return_value = "COMPLETED"
@@ -85,6 +89,14 @@ def local_braket_remote(monkeypatch: pytest.MonkeyPatch) -> Mock:
     monkeypatch.setattr(
         "mpqp.execution.providers.aws.get_braket_device",
         Mock(return_value=Mock(run=run_locally)),
+    )
+    monkeypatch.setattr(
+        "mpqp.execution.providers.aws.get_boto3_session",
+        Mock(return_value=boto3_session),
+    )
+    monkeypatch.setattr(
+        "braket.aws.AwsSession",
+        Mock(return_value=braket_session),
     )
     monkeypatch.setattr("braket.aws.AwsQuantumTask", Mock(return_value=remote_task))
     return remote_task
@@ -517,6 +529,33 @@ def test_generate_braket_job_preserves_matrix_observable_representation():
 )
 def test_braket_non_contiguous_qubits(circuit: QCircuit):
     run(circuit, AWSDevice.BRAKET_LOCAL_SIMULATOR)
+
+
+@pytest.mark.provider("braket")
+def test_retrieve_braket_result_uses_task_region():
+    task_region = "us-west-1"
+    task_arn = f"arn:aws:braket:{task_region}:123456789012:quantum-task/test-task"
+    boto_session = Mock()
+    aws_session = Mock()
+    task = Mock()
+    task.state.return_value = "FAILED"
+    with (
+        patch(
+            "mpqp.execution.providers.aws.get_boto3_session",
+            return_value=boto_session,
+        ) as get_session,
+        patch("braket.aws.AwsSession", return_value=aws_session) as create_aws_session,
+        patch("braket.aws.AwsQuantumTask", return_value=task) as create_task,
+        pytest.raises(AWSBraketRemoteExecutionError, match="Job status: FAILED"),
+    ):
+        get_result_from_aws_task_arn(task_arn)
+
+    get_session.assert_called_once_with(region_name=task_region)
+    create_aws_session.assert_called_once_with(boto_session=boto_session)
+    create_task.assert_called_once_with(
+        task_arn,
+        aws_session=aws_session,
+    )
 
 
 @pytest.mark.provider("braket")

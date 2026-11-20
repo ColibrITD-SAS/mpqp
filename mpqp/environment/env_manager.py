@@ -6,7 +6,7 @@ from getpass import getpass
 from pathlib import Path
 from typing import Callable
 
-from dotenv import load_dotenv, set_key
+from dotenv import dotenv_values, load_dotenv, set_key, unset_key
 from termcolor import colored
 
 MPQP_ENV = Path("~/.mpqp/.env").expanduser()
@@ -132,6 +132,34 @@ def save_env_variable(key: str, value: str) -> bool:
         return False
 
     return a
+
+
+def remove_env_variable(key: str) -> bool:
+    """Remove a variable from MPQP's configuration and current environment.
+
+    Args:
+        key: Name of the environment variable to remove.
+
+    Returns:
+        ``True`` when the variable was removed or was already absent.
+
+    Example:
+        >>> save_env_variable("RaNdOM", "azertyuiop")
+        True
+        >>> remove_env_variable("RaNdOM")
+        True
+        >>> get_env_variable("RaNdOM")
+        ''
+    """
+    assert isinstance(key, str), "key must be a string"
+    _create_config_if_needed()
+
+    removed = True
+    if key in dotenv_values(MPQP_ENV):
+        unset, _ = unset_key(MPQP_ENV, key)
+        removed = unset is not False
+    os.environ.pop(key, None)
+    return removed
 
 
 def config_key(

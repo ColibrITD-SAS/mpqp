@@ -16,7 +16,10 @@ from mpqp.core.instruction.measurement import (
     Observable,
 )
 from mpqp.core.languages import Language
-from mpqp.execution.connection.aws_connection import get_braket_device
+from mpqp.execution.connection.aws_connection import (
+    get_boto3_session,
+    get_braket_device,
+)
 from mpqp.execution.devices import AWSDevice
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.providers.providers_params import BraketParams
@@ -1236,13 +1239,14 @@ def get_result_from_aws_task_arn(task_arn: str, job: Optional[Job] = None) -> Re
         ValueError: If an observable task requires its original MPQP job.
         NotImplementedError: If retrieving results for a circuit binding.
     """
-    from braket.aws import AwsQuantumTask
+    from braket.aws import AwsQuantumTask, AwsSession
     from braket.ir.openqasm import Program
     from braket.tasks import GateModelQuantumTaskResult
     from braket.tasks.program_set_quantum_task_result import ProgramSetQuantumTaskResult
 
-    task: QuantumTask = AwsQuantumTask(task_arn)
-    # catch an error if the id is not correct (wrong ID, wrong region, ...) ?
+    task_region = task_arn.split(":")[3]
+    aws_session = AwsSession(boto_session=get_boto3_session(region_name=task_region))
+    task: QuantumTask = AwsQuantumTask(task_arn, aws_session=aws_session)
 
     status = task.state()
 
@@ -1321,7 +1325,7 @@ def estimate_cost_single_job(
 
     Example:
         >>> circuit = QCircuit([H(0), CNOT(0, 1), CNOT(1, 2), BasisMeasure(shots=245)])
-        >>> job = generate_job(circuit, AWSDevice.IONQ_ARIA_1)
+        >>> job = generate_job(circuit, AWSDevice.IONQ_FORTE_1)
         >>> estimate_cost_single_job(job, hybrid_iterations=150)
         1147.5
 

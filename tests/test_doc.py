@@ -31,6 +31,7 @@ from mpqp.environment.env_manager import (
     get_env_variable,
     get_existing_config_str,
     load_env_variables,
+    remove_env_variable,
     save_env_variable,
 )
 from mpqp.execution import BatchResult

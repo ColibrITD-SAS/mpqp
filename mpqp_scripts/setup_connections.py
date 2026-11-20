@@ -1,11 +1,14 @@
 #! /usr/bin/env python3
-"""The ``setup_connections`` script helps you configuring the connections for
-all the supported remote backends. In time, it will also guide you to retrieve
-the tokens, passwords, etc... but for now, it is a prerequisite that you already
-have these credentials to use this script.
+"""The ``setup_connections`` script guides you through configuring connections
+to the remote providers supported by MPQP.
 
-Information concerning which provider is configured and related credentials are
-stored in the ``~/.mpqp/.env`` file."""
+Run it from a terminal and follow the prompts. Before starting, make sure you
+have the account information or credentials required by the selected provider.
+
+MPQP stores provider connection information in ``~/.mpqp/.env``. Amazon Braket
+profiles and credentials are stored separately in the standard shared AWS config
+and credentials files.
+"""
 
 import os
 
@@ -85,7 +88,7 @@ def delete_config():
             delete_ibm_account()
         if get_env_variable("QLM_CONFIGURED") == "True":
             delete_qlm_account()
-        if get_env_variable("AWS_CONFIGURED") == "True":
+        if get_env_variable("BRAKET_CONFIGURED") == "True":
             delete_aws_braket_account()
         if get_env_variable("IONQ_CONFIGURED") == "True":
             delete_ionq_account()
