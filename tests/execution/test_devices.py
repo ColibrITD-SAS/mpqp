@@ -35,6 +35,7 @@ def test_from_arn():
             "arn:aws:braket:us-west-1::device/qpu/rigetti/Cepheus-1-108Q",
         ),
     ],
+    ids=["ankaa-3", "ibex-q1", "cepheus-1"],
 )
 def test_get_arn(device: AWSDevice, expected_arn: str):
     assert device.get_arn() == expected_arn
@@ -59,6 +60,14 @@ def test_retired_aws_devices():
         (AWSDevice.IONQ_FORTE_1, {Rzz}),
         (AWSDevice.IONQ_FORTE_ENTERPRISE_1, {Rzz}),
         (AWSDevice.RIGETTI_ANKAA_3, {Rx, Rz}),
+    ],
+    ids=[
+        "ibex-q1",
+        "iqm-garnet",
+        "iqm-emerald",
+        "forte-1",
+        "forte-enterprise-1",
+        "ankaa-3",
     ],
 )
 def test_native_gates(device: AWSDevice, expected_gates: set[type[Gate]]):
