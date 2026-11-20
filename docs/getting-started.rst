@@ -210,8 +210,9 @@ before saving the connection.
 - **Option 1 — Existing AWS profile**: Use a profile already configured in the
     standard AWS configuration files. MPQP passes its name to Boto3, which
     resolves the profile's authentication method. This supports IAM Identity
-    Center, assume-role, and other profiles supported by Boto3. MPQP stores only
-    the selected name, it does not copy or modify the profile.
+    Center, assume-role, and other profiles supported by Boto3. MPQP saves only
+    the profile name in ``~/.mpqp/.env``. It does not copy the profile's
+    credentials or change its AWS configuration.
 
     For an IAM Identity Center profile, follow this flow:
 
@@ -233,7 +234,7 @@ before saving the connection.
 
     If you later remove the Amazon Braket connection from MPQP, the AWS profile
     remains available. Run ``setup_connections`` and select the same profile to
-    reconnect, you do not need to configure it again. Only renew the session if
+    reconnect. You do not need to configure it again. Only renew the session if
     it has expired:
 
     .. code-block:: console
@@ -250,8 +251,12 @@ before saving the connection.
 
     MPQP stores them in an AWS profile named ``mpqp-temporary`` and does not
     overwrite an existing profile that it did not create. Removing the Amazon
-    Braket connection deletes this profile. When the credentials expire, obtain
-    new credentials and configure this option again.
+    Braket connection or selecting another profile deletes ``mpqp-temporary``.
+    When the credentials expire, obtain new credentials and configure this
+    option again.
+
+Remote simulators use the configured region. QPUs automatically use the AWS
+region where the selected device is available.
 
 AWS CLI v2 is required only for configuring and renewing IAM Identity Center
 profiles. The Python package does not install it. Follow the official `AWS CLI
@@ -269,10 +274,10 @@ After installation, check that CLI v2 is available:
 
     aws --version
 
-The output should start with ``aws-cli/2.x.x``, for example
-``aws-cli/2.22.12``.
+The output should start with ``aws-cli/2`` followed by the installed version,
+for example ``aws-cli/2.39.6``.
 
-The MPQP Docker image already includes CLI v2. If AWS CLI cannot open a
+The MPQP Docker image already includes AWS CLI v2. If AWS CLI cannot open a
 browser, for example inside Docker, add ``--use-device-code`` at the end of the
 ``aws configure sso`` or ``aws sso login`` command, for example:
 
@@ -281,6 +286,9 @@ browser, for example inside Docker, add ``--use-device-code`` at the end of the
     $ aws sso login --profile my-aws-profile --use-device-code
 
 AWS CLI will then display the instructions for signing in from a browser.
+Entering short-term credentials in MPQP does not require AWS CLI. The local
+Braket simulator runs without AWS credentials, an AWS profile, or AWS CLI.
+Remote Braket simulators and QPUs require AWS credentials.
 
 Quantinuum Nexus
 ^^^^^^^^^^^^^^^^
