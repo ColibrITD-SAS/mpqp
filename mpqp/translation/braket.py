@@ -653,7 +653,8 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                             entries.append(provider_circuit)
                             entry_contexts.append([context])
 
-        return ProgramSet(entries, binding.shots), entry_contexts
+        # Infer the argument list's element type from the SDK's signature.
+        return ProgramSet([*entries], binding.shots), entry_contexts
 
     def circuitbinding_to_programset(
         binding: "CircuitBinding",
