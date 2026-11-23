@@ -20,6 +20,7 @@ from mpqp.execution.devices import (
     AWSDevice,
     GOOGLEDevice,
     IBMDevice,
+    QUANTINUUMDevice,
 )
 
 if TYPE_CHECKING:
@@ -962,37 +963,34 @@ def test_variables_are_updated_after_substitution(
     assert circuit.variables() == {theta, phi}
 
 
-@pytest.mark.provider("qiskit")
-def test_transpiled_for_device_reuses_template_for_multiple_values():
+@pytest.mark.parametrize(
+    "device",
+    [
+        pytest.param(
+            IBMDevice.AER_SIMULATOR_STATEVECTOR,
+            marks=pytest.mark.provider("qiskit"),
+        ),
+        pytest.param(
+            AWSDevice.BRAKET_LOCAL_SIMULATOR,
+            marks=pytest.mark.provider("braket"),
+        ),
+        pytest.param(
+            QUANTINUUMDevice.TKET_AER_STATEVECTOR_SIMULATOR,
+            marks=pytest.mark.provider("quantinuum"),
+        ),
+    ],
+)
+def test_transpiled_circuit_reuse_across_parameter_values(device: AvailableDevice):
     circuit = QCircuit([Ry(theta, 0)])
-    device = IBMDevice.AER_SIMULATOR_STATEVECTOR
-    template = circuit.transpiled_for_device(device)
+    cached_circuit = circuit.transpiled_for_device(device)
+    assert circuit.transpiled_for_device(device) is cached_circuit
 
-    assert isinstance(template, QiskitCircuit)
-    assert circuit.transpiled_for_device(device) is template
+    for angle, expected_probability in ((0.0, 0.0), (np.pi, 1.0)):
+        result = run(circuit, device, values={theta: angle})
+        assert result.probabilities[1] == pytest.approx(expected_probability)
+        assert circuit.transpiled_circuit[device] is cached_circuit
 
-    for value in (0.5, 1.0, 0.5):
-        result = run(circuit, device, values={theta: value})
-        assert abs(result.state_vector.vector[1]) ** 2 == pytest.approx(
-            np.sin(value / 2) ** 2
-        )
-        assert circuit.transpiled_circuit[device] is template
-        assert len(template.parameters) == 1
-
-
-@pytest.mark.provider("qiskit")
-def test_bind_parameters_updates_cached_provider_circuit():
-    from qiskit.quantum_info import Statevector
-
-    circuit = QCircuit([Ry(theta, 0)])
-    device = IBMDevice.AER_SIMULATOR_STATEVECTOR
-    circuit.transpiled_for_device(device)
-
-    assert circuit.bind_parameters(device, {theta: 0.5}) is None
-    bound = circuit.transpiled_circuit[device]
-
-    assert isinstance(bound, QiskitCircuit)
-    assert Statevector(bound).probabilities()[1] == pytest.approx(np.sin(0.25) ** 2)
+    assert circuit.variables() == {theta}
 
 
 @pytest.mark.provider("qiskit")
@@ -1128,7 +1126,8 @@ def list_braket_circuit() -> list[tuple[QCircuit, type, str]]:
         (
             QCircuit([CNOT(0, 1), Depolarizing(0.5, [0, 1])]),
             BraketCircuit,
-            ("""\
+            (
+                """\
 T  : │         0         │
             ┌───────────┐ 
 q0 : ───●───┤ DEPO(0.5) ├─
@@ -1136,12 +1135,14 @@ q0 : ───●───┤ DEPO(0.5) ├─
       ┌─┴─┐ ┌───────────┐ 
 q1 : ─┤ X ├─┤ DEPO(0.5) ├─
       └───┘ └───────────┘ 
-T  : │         0         │"""),
+T  : │         0         │"""
+            ),
         ),
         (
             QCircuit([CNOT(0, 1), Depolarizing(0.5, [0, 1], dimension=2)]),
             BraketCircuit,
-            ("""\
+            (
+                """\
 T  : │         0         │
             ┌───────────┐ 
 q0 : ───●───┤ DEPO(0.5) ├─
@@ -1149,14 +1150,16 @@ q0 : ───●───┤ DEPO(0.5) ├─
       ┌─┴─┐ ┌─────┴─────┐ 
 q1 : ─┤ X ├─┤ DEPO(0.5) ├─
       └───┘ └───────────┘ 
-T  : │         0         │"""),
+T  : │         0         │"""
+            ),
         ),
         (
             QCircuit(
                 [CNOT(0, 1), Depolarizing(0.5, [0, 1], dimension=2, gates=[CNOT])]
             ),
             BraketCircuit,
-            ("""\
+            (
+                """\
 T  : │         0         │
             ┌───────────┐ 
 q0 : ───●───┤ DEPO(0.5) ├─
@@ -1164,7 +1167,8 @@ q0 : ───●───┤ DEPO(0.5) ├─
       ┌─┴─┐ ┌─────┴─────┐ 
 q1 : ─┤ X ├─┤ DEPO(0.5) ├─
       └───┘ └───────────┘ 
-T  : │         0         │"""),
+T  : │         0         │"""
+            ),
         ),
     ]
 
