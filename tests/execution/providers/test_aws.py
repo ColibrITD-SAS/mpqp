@@ -28,6 +28,7 @@ from mpqp.execution.providers.aws import (
     _ordered_measurement_probabilities,  # pyright: ignore[reportPrivateUsage]
 )
 from mpqp.execution.providers.aws import (
+    estimate_cost_single_job,
     get_result_from_aws_task_arn,
     optional_reservation_arn,
     run_braket,
@@ -39,7 +40,10 @@ from mpqp.execution.result import BatchResult, Sample
 from mpqp.execution.runner import generate_job
 from mpqp.measures import pI, pX, pZ
 from mpqp.noise import BitFlip
-from mpqp.tools.errors import AWSBraketRemoteExecutionError
+from mpqp.tools.errors import (
+    AWSBraketRemoteExecutionError,
+    DeviceJobIncompatibleError,
+)
 
 if TYPE_CHECKING:
     from braket.circuits import Circuit
@@ -808,6 +812,65 @@ def test_run_braket_hermitian_pre_measures_preserve_results():
     assert result.expectation_values == pytest.approx(
         {"observable_0": 1, "observable_1": 2}
     )
+
+
+@pytest.mark.provider("braket")
+@pytest.mark.parametrize(
+    ("device", "expected_cost"),
+    [
+        (AWSDevice.AQT_IBEX_Q1, 2.65),
+        (AWSDevice.IONQ_FORTE_1, 8.3),
+        (AWSDevice.IONQ_FORTE_ENTERPRISE_1, 8.3),
+        (AWSDevice.IQM_GARNET, 0.445),
+        (AWSDevice.IQM_EMERALD, 0.46),
+        (AWSDevice.RIGETTI_ANKAA_3, 0.39),
+        (AWSDevice.RIGETTI_CEPHEUS_1_108Q, 0.3425),
+    ],
+    ids=[
+        "ibex-q1",
+        "forte-1",
+        "forte-enterprise-1",
+        "iqm-garnet",
+        "iqm-emerald",
+        "ankaa-3",
+        "cepheus-1",
+    ],
+)
+def test_estimate_cost_for_supported_qpus(
+    device: AWSDevice,
+    expected_cost: float,
+):
+    circuit = QCircuit([H(0), BasisMeasure(shots=100)])
+    job = generate_job(circuit, device)
+
+    assert estimate_cost_single_job(job) == pytest.approx(expected_cost)
+
+
+@pytest.mark.provider("braket")
+@pytest.mark.parametrize(
+    "device",
+    [
+        AWSDevice.BRAKET_TN1_SIMULATOR,
+        AWSDevice.IONQ_ARIA_1,
+        AWSDevice.IONQ_ARIA_2,
+    ],
+    ids=["tn1", "aria-1", "aria-2"],
+)
+def test_estimate_cost_rejects_retired_device(device: AWSDevice):
+    circuit = QCircuit([H(0), BasisMeasure(shots=100)])
+    job = generate_job(circuit, device)
+
+    with pytest.raises(DeviceJobIncompatibleError, match="retired device"):
+        estimate_cost_single_job(job)
+
+
+@pytest.mark.provider("braket")
+def test_estimate_cost_rejects_analog_device():
+    circuit = QCircuit([H(0), BasisMeasure(shots=100)])
+    job = generate_job(circuit, AWSDevice.QUERA_AQUILA)
+
+    with pytest.raises(DeviceJobIncompatibleError, match="MPQP gate-based jobs"):
+        estimate_cost_single_job(job)
 
 
 @pytest.mark.provider("braket")
