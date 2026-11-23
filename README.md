@@ -62,8 +62,8 @@ Python-version-specific constraints.
 
 | Provider integration | Primary SDK versions                                            | Requirements                                                            |
 | -------------------- | --------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| Qiskit               | Qiskit 2.3.1, Qiskit Aer 0.17.2, IBM Runtime 0.45.1, IonQ 1.0.2 | [core](requirements.txt), [provider](requirements_providers/qiskit.txt) |
-| Amazon Braket        | SDK 1.112.1; local simulator 1.32.0                             | [provider](requirements_providers/braket.txt)                           |
+| Qiskit               | Qiskit 2.3.1, Qiskit Aer 0.17.2, IBM Runtime 0.51.0, IonQ 1.0.2 | [core](requirements.txt), [provider](requirements_providers/qiskit.txt) |
+| Amazon Braket        | SDK 1.128.1; local simulator 1.32.0                             | [provider](requirements_providers/braket.txt)                           |
 | Cirq                 | 1.7.0                                                           | [provider](requirements_providers/cirq.txt)                             |
 | Azure Quantum        | 3.6.1                                                           | [provider](requirements_providers/azure.txt)                            |
 | myQLM/Qaptiva        | 1.12.4                                                          | [provider](requirements_providers/myqlm.txt)                            |
