@@ -794,6 +794,11 @@ class QCircuit:
                 '_variable_revision',
                 '_variable_parameters',
                 '_variables',
+                'transpiled_circuit',
+                '_transpilation_templates',
+                '_transpilation_key',
+                'transpiled_noise_model',
+                '_generated_g_phase',
             }
             and not attr_name.startswith("__")
             and not callable(getattr(self, attr_name))

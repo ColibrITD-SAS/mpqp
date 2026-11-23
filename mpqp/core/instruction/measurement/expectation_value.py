@@ -50,6 +50,9 @@ class Observable:
     An observable can be defined by using a Hermitian matrix, or using a
     combination of operators in a specific basis Pauli.
 
+    Input data is copied. Use the representation setters to change an
+    observable; editing the original array or Pauli string does not change it.
+
     Args:
         observable: can be either a Hermitian matrix representing the
             observable, or PauliString representing the observable, or a list
@@ -135,7 +138,7 @@ class Observable:
                             "The matrix in parameter is not hermitian (cannot define an observable)."
                         )
 
-                    self._matrix = observable
+                    self._matrix = observable.copy()
                     self._key_source = "_matrix"
 
                 else:
@@ -151,7 +154,7 @@ class Observable:
 
     @property
     def matrix(self) -> Matrix:
-        """The matrix representation of the observable."""
+        """The matrix representation of the observable, copied on assignment and access."""
         if self._matrix is None:
             if self.is_diagonal and self._diag_elements is not None:
                 if TYPE_CHECKING:
@@ -159,12 +162,11 @@ class Observable:
                 self._matrix = np.diag(self._diag_elements.astype(np.complex128))
             else:
                 self._matrix = self.pauli_string.to_matrix()
-        matrix = copy.deepcopy(self._matrix.astype(np.complex128))
-        return matrix
+        return self._matrix.astype(np.complex128)
 
     @property
     def pauli_string(self) -> PauliString:
-        """The PauliString representation of the observable."""
+        """The PauliString representation, copied on assignment and access."""
         if self._pauli_string is None:
             if self.is_diagonal:
                 self._pauli_string = PauliString.from_diagonal_elements(
@@ -177,10 +179,10 @@ class Observable:
 
     @property
     def diagonal_elements(self) -> npt.NDArray[np.float64]:
-        """The diagonal elements of the matrix representing the observable (diagonal or not)."""
+        """The diagonal elements, copied on assignment and access."""
         if self._diag_elements is None:
             self._diag_elements = np.diagonal(self.matrix).real.astype(np.float64)
-        return copy.deepcopy(self._diag_elements)
+        return self._diag_elements.copy()
 
     @matrix.setter
     def matrix(self, matrix: Matrix):
@@ -197,7 +199,7 @@ class Observable:
                 "The matrix is not hermitian (cannot define an observable)."
             )
 
-        self._matrix = matrix
+        self._matrix = matrix.copy()
         self._key_source = "_matrix"
         self._pauli_string = None
         self._diag_elements = None
@@ -207,7 +209,7 @@ class Observable:
 
     @pauli_string.setter
     def pauli_string(self, pauli_string: PauliString):
-        self._pauli_string = pauli_string
+        self._pauli_string = copy.deepcopy(pauli_string)
         self._key_source = "_pauli_string"
         self._matrix = None
         self._diag_elements = None
@@ -224,7 +226,7 @@ class Observable:
         if isinstance(diag_elements, list):
             self._diag_elements = np.array(diag_elements, dtype=np.float64)
         else:
-            self._diag_elements = diag_elements
+            self._diag_elements = diag_elements.copy()
         self._is_diagonal = True
         self._pauli_string = None
         self._matrix = None
@@ -775,7 +777,13 @@ class ExpectationMeasure(Measure):
         return {
             attr_name: getattr(self, attr_name)
             for attr_name in dir(self)
-            if attr_name not in {}
+            if attr_name
+            not in {
+                "current_grouping",
+                "_grouping_observable_revisions",
+                "translated_pre_measures",
+                "_translated_pre_measure_keys",
+            }
             and not attr_name.startswith("__")
             and not callable(getattr(self, attr_name))
         }

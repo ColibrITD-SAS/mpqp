@@ -1027,6 +1027,51 @@ def test_prepared_circuit_detects_parameter_edits():
 
 
 @pytest.mark.provider("qiskit")
+def test_user_gate_subclass_preserves_binding_and_tracks_extra_state():
+    from mpqp.core._keys import object_key
+
+    class MyRy(Ry):
+        def __init__(self):
+            super().__init__(theta, 0)
+            self.extra_parameter = 0.0
+
+    gate = MyRy()
+    circuit = QCircuit([gate])
+    device = IBMDevice.AER_SIMULATOR_STATEVECTOR
+    for angle, expected in [(0.0, 0.0), (np.pi, 1.0)]:
+        circuit.bind_parameters(device, {theta: angle})
+        assert run(circuit, device).probabilities[1] == pytest.approx(expected)
+    before = object_key(circuit)
+    gate.extra_parameter = 1.0
+    assert object_key(circuit) != before
+    template = circuit.transpiled_for_device(device)
+    assert isinstance(template, QiskitCircuit)
+    assert len(template.parameters) == 1
+
+
+@pytest.mark.parametrize(
+    "device",
+    [
+        pytest.param(
+            IBMDevice.AER_SIMULATOR_STATEVECTOR, marks=pytest.mark.provider("qiskit")
+        ),
+        pytest.param(
+            GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, marks=pytest.mark.provider("cirq")
+        ),
+    ],
+)
+def test_circuit_equality_ignores_execution_preparation(device: AvailableDevice):
+    circuit = QCircuit([X(0)])
+    other = QCircuit([X(0)])
+    circuit.transpiled_for_device(device)
+    run(circuit, device)
+    assert circuit == other
+    assert eval(repr(circuit)) == circuit
+    other.add(X(0))
+    assert circuit != other
+
+
+@pytest.mark.provider("qiskit")
 @pytest.mark.parametrize("shots", [0, 100])
 def test_direct_binding_executes_cached_circuit_without_substitution(
     monkeypatch: pytest.MonkeyPatch, shots: int
