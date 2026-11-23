@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from pytket.circuit import Circuit as tket_Circuit
     from pytket.circuit import OpType
     from qiskit import QuantumCircuit
+    from qiskit._accelerate.circuit import ParameterExpression
     from sympy import Expr
 
     from mpqp.core._types import BindingParameters
@@ -123,17 +124,55 @@ def _qiskit_parameter_to_tket(parameter: object) -> "Expr | float":
         TypeError: If the angle is neither numerical nor symbolic.
     """
     from qiskit.circuit import ParameterExpression
-    from qiskit.circuit.parameterexpression import sympify
     from sympy import pi
 
     if isinstance(parameter, ParameterExpression):
-        return sympify(parameter) / pi
+        return _qiskit_expression_to_sympy(parameter) / pi
     if isinstance(parameter, Real):
         return float(parameter) / float(pi)
     raise TypeError(
         "A Qiskit gate parameter must be numerical or symbolic, "
         f"not {type(parameter).__name__}."
     )
+
+
+def _qiskit_expression_to_sympy(parameter: "ParameterExpression") -> "Expr":
+    """Convert a symbolic Qiskit expression to SymPy.
+
+    Qiskit's conversion from ``ParameterExpression`` to SymPy can fail for
+    some symbolic power expressions.
+
+    When this happens, the parameters are given unique temporary names while
+    SymPy reads the expression. They are then restored as SymPy symbols with
+    their original names.
+    """
+    from qiskit.circuit import Parameter
+    from qiskit.circuit.parameterexpression import sympify as qiskit_sympify
+    from sympy import Expr, Symbol
+    from sympy.parsing.sympy_parser import parse_expr
+
+    try:
+        converted_expression = qiskit_sympify(parameter)
+        if isinstance(converted_expression, Expr):
+            return converted_expression
+    except (AttributeError, TypeError):
+        pass
+
+    renamed_parameters = {
+        qiskit_parameter: Parameter(f"mpqp_parameter_{qiskit_parameter.uuid.hex}")
+        for qiskit_parameter in parameter.parameters
+    }
+    renamed_expression = parameter.subs(renamed_parameters)
+    sympy_symbols = {
+        str(renamed_parameter.name): Symbol(qiskit_parameter.name)
+        for qiskit_parameter, renamed_parameter in renamed_parameters.items()
+    }
+    converted_expression = parse_expr(str(renamed_expression), local_dict=sympy_symbols)
+    if not isinstance(converted_expression, Expr):
+        raise TypeError(
+            "The symbolic Qiskit parameter could not be converted to SymPy."
+        )
+    return converted_expression
 
 
 def _qiskit_to_tket(qiskit_circuit: "QuantumCircuit") -> "tket_Circuit":
