@@ -45,6 +45,19 @@ if TYPE_CHECKING:
 
 _EXACT_OBSERVABLE_MARKER = "// mpqp:exact-observables\n"
 
+# Amazon Braket on-demand QPU prices (in USD)
+# Source: https://aws.amazon.com/braket/pricing/
+_BRAKET_QPU_TASK_PRICE = 0.30
+_BRAKET_QPU_SHOT_PRICES = {
+    AWSDevice.AQT_IBEX_Q1: 0.0235,
+    AWSDevice.IONQ_FORTE_1: 0.08,
+    AWSDevice.IONQ_FORTE_ENTERPRISE_1: 0.08,
+    AWSDevice.IQM_GARNET: 0.00145,
+    AWSDevice.IQM_EMERALD: 0.00160,
+    AWSDevice.RIGETTI_ANKAA_3: 0.0009,
+    AWSDevice.RIGETTI_CEPHEUS_1_108Q: 0.000425,
+}
+
 
 def _ordered_measurement_probabilities(
     probabilities: dict[str, float],
@@ -1312,8 +1325,7 @@ def get_result_from_aws_task_arn(task_arn: str, job: Optional[Job] = None) -> Re
 def estimate_cost_single_job(
     job: Job, hybrid_iterations: int = 1, estimated_time_seconds: int = 3
 ) -> float:
-    """
-    Estimates the cost of executing a :class:`~mpqp.execution.job.Job` on a remote AWS Braket device.
+    """Estimate the on-demand cost of executing a job on Amazon Braket.
 
     Args:
         job: :class:`~mpqp.execution.job.Job` for which we want to estimate the cost. The job's device must be an :class:`~mpqp.execution.devices.AWSDevice`.
@@ -1323,17 +1335,30 @@ def estimate_cost_single_job(
     Returns:
         The estimated price (in USD) for the execution of the job in parameter.
 
+    Note:
+        Braket Direct reservation costs are not estimated here, which
+        are priced by reservation length.
+
     Example:
         >>> circuit = QCircuit([H(0), CNOT(0, 1), CNOT(1, 2), BasisMeasure(shots=245)])
         >>> job = generate_job(circuit, AWSDevice.IONQ_FORTE_1)
-        >>> estimate_cost_single_job(job, hybrid_iterations=150)
-        1147.5
+        >>> round(estimate_cost_single_job(job, hybrid_iterations=150), 2)
+        2985.0
 
     """
 
     if not isinstance(job.device, AWSDevice):
         raise ValueError(
             f"This function was expecting a job with an AWSDevice but got a {type(job.device).__name__}."
+        )
+    if job.device.is_retired():
+        raise DeviceJobIncompatibleError(
+            f"Cannot estimate the cost for retired device {job.device.name}."
+        )
+    if not job.device.is_gate_based():
+        raise DeviceJobIncompatibleError(
+            f"Cannot estimate the cost for {job.device.name} because it does not "
+            "support MPQP gate-based jobs."
         )
 
     if job.device.is_remote():
@@ -1351,28 +1376,16 @@ def estimate_cost_single_job(
                     "An AWS remote job on a quantum computer requires to have a measure."
                 )
 
-            if "ionq" in job.device.value:
-                task_cost = 0.3
-                shot_cost = 0.03
-
-            elif "iqm" in job.device.value:
-                task_cost = 0.3
-                shot_cost = 0.00145
-
-            elif "rigetti" in job.device.value:
-                task_cost = 0.3
-                shot_cost = 0.0009
-
-            elif "quera" in job.device.value:
-                task_cost = 0.3
-                shot_cost = 0.01
-
-            else:
+            try:
+                shot_price = _BRAKET_QPU_SHOT_PRICES[job.device]
+            except KeyError as error:
                 raise NotImplementedError(
                     f"Cost estimation not implemented yet for {job.device.name} device."
-                )
+                ) from error
 
-            return (task_cost + job.measure.shots * shot_cost) * hybrid_iterations
+            return (
+                _BRAKET_QPU_TASK_PRICE + job.measure.shots * shot_price
+            ) * hybrid_iterations
 
     else:
         return 0
