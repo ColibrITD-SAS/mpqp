@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from copy import deepcopy
-from numbers import Complex
 from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
-    from sympy import Expr
     from qiskit._accelerate.circuit import Parameter
 
+
+from mpqp.core._types import BindingParameters
 from mpqp.core.languages import Language
 from mpqp.tools.generics import SimpleClassReprABC, flatten
 
@@ -139,7 +139,7 @@ class Instruction(SimpleClassReprABC):
             else set(self.targets)
         )
 
-    def subs(self, values: dict[Expr | str, Complex]) -> Instruction:
+    def subs(self, values: BindingParameters) -> Instruction:
         r"""Substitutes the parameters of the instruction with complex values.
         Optionally, also removes all symbolic variables such as `\pi` (needed for
         circuit execution, for example).

@@ -183,3 +183,48 @@ def test_replace_custom_gate_ci_weyl_matrix():
         _operator_matrix(recovered), expected, atol=1e-10, rtol=0
     )
     assert float(phase) == float(recovered.global_phase)
+
+
+@pytest.mark.parametrize("targets", [[0, 2], [3, 1]])
+@pytest.mark.parametrize("recoverable", [False, True])
+def test_replace_custom_gate_detects_silent_synthesis_error(
+    monkeypatch: pytest.MonkeyPatch, targets: list[int], recoverable: bool
+):
+    import qiskit
+
+    original = _embedded_unitary(targets)
+    original_transpile = qiskit.transpile
+    calls = 0
+
+    def corrupt_decomposition(*args: Any, **kwargs: Any) -> Any:
+        nonlocal calls
+        calls += 1
+        result = original_transpile(*args, **kwargs)
+        if calls == 1 or not recoverable:
+            result.x(targets[0])
+        return result
+
+    monkeypatch.setattr(qiskit, "transpile", corrupt_decomposition)
+    if recoverable:
+        result, _ = replace_custom_gate(original, 4, targets)
+        np.testing.assert_allclose(
+            _operator_matrix(result), _operator_matrix(original), atol=1e-12, rtol=0
+        )
+    else:
+        with pytest.raises(ValueError, match="does not preserve its operator"):
+            replace_custom_gate(original, 4, targets)
+    assert calls == 2
+
+
+def test_replace_custom_gate_preserves_ci_seed_119_operator():
+    from qiskit import QuantumCircuit
+
+    from mpqp.tools.circuit import random_circuit
+
+    matrix = random_circuit(nb_qubits=3, seed=119).to_matrix()
+    circuit = QuantumCircuit(3, global_phase=0.37)
+    circuit.unitary(matrix, [2, 1, 0])
+    recovered, _ = replace_custom_gate(circuit, 3, [0, 1, 2])
+    np.testing.assert_allclose(
+        _operator_matrix(recovered), _operator_matrix(circuit), atol=1e-10, rtol=0
+    )

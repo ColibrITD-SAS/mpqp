@@ -1,4 +1,4 @@
-"""Provider-independent structural comparisons captured during result filtering.
+"""Provider-independent structural keys for result filtering and transpilation.
 
 Keys describe exact structure and labels, rather than numerical equivalence.
 Inferred-size bookkeeping and execution caches are deliberately excluded. This is
@@ -72,9 +72,9 @@ def _key_encoder(value_type: type) -> tuple[bool, Callable[[Any, Snapshot], Obje
         return True, _array_key
     if issubclass(value_type, (list, tuple)):
         return True, _sequence_key
-    if value_type.__module__.startswith("mpqp.") and not issubclass(
-        value_type, (Enum, PythonEnum, type)
-    ):
+    if any(
+        base.__module__.startswith("mpqp.") for base in value_type.__mro__
+    ) and not issubclass(value_type, (Enum, PythonEnum, type)):
         native_encoder = _native_gate_encoder(value_type)
         return True, native_encoder if native_encoder is not None else _domain_key
     return False, _object_key
@@ -266,6 +266,10 @@ def _pack_array(shape: Hashable, items: Iterable[ObjectKey]) -> ObjectKey:
 def _domain_key(value: Any, snapshot: Snapshot) -> ObjectKey:
     """Read only explicitly supported structural fields."""
     names = _domain_fields(type(value))(value)
+    if not type(value).__module__.startswith("mpqp."):
+        # User subclasses retain the inherited domain fields and may introduce
+        # additional instance state that also changes their translation.
+        names = tuple(dict.fromkeys((*names, *sorted(vars(value)))))
     if hasattr(value, "label") and "label" not in names:
         names = (*names, "label")
     return (

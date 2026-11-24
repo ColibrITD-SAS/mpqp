@@ -23,6 +23,7 @@ from mpqp.core.languages import Language
 from mpqp.tools import NumberQubitsError, format_element
 from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import atol, is_power_of_two, rtol
+from mpqp.core._types import BindingParameters
 
 if TYPE_CHECKING:
     from braket.circuits.observables import Observable as BraketObservable
@@ -266,7 +267,7 @@ class PauliString:
 
         return self.to_dict() == other.to_dict()
 
-    def subs(self, values: dict[Expr | str, Real]) -> PauliString:
+    def subs(self, values: BindingParameters) -> PauliString:
         r"""Substitute the coef of the pauli sting with values for each of the
         specified coef. Optionally also remove all symbolic variables such
         as `\pi` (needed for example for circuit execution).
@@ -1284,7 +1285,7 @@ class PauliStringMonomial(PauliString):
                 f"This type of commutingType {method} is not implemented yet."
             )
 
-    def subs(self, values: dict[Expr | str, Real]) -> PauliStringMonomial:
+    def subs(self, values: BindingParameters) -> PauliStringMonomial:
         r"""Substitutes the parameters of the instruction with complex values.
         Optionally, also removes all symbolic variables such as `\pi` (needed for
         circuit execution, for example).

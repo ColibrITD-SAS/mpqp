@@ -9,6 +9,7 @@ if TYPE_CHECKING:
 
 import numpy as np
 
+from mpqp.core._types import BindingParameters
 from mpqp.tools.display import clean_matrix, one_lined_repr
 from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import is_power_of_two, is_unitary, matrix_eq
@@ -52,7 +53,7 @@ class GateDefinition(ABC):
     @abstractmethod
     def subs(
         self,
-        values: dict[Expr | str, Complex],
+        values: BindingParameters,
     ) -> GateDefinition:
         pass
 
@@ -185,7 +186,7 @@ class UnitaryMatrix(GateDefinition):
 
     def subs(
         self,
-        values: dict[Expr | str, Complex],
+        values: BindingParameters,
     ):
         """Substitute some symbolic variables in the definition by complex values.
 

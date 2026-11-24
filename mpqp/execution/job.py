@@ -23,12 +23,11 @@ from mpqp.tools.generics import MessageEnum
 # is a class (probably because Enum does weird things to the Enum class)
 if TYPE_CHECKING:
     from enum import Enum
-    from sympy import Expr
-    from numbers import Complex
     from ..core.circuit import QCircuit
     from ..core.binding import BindingExecution, CircuitBinding
 
 from mpqp.core.instruction.measurement import BasisMeasure, ExpectationMeasure, Measure
+from mpqp.core._types import BindingParameters
 
 from ..tools.errors import IBMRemoteExecutionError, QLMRemoteExecutionError
 from .connection.azure_connection import get_jobs_by_id
@@ -123,7 +122,7 @@ class Job:
         circuit: QCircuit | CircuitBinding,
         device: AvailableDevice,
         measurement: Optional[Measure] = None,
-        values: Optional[dict[Expr | str, Complex | float]] = None,
+        values: Optional[BindingParameters] = None,
     ):
         self._status = JobStatus.INIT
 
