@@ -18,6 +18,7 @@ return the corresponding job id and :class:`~mpqp.execution.job.Job` object.
 
 from __future__ import annotations
 
+from copy import deepcopy
 from itertools import pairwise
 from textwrap import indent
 from typing import TYPE_CHECKING, Iterable, Optional, Sequence, overload
@@ -243,15 +244,21 @@ def generate_job(
     """
     from ..core.binding import CircuitBinding
 
+    if isinstance(circuit, QCircuit):
+        circuit._validate_transpilation()  # pyright: ignore[reportPrivateUsage]
+
     if values is not None:
         if isinstance(circuit, CircuitBinding):
             raise ValueError("values must be specified in CircuitBinding")
+        template = circuit
         circuit = circuit.subs(values)
-        if device in circuit.transpiled_circuit:
-            circuit.transpiled_circuit[device] = circuit.bind_parameters(
-                device,
-                values,
+        if device in template.transpiled_circuit:
+            circuit.transpiled_circuit[device] = (
+                template._bound_transpiled_circuit(  # pyright: ignore[reportPrivateUsage]
+                    device, values
+                )
             )
+            circuit.transpiled_noise_model = deepcopy(template.transpiled_noise_model)
 
     if isinstance(circuit, CircuitBinding):
         job = Job(circuit.job_type, circuit, device)
@@ -270,6 +277,7 @@ def generate_job(
             else:
                 job = Job(JobType.SAMPLE, circuit, device)
         elif isinstance(measurement, ExpectationMeasure):
+            prepared_circuit = circuit
             m = adjust_measure(
                 measurement,
                 circuit,
@@ -277,6 +285,20 @@ def generate_job(
             )
             circuit = circuit.without_measurements(deep_copy=False)
             circuit.add(m)
+            # Provider caches already use this observable target convention.
+            # Adjusting metadata must not discard an existing native binding.
+            if device in prepared_circuit.transpiled_circuit:
+                circuit.transpiled_circuit[device] = (
+                    prepared_circuit.transpiled_circuit[device]
+                )
+                circuit.transpiled_noise_model = prepared_circuit.transpiled_noise_model
+                templates = (
+                    prepared_circuit._transpilation_templates  # pyright: ignore[reportPrivateUsage]
+                )
+                if device in templates:
+                    circuit._transpilation_templates.update(  # pyright: ignore[reportPrivateUsage]
+                        {device: templates[device]}
+                    )
             job = Job(
                 JobType.OBSERVABLE,
                 circuit,
@@ -415,7 +437,11 @@ def _run_single(
     if len(circuit.measurements) == 1:
         measure = circuit.measurements[0]
         if isinstance(measure, ExpectationMeasure):
-            if measure.optim_diagonal and measure.only_diagonal_observables():
+            if (
+                measure.optim_diagonal
+                and measure.only_diagonal_observables()
+                and device not in circuit.transpiled_circuit
+            ):
                 if (measure.shots == 0 and not device.supports_state_vector()) or (
                     measure.shots != 0 and not device.supports_samples()
                 ):
@@ -530,7 +556,10 @@ def _run_circuit_binding(
         ):
             raise NotImplementedError(f"Noisy simulations not supported on {device}.")
 
+    # Only references are retained; structural comparisons remain lazy.
+    plan = circuit_binding._unroll_with_inputs()  # pyright: ignore[reportPrivateUsage]
     job = generate_job(circuit_binding, device)
+    job._binding_executions = plan.executions  # pyright: ignore[reportPrivateUsage]
 
     if isinstance(device, (IBMDevice, StaticIBMSimulatedDevice)):
         if not (provider_params is None or isinstance(provider_params, QiskitParams)):
@@ -573,7 +602,14 @@ def _run_circuit_binding(
     #        result[i], exp_measure, job
     #    )
 
-    return result if isinstance(result, BatchResult) else BatchResult([result])
+    batch = result if isinstance(result, BatchResult) else BatchResult([result])
+    if len(batch) != len(plan.executions):
+        raise ValueError(
+            "Binding results must contain one result per resolved execution."
+        )
+    for item, input_circuit in zip(batch, plan.input_circuits):
+        item.input_circuit = input_circuit
+    return batch
 
 
 @overload
@@ -598,7 +634,17 @@ def run(
 
 @overload
 def run(
-    circuit: OneOrMany[QCircuit],
+    circuit: Sequence[QCircuit],
+    device: OneOrMany[AvailableDevice],
+    values: Optional[BindingParameters] = None,
+    display_breakpoints: bool = True,
+    provider_params: Optional[ProviderParams] = None,
+) -> BatchResult: ...
+
+
+@overload
+def run(
+    circuit: QCircuit,
     device: AvailableDevice,
     values: Optional[BindingParameters] = None,
     display_breakpoints: bool = True,
@@ -688,58 +734,36 @@ def run(
 
     """
 
-    def namer(circ: QCircuit, i: int):
-        circ.label = f"circuit {i}" if circ.label is None else circ.label
-        return circ
-
-    if isinstance(device, Iterable):
-        results: list[Result] = []
-        devices = flatten(device)
-        if isinstance(circuit, (QCircuit, Iterable)):
-            for i, circ in enumerate(flatten(circuit)):
-                for dev in devices:
-                    results.append(
-                        _run_single(
-                            namer(circ, i + 1),
-                            dev,
-                            values,
-                            display_breakpoints,
-                            provider_params,
-                        )
-                    )
-        else:
-            for dev in devices:
-                if values is not None:
-                    raise ValueError("values must be specified in CircuitBinding")
+    if not isinstance(circuit, (QCircuit, Iterable)):
+        if values is not None:
+            raise ValueError("values must be specified in CircuitBinding")
+        if isinstance(device, Iterable):
+            binding_results: list[Result] = []
+            for dev in flatten(device):
                 result = _run_circuit_binding(
                     circuit, dev, display_breakpoints, provider_params
                 )
-                results.extend(result.results)
-        return BatchResult(results)
-    else:
-        if isinstance(circuit, QCircuit):
-            return _run_single(
-                circuit, device, values, display_breakpoints, provider_params
-            )
-        elif isinstance(circuit, Iterable):
-            results: list[Result] = []
-            for i, circ in enumerate(flatten(circuit)):
-                results.append(
-                    _run_single(
-                        namer(circ, i + 1),
-                        device,
-                        values,
-                        display_breakpoints,
-                        provider_params,
-                    )
+                binding_results.extend(result.results)
+            return BatchResult(binding_results)
+        return _run_circuit_binding(
+            circuit, device, display_breakpoints, provider_params
+        )
+
+    if isinstance(circuit, Iterable) or isinstance(device, Iterable):
+        devices = flatten(device)
+        results: list[Result] = []
+        for i, circ in enumerate(flatten(circuit)):
+            for dev in devices:
+                result = _run_single(
+                    circ, dev, values, display_breakpoints, provider_params
                 )
-            return BatchResult(results)
-        else:
-            if values is not None:
-                raise ValueError("values must be specified in CircuitBinding")
-            return _run_circuit_binding(
-                circuit, device, display_breakpoints, provider_params
-            )
+                # Display names belong to results, not to the circuit metadata
+                # used for structural matching.
+                if circ.label is None and result.label is None:
+                    result.label = f"circuit {i + 1}"
+                results.append(result)
+        return BatchResult(results)
+    return _run_single(circuit, device, values, display_breakpoints, provider_params)
 
 
 @overload

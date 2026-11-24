@@ -24,7 +24,7 @@ from mpqp.tools.generics import MessageEnum
 if TYPE_CHECKING:
     from enum import Enum
     from ..core.circuit import QCircuit
-    from ..core.binding import CircuitBinding
+    from ..core.binding import BindingExecution, CircuitBinding
 
 from mpqp.core.instruction.measurement import BasisMeasure, ExpectationMeasure, Measure
 from mpqp.core._types import BindingParameters
@@ -114,6 +114,8 @@ class Job:
     #  multi-measure job, or if we need several jobs. For the moment, a Job can
     #  handle only one measurement
 
+    _binding_executions: Optional[list[BindingExecution]] = None
+
     def __init__(
         self,
         job_type: JobType,
@@ -144,6 +146,16 @@ class Job:
 
         self.values = values
         """Store parameters in case the original circuit was parametrized."""
+
+    def _get_binding_executions(self) -> list[BindingExecution]:
+        """Use the plan prepared for this run, or resolve a directly supplied job."""
+        from mpqp.core.binding import CircuitBinding
+
+        if not isinstance(self.circuit, CircuitBinding):
+            raise TypeError("Binding executions require a CircuitBinding job.")
+        if self._binding_executions is not None:
+            return self._binding_executions
+        return self.circuit.unroll()
 
     @property
     def measure(self) -> Optional[Measure]:

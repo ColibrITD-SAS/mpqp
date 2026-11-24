@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union, cast
 
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.gates.native_gates import NativeGate
@@ -156,6 +156,7 @@ def run_cirq_observable(
     Returns:
         A result containing the expectation values of the observables.
     """
+    from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
     from cirq.ops.pauli_string import PauliString as CirqPauliString
     from cirq.work.observable_measurement import (
         RepetitionsStoppingCriteria,
@@ -255,6 +256,9 @@ def run_cirq_observable(
                 obs.pre_transpiled[job.device] = cirq_obs
             else:
                 cirq_obs = obs.pre_transpiled[job.device]
+            if not isinstance(cirq_obs, (CirqPauliSum, CirqPauliString)):
+                raise TypeError("Expected a Cirq PauliSum or PauliString observable.")
+            cirq_obs = cast(Union[CirqPauliSum, CirqPauliString], cirq_obs)
             job.status = JobStatus.RUNNING
             from cirq_google.engine.simulated_local_engine import SimulatedLocalEngine
 
@@ -288,7 +292,7 @@ def run_cirq_observable(
                 results = measure_observables(
                     circuit,
                     observables=(
-                        [cirq_obs]  # pyright: ignore[reportArgumentType]
+                        [cirq_obs]
                         if isinstance(cirq_obs, CirqPauliString)
                         else cirq_obs
                     ),

@@ -286,7 +286,8 @@ def run_pseudo_circuit_binding(
     job_ids: list[str] = []
 
     job.status = JobStatus.RUNNING
-    for c, v, m in cb.unroll():
+    resolved = job._get_binding_executions()  # pyright: ignore[reportPrivateUsage]
+    for c, v, m in resolved:
         transpiled_circuit = translated_circuit[id(c)]
         transpiled_measurement = (
             translated_measurement[(id(m), c.nb_qubits)] if m is not None else None
@@ -367,7 +368,12 @@ def run_circuit_binding(
         )
     device = get_braket_device(job.device, is_noisy=circuitBinding.is_noisy)
     reservation_arn = provider_params.reservation_arn if provider_params else None
-    braket_circuit, jobs = circuitBinding.to_other_device(job.device)
+    from mpqp.translation.braket import circuitbinding_to_programset
+
+    resolved = job._get_binding_executions()  # pyright: ignore[reportPrivateUsage]
+    braket_circuit, jobs = circuitbinding_to_programset(
+        circuitBinding, job.device, resolved=resolved
+    )
 
     if TYPE_CHECKING:
         from braket.circuits import Circuit as braket_Circuit
@@ -752,9 +758,16 @@ def _extract_optimized_braket_observables(
     job: Job,
 ) -> Result:
     """Reconstruct grouped observable values from an existing program-set result."""
+    from mpqp.tools.pauli_grouping import pauli_monomial_eigenvalues
+
     assert isinstance(job.measure, ExpectationMeasure)
-    job.measure.pre_transpile_observables(job.device)
-    eigenvalues, _ = job.measure.translated_pre_measures[job.device]
+    if job.device not in job.measure.translated_pre_measures:
+        eigenvalues = [
+            {monomial.name: pauli_monomial_eigenvalues(monomial) for monomial in group}
+            for group in job.measure.get_pauli_grouping()
+        ]
+    else:
+        eigenvalues, _ = job.measure.translated_pre_measures[job.device]
 
     expectation_values: dict[str, float] = {}
     for eigenvalues_by_name, program_result in zip(
@@ -1254,7 +1267,7 @@ def get_result_from_aws_task_arn(task_arn: str, job: Optional[Job] = None) -> Re
             from braket.circuits import Circuit
 
             assert isinstance(job.circuit, QCircuit)
-            original_circuit = job.circuit.transpiled_circuit.get(device)
+            original_circuit = job.circuit.transpiled_circuit.get(job.device)
             result_circuit = (
                 deepcopy(original_circuit)
                 if isinstance(original_circuit, Circuit)

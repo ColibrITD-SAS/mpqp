@@ -173,8 +173,10 @@ def test_submit_job_uses_direct_reservation_context():
 def test_binding_forwards_braket_params():
     """Forward the original ``BraketParams`` through the binding runner."""
     params = BraketParams(reservation_arn="reservation-arn")
-    binding = CircuitBinding(QCircuit(1))
-    expected = BatchResult([])
+    circuit = QCircuit([BasisMeasure([0], shots=10)])
+    binding = CircuitBinding(circuit)
+    job = runner.generate_job(circuit, AWSDevice.IQM_GARNET)
+    expected = BatchResult([Result(job, [Sample(1, index=0, count=10)], None, 10)])
 
     with patch("mpqp.execution.runner.run_braket", return_value=expected) as execute:
         result = runner._run_circuit_binding(  # pyright: ignore[reportPrivateUsage]

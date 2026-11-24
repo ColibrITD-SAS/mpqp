@@ -24,9 +24,53 @@ from mpqp import (
 )
 from mpqp.core.binding import BindingMode, CircuitBinding
 from mpqp.core.instruction.measurement.measure import Measure
-from mpqp.execution.job import JobType
+from mpqp.execution.devices import AvailableDevice
+from mpqp.execution.job import Job, JobType
 from mpqp.execution.providers.providers_params import QiskitParams
-from mpqp.execution.result import BatchResult
+from mpqp.execution.result import BatchResult, Result, StateVector
+
+
+@pytest.mark.parametrize(
+    "device",
+    [
+        pytest.param(
+            IBMDevice.AER_SIMULATOR_STATEVECTOR, marks=pytest.mark.provider("qiskit")
+        ),
+        pytest.param(
+            AWSDevice.BRAKET_LOCAL_SIMULATOR, marks=pytest.mark.provider("braket")
+        ),
+    ],
+)
+def test_binding_sweep_uses_symbolic_template_after_direct_binding(
+    device: AvailableDevice,
+):
+    theta = Symbol("theta")
+    circuit = QCircuit([Ry(theta, 0)])
+    circuit.bind_parameters(device, {theta: 0.0})
+    binding = CircuitBinding(
+        circuit,
+        values=[{theta: np.pi}, {theta: 0.0}],
+        measurements=ExpectationMeasure(
+            Observable(pZ), shots=100 if isinstance(device, AWSDevice) else 0
+        ),
+    )
+
+    result = run(binding, device)
+    assert [item.expectation_values for item in result] == pytest.approx([-1, 1])
+    assert run(circuit, device).probabilities == pytest.approx([1, 0])
+
+
+@pytest.mark.provider("qiskit")
+def test_binding_cache_detects_gate_edit_after_first_run():
+    gate = X(0)
+    circuit = QCircuit([gate], nb_qubits=2)
+    binding = CircuitBinding(
+        circuit, measurements=ExpectationMeasure(Observable(pZ @ pI))
+    )
+    device = IBMDevice.AER_SIMULATOR_STATEVECTOR
+    assert run(binding, device)[0].expectation_values == pytest.approx(-1)
+    gate.targets = [1]
+    assert run(binding, device)[0].expectation_values == pytest.approx(1)
 
 
 def test_extracting_measurements_does_not_clear_source_transpilation_cache():
@@ -308,7 +352,14 @@ def test_provider_parameters_forwarded(many_circuits: bool, many_devices: bool):
         else IBMDevice.AER_SIMULATOR
     )
     params = QiskitParams(instance="selected-instance")
-    with patch.object(runner, "_run_single", return_value=None) as execute:
+    with patch.object(
+        runner,
+        "_run_single",
+        side_effect=lambda circuit, device, *args: Result(
+            Job(JobType.STATE_VECTOR, circuit, device),
+            StateVector(np.array([1, 0], dtype=np.complex128)),
+        ),
+    ) as execute:
         runner.run(circuits, devices, provider_params=params)
     assert execute.call_count == (2 if many_circuits else 1) * (
         2 if many_devices else 1
