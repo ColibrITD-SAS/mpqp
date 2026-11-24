@@ -173,6 +173,37 @@ def test_composedgate_translation_decomposition(gate: Gate, language: Language):
     assert matrix_eq(c_re.to_matrix(), c.to_matrix(), 1e-5, 1e-5)
 
 
+@pytest.mark.provider("cirq")
+@pytest.mark.parametrize("gate_type", [Rxx, Ryy, Rzz])
+@pytest.mark.parametrize(
+    "angle, global_shift", [(np.pi / 2, -0.5), (0.37, -0.5), (-0.6, 0.25)]
+)
+def test_cirq_rotation_import_preserves_phase(
+    gate_type: type[Rxx] | type[Ryy] | type[Rzz],
+    angle: float,
+    global_shift: float,
+):
+    import cirq
+
+    qubits = cirq.LineQubit.range(3)
+    source = cirq.Circuit(
+        cirq.H(qubits[0]),
+        cirq.MatrixGate(cirq.unitary(cirq.S))(qubits[1]),
+        gate_type.cirq_gate(exponent=angle / np.pi, global_shift=global_shift)(
+            qubits[2], qubits[0]
+        ),
+        cirq.global_phase_operation(np.exp(0.23j)),
+        cirq.CNOT(qubits[1], qubits[2]),
+    )
+    original = source.copy()
+
+    restored = QCircuit().from_other_language(source)
+
+    assert matrix_eq(restored.to_matrix(), source.unitary(qubit_order=qubits))
+    assert gate_type(angle, 2, 0) in restored.instructions
+    assert source == original
+
+
 @pytest.mark.parametrize(
     "gate",
     COMPOSED_GATES,

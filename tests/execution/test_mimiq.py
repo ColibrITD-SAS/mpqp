@@ -1,5 +1,6 @@
 """Public MIMIQ translation contracts and offline cloud execution."""
 
+import shutil
 import subprocess
 import sys
 from copy import deepcopy
@@ -58,6 +59,9 @@ from mpqp.tools.errors import DeviceJobIncompatibleError, RemoteExecutionError
 from mpqp.translation.mimiq import mpqp_to_mimiq
 
 mc = pytest.importorskip('mimiqcircuits')
+remote = pytest.importorskip('mimiqcircuits.remote')
+link = pytest.importorskip('mimiqlink')
+link_infos = pytest.importorskip('mimiqlink.infos')
 pytestmark = pytest.mark.provider('mimiq')
 
 
@@ -73,11 +77,7 @@ def translated_matrix(circuit: QCircuit) -> NDArray[np.complex128]:
         axes = targets + tuple(q for q in range(width) if q not in targets) + (width,)
         tensor = matrix.reshape((2,) * width + (dimension,)).transpose(axes)
         operation = instruction.operation
-        raw_matrix = (
-            operation.matrix
-            if isinstance(operation, mc.GateCustom)
-            else operation.matrix()
-        )
+        raw_matrix = operation.matrix()
         gate = np.asarray(raw_matrix.tolist(), dtype=np.complex128)
         tensor = (gate @ tensor.reshape(2 ** len(targets), -1)).reshape(tensor.shape)
         matrix = tensor.transpose(np.argsort(axes)).reshape(dimension, dimension)
@@ -185,7 +185,7 @@ def test_symbolic_binding_and_unbound_rejection(cloud: Mock):
         circuit, MIMIQDevice.CLOUD_STATEVECTOR, values={theta: cast(Complex, np.pi)}
     )
     assert result.counts[1] == 8
-    assert not cloud.execute.call_args.args[0].is_symbolic()
+    assert not cloud.submit.call_args.args[0].is_symbolic()
     assert theta in circuit.variables()
     with pytest.raises(ValueError, match='Bind all circuit parameters'):
         run(circuit, MIMIQDevice.CLOUD_STATEVECTOR)
@@ -245,9 +245,12 @@ def test_no_noise_is_silently_dropped(cloud: Mock):
 
 @pytest.fixture
 def cloud(monkeypatch: pytest.MonkeyPatch) -> Mock:
-    connection = create_autospec(mc.MimiqConnection, instance=True)
-    connection.execute.return_value = 'mimiq-job-id'
-    connection.requestInfo.return_value = {'_id': 'mimiq-job-id', 'status': 'NEW'}
+    transport = create_autospec(link.MimiqConnection, instance=True)
+    connection = Mock(wraps=remote.RemoteConnection(transport))
+    connection.submit.return_value = 'mimiq-job-id'
+    connection.requestInfo.return_value = link_infos.RequestInfo(
+        {'_id': 'mimiq-job-id', 'status': 'NEW'}
+    )
     monkeypatch.setattr(mimiq, 'get_mimiq_connection', lambda: connection)
     return connection
 
@@ -275,13 +278,13 @@ def test_cloud_submission_status_and_result(cloud: Mock):
     )
     assert job_id == job.id == 'mimiq-job-id'
     assert job.status == JobStatus.QUEUED
-    options = cloud.execute.call_args.kwargs
+    options = cloud.submit.call_args.kwargs
     assert (
         options['algorithm'] == 'mps'
         and options['seed'] == 0
         and options['bonddim'] == 32
     )
-    cloud.requestInfo.return_value['status'] = 'RUNNING'
+    cloud.requestInfo.return_value.data['status'] = 'RUNNING'
     assert job.status == JobStatus.RUNNING
     result = get_remote_result(job)
     assert [(s.bin_str, s.count) for s in result.samples] == [('101', 8)]
@@ -290,7 +293,7 @@ def test_cloud_submission_status_and_result(cloud: Mock):
 
 def test_cloud_retrieval_after_restart(cloud: Mock):
     circuit = cloud_circuit()
-    cloud.get_inputs.return_value = ([mpqp_to_mimiq(circuit)], {'nsamples': 8})
+    cloud.get_inputs.return_value = ([mpqp_to_mimiq(circuit)], {'samples': 8})
     cloud.get_result.return_value = raw_samples()
     result = get_remote_result('mimiq-job-id', MIMIQDevice.CLOUD_STATEVECTOR)
     assert [(s.bin_str, s.count) for s in result.samples] == [('101', 8)]
@@ -302,8 +305,8 @@ def test_blocking_cloud_run(cloud: Mock):
     cloud.get_result.return_value = raw_samples()
     result = run(circuit, MIMIQDevice.CLOUD_STATEVECTOR)
     assert result.job.id == 'mimiq-job-id'
-    assert cloud.execute.call_args.kwargs['algorithm'] == 'statevector'
-    assert 'bonddim' not in cloud.execute.call_args.kwargs
+    assert cloud.submit.call_args.kwargs['algorithm'] == 'statevector'
+    assert 'bonddim' not in cloud.submit.call_args.kwargs
 
 
 @pytest.mark.parametrize(
@@ -317,12 +320,12 @@ def test_blocking_cloud_run(cloud: Mock):
     ],
 )
 def test_cloud_status_mapping(cloud: Mock, status: str, expected: JobStatus):
-    cloud.requestInfo.return_value['status'] = status
+    cloud.requestInfo.return_value.data['status'] = status
     assert mimiq.get_mimiq_job_status('job-id') == expected
 
 
 def test_unknown_cloud_status_is_rejected(cloud: Mock):
-    cloud.requestInfo.return_value['status'] = 'UNKNOWN'
+    cloud.requestInfo.return_value.data['status'] = 'UNKNOWN'
     with pytest.raises(RemoteExecutionError, match='Unrecognized'):
         mimiq.get_mimiq_job_status('job-id')
 
@@ -333,7 +336,7 @@ def test_unsupported_jobs_fail_before_cloud_submission(cloud: Mock):
     circuit = QCircuit([BasisMeasure(shots=65537)], nb_qubits=1)
     with pytest.raises(ValueError, match='65536'):
         submit(circuit, MIMIQDevice.CLOUD_MPS)
-    cloud.execute.assert_not_called()
+    cloud.submit.assert_not_called()
 
 
 @pytest.mark.parametrize('runner', [run, submit])
@@ -342,7 +345,7 @@ def test_other_provider_parameters_are_rejected(
 ):
     with pytest.raises(TypeError, match='MimiqParams'):
         runner(cloud_circuit(), MIMIQDevice.CLOUD_MPS, provider_params=QiskitParams())
-    cloud.execute.assert_not_called()
+    cloud.submit.assert_not_called()
 
 
 def test_account_setup_is_never_implicit(
@@ -372,7 +375,7 @@ def test_truncated_results_warn(cloud: Mock):
 )
 def test_remote_failure_preserves_status(cloud: Mock, status: str, expected: JobStatus):
     _, job = submit(cloud_circuit(), MIMIQDevice.CLOUD_MPS)
-    cloud.requestInfo.return_value['status'] = status
+    cloud.requestInfo.return_value.data['status'] = status
     cloud.get_result.side_effect = RuntimeError('Remote job failed or was cancelled.')
     with pytest.raises(RuntimeError):
         get_remote_result(job)
@@ -381,7 +384,7 @@ def test_remote_failure_preserves_status(cloud: Mock, status: str, expected: Job
 
 def test_session_can_retry_result_download(cloud: Mock):
     _, job = submit(cloud_circuit(), MIMIQDevice.CLOUD_MPS)
-    cloud.requestInfo.return_value['status'] = 'DONE'
+    cloud.requestInfo.return_value.data['status'] = 'DONE'
     cloud.get_result.side_effect = [
         ConnectionError('Connection interrupted.'),
         raw_samples(),
@@ -460,14 +463,17 @@ def test_shared_account_configuration_without_sdk(monkeypatch: pytest.MonkeyPatc
     connection.assert_not_called()
 
 
-def test_job_listing_uses_sdk_request_dictionaries(monkeypatch: pytest.MonkeyPatch):
+def test_job_listing_uses_sdk_request_objects(monkeypatch: pytest.MonkeyPatch):
     from mpqp.execution.connection import mimiq_connection
 
-    connection = create_autospec(mc.MimiqConnection, instance=True)
-    connection.requests.return_value = [
-        {'_id': 'first-job', 'status': 'DONE'},
-        {'_id': 'second-job', 'status': 'RUNNING'},
-    ]
+    transport = create_autospec(link.MimiqConnection, instance=True)
+    connection = Mock(wraps=remote.RemoteConnection(transport))
+    connection.requests.return_value = link_infos.RequestInfoList(
+        [
+            {'_id': 'first-job', 'status': 'DONE'},
+            {'_id': 'second-job', 'status': 'RUNNING'},
+        ]
+    )
     monkeypatch.setattr(mimiq_connection, 'get_env_variable', lambda _: 'True')
     monkeypatch.setattr(mimiq_connection, 'get_mimiq_connection', lambda: connection)
     assert mimiq_connection.get_all_job_ids() == ['first-job', 'second-job']
@@ -478,7 +484,7 @@ def test_cloud_recovery_preserves_custom_gate_matrix(cloud: Mock, controlled: bo
     gate = CustomGate(np.array([[0, 1j], [1j, 0]]), [2])
     operation = CustomControlledGate([0], gate) if controlled else gate
     circuit = QCircuit([H(0), operation, BasisMeasure(shots=8)], nb_qubits=3)
-    cloud.get_inputs.return_value = ([mpqp_to_mimiq(circuit)], {'nsamples': 8})
+    cloud.get_inputs.return_value = ([mpqp_to_mimiq(circuit)], {'samples': 8})
     raw = mc.QCSResults()
     raw.cstates = [mc.BitString([0, 0, 0]) for _ in range(8)]
     raw.fidelities = [1.0]
@@ -504,3 +510,39 @@ def test_mimiq_exposes_only_cloud_devices():
         'cloud-statevector',
         'cloud-mps',
     }
+
+
+def test_cloud_retrieval_uses_serialized_sdk_inputs(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    transport = create_autospec(link.MimiqConnection, instance=True)
+    transport.user_limits = {}
+    connection = remote.RemoteConnection(transport)
+
+    def upload(
+        _kind: str, _name: str, _label: str, _timeout: int, uploads: list[str]
+    ) -> str:
+        for filename in uploads:
+            shutil.copy2(filename, tmp_path)
+        return 'serialized-job'
+
+    def download(_job_id: str, destdir: str) -> list[str]:
+        return [shutil.copy2(filename, destdir) for filename in tmp_path.iterdir()]
+
+    transport.request.side_effect = upload
+    transport.downloadJobFiles.side_effect = download
+    monkeypatch.setattr(mimiq, 'get_mimiq_connection', lambda: connection)
+    monkeypatch.setattr(connection, 'get_result', lambda _: raw_samples())
+
+    circuit = cloud_circuit()
+    job_id, _ = submit(circuit, MIMIQDevice.CLOUD_STATEVECTOR)
+    assert isinstance(job_id, str)
+    result = get_remote_result(job_id, MIMIQDevice.CLOUD_STATEVECTOR)
+
+    assert result.shots == 8
+    assert [(sample.bin_str, sample.count) for sample in result.samples] == [('101', 8)]
+    assert isinstance(result.job.circuit, QCircuit)
+    assert result.job.circuit.nb_qubits == 4
+    assert isinstance(result.job.measure, BasisMeasure)
+    assert result.job.measure.targets == [2, 1, 0]
+    assert result.job.measure.c_targets == [4, 0, 2]

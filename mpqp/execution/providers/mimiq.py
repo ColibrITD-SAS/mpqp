@@ -132,7 +132,7 @@ def submit_mimiq(job: Job, params: Optional[MimiqParams] = None) -> tuple[str, J
         options['seed'] = params.seed
     if job.device == MIMIQDevice.CLOUD_MPS:
         options.update(bonddim=params.bonddim, entdim=params.entdim)
-    job_id = get_mimiq_connection().execute(translated, **options)
+    job_id = get_mimiq_connection().submit(translated, **options)
     if not job_id:
         raise RemoteExecutionError('MIMIQ did not return a valid execution ID.')
     job.id = job_id
@@ -142,7 +142,7 @@ def submit_mimiq(job: Job, params: Optional[MimiqParams] = None) -> tuple[str, J
 
 def get_mimiq_job_status(job_id: str) -> JobStatus:
     """Return the status of an existing MIMIQ cloud execution."""
-    status = get_mimiq_connection().requestInfo(job_id)["status"]
+    status = get_mimiq_connection().requestInfo(job_id).status
     states = {
         'NEW': JobStatus.QUEUED,
         'RUNNING': JobStatus.RUNNING,
@@ -201,9 +201,7 @@ def _recover_job(job_id: str, device: MIMIQDevice) -> Job:
         raise NotImplementedError(
             'MIMIQ retrieval currently supports sampling executions only.'
         )
-    circuit.add(
-        BasisMeasure(targets, c_targets=c_targets, shots=parameters['nsamples'])
-    )
+    circuit.add(BasisMeasure(targets, c_targets=c_targets, shots=parameters['samples']))
     job = Job(JobType.SAMPLE, circuit, device)
     job.id = job_id
     return job

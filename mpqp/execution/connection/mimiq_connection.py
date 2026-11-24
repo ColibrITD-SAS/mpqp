@@ -5,7 +5,7 @@ from __future__ import annotations
 from functools import lru_cache
 from importlib.util import find_spec
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Iterable, Protocol, TypedDict, cast
+from typing import TYPE_CHECKING, Any, Iterable, Protocol, cast
 
 from mpqp.environment.env_manager import get_env_variable, save_env_variable
 
@@ -13,15 +13,18 @@ if TYPE_CHECKING:
     from mimiqcircuits import Circuit, QCSResults
 
 
-class _MimiqRequestInfo(TypedDict):
-    _id: str
-    status: str
+class _MimiqRequestInfo(Protocol):
+    @property
+    def id(self) -> str: ...
+
+    @property
+    def status(self) -> str: ...
 
 
 class _MimiqConnection(Protocol):
     """The SDK's dynamically forwarded cloud methods used by this provider."""
 
-    def execute(self, circuit: Circuit, **kwargs: Any) -> str: ...
+    def submit(self, circuit: Circuit, **kwargs: Any) -> str: ...
     def get_result(self, job_id: str) -> QCSResults: ...
     def get_inputs(self, job_id: str) -> tuple[list[Circuit], dict[str, Any]]: ...
     def requestInfo(self, job_id: str) -> _MimiqRequestInfo: ...
@@ -89,4 +92,4 @@ def get_all_job_ids() -> list[str]:
         or find_spec("mimiqcircuits") is None
     ):
         return []
-    return [info["_id"] for info in get_mimiq_connection().requests()]
+    return [info.id for info in get_mimiq_connection().requests()]

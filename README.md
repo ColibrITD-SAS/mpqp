@@ -24,7 +24,7 @@ On this page, you will find:
 
 ## Installation
 
-MPQP supports Python 3.10 through 3.13 on Windows, Linux, and macOS. We are
+MPQP supports Python 3.11 through 3.13 on Windows, Linux, and macOS. We are
 dependant on the SDKs we support to enable various python versions and OS
 support, for instance, MPQP was validated on Ubuntu LTS 20.04, while Ubuntu
 18.04 is not supported because myQLM does not support it.
@@ -64,14 +64,14 @@ MPQP currently targets the following primary SDK versions. The linked
 requirement files are the source of truth for all transitive dependencies and
 Python-version-specific constraints.
 
-| Provider integration | Primary SDK versions                                                        | Requirements                                                            |
-| -------------------- | --------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| Qiskit               | Qiskit 2.3.1, Qiskit Aer 0.17.2, IBM Runtime 0.45.1, IonQ 1.0.2             | [core](requirements.txt), [provider](requirements_providers/qiskit.txt) |
-| Amazon Braket        | SDK 1.112.1 on Python 3.11+, 1.106.5 on Python 3.10; local simulator 1.32.0 | [provider](requirements_providers/braket.txt)                           |
-| Cirq                 | 1.6.1 on Python 3.11+, 1.5.0 on Python 3.10                                 | [provider](requirements_providers/cirq.txt)                             |
-| Azure Quantum        | 3.6.1                                                                       | [provider](requirements_providers/azure.txt)                            |
-| myQLM/Qaptiva        | 1.12.4                                                                      | [provider](requirements_providers/myqlm.txt)                            |
-| MIMIQ cloud          | 0.17.3                                                                      | [provider](requirements_providers/mimiq.txt)                            |
+| Provider integration | Primary SDK versions                                            | Requirements                                                            |
+| -------------------- | --------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Qiskit               | Qiskit 2.3.1, Qiskit Aer 0.17.2, IBM Runtime 0.51.0, IonQ 1.0.2 | [core](requirements.txt), [provider](requirements_providers/qiskit.txt) |
+| Amazon Braket        | SDK 1.128.1; local simulator 1.32.0                             | [provider](requirements_providers/braket.txt)                           |
+| Cirq                 | 1.7.0                                                           | [provider](requirements_providers/cirq.txt)                             |
+| Azure Quantum        | 3.6.1                                                           | [provider](requirements_providers/azure.txt)                            |
+| myQLM/Qaptiva        | 1.12.4                                                          | [provider](requirements_providers/myqlm.txt)                            |
+| MIMIQ cloud          | 0.32.0                                                          | [provider](requirements_providers/mimiq.txt)                            |
 
 </details>
 

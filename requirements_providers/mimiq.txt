@@ -1,1 +1,1 @@
-mimiqcircuits==0.17.3
+mimiqcircuits==0.32.0
