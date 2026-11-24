@@ -8,6 +8,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import numpy as np
+import numpy.typing as npt
 import pytest
 from pytket.backends.backendresult import BackendResult
 from pytket.circuit import Circuit as tket_Circuit
@@ -62,7 +63,9 @@ def _sample_backend_result(outcome: tuple[int, ...], shots: int) -> BackendResul
     return result
 
 
-def _state_vector_backend_result(state_vector: np.ndarray) -> BackendResult:
+def _state_vector_backend_result(
+    state_vector: npt.NDArray[np.complex128],
+) -> BackendResult:
     result = MagicMock()
     result.get_state.return_value = state_vector
     return result
