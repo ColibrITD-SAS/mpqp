@@ -73,7 +73,10 @@ def submit_job_azure(job: Job) -> tuple[str, "AzureQuantumJob"]:
     else:
         raise ValueError(f"Job type {job.job_type} not handled on Azure devices.")
 
-    return job_sim.id(), job_sim
+    job_id = job_sim.id()
+    job.id = job_id
+
+    return job_id, job_sim
 
 
 def extract_result(
@@ -166,6 +169,10 @@ def get_result_from_azure_job_id(job_id: str) -> Result:
         ),
         device,
     )
+
+    job_.id = job_id
+    job_.status = JobStatus.DONE
+
     return Result(job_, data, None, shots)
 
 

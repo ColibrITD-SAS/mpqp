@@ -13,6 +13,7 @@ import numpy as np
 import numpy.typing as npt
 from typing_extensions import Never
 
+from mpqp.core._types import BindingParameters
 from mpqp.core.instruction.gates.gate import Gate
 from mpqp.core.instruction.gates.native_gates import SWAP
 from mpqp.core.instruction.measurement.measure import Measure
@@ -27,7 +28,6 @@ from mpqp.tools.display import one_lined_repr
 from mpqp.tools.errors import NumberQubitsError
 from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import is_diagonal, is_hermitian, is_power_of_two
-from mpqp.core._types import BindingParameters
 
 if TYPE_CHECKING:
     from braket.circuits import Circuit as braket_Circuit
@@ -49,6 +49,9 @@ class Observable:
 
     An observable can be defined by using a Hermitian matrix, or using a
     combination of operators in a specific basis Pauli.
+
+    Input data is copied. Use the representation setters to change an
+    observable; editing the original array or Pauli string does not change it.
 
     Args:
         observable: can be either a Hermitian matrix representing the
@@ -101,6 +104,7 @@ class Observable:
         """Provider-native representations cached by target device."""
 
         if isinstance(observable, PauliString):
+            self._key_source = "_pauli_string"
             self.nb_qubits = observable.nb_qubits
             self._pauli_string = observable.simplify()
         else:
@@ -134,20 +138,23 @@ class Observable:
                             "The matrix in parameter is not hermitian (cannot define an observable)."
                         )
 
-                    self._matrix = observable
+                    self._matrix = observable.copy()
+                    self._key_source = "_matrix"
 
                 else:
                     self._is_diagonal = True
                     self._diag_elements = observable.real.flatten().astype(np.float64)
+                    self._key_source = "_diag_elements"
 
             # correspond to isinstance(observable, list)
             else:
                 self._is_diagonal = True
                 self._diag_elements = np.array(observable, dtype=np.float64)
+                self._key_source = "_diag_elements"
 
     @property
     def matrix(self) -> Matrix:
-        """The matrix representation of the observable."""
+        """The matrix representation of the observable, copied on assignment and access."""
         if self._matrix is None:
             if self.is_diagonal and self._diag_elements is not None:
                 if TYPE_CHECKING:
@@ -155,12 +162,11 @@ class Observable:
                 self._matrix = np.diag(self._diag_elements.astype(np.complex128))
             else:
                 self._matrix = self.pauli_string.to_matrix()
-        matrix = copy.deepcopy(self._matrix.astype(np.complex128))
-        return matrix
+        return self._matrix.astype(np.complex128)
 
     @property
     def pauli_string(self) -> PauliString:
-        """The PauliString representation of the observable."""
+        """The PauliString representation, copied on assignment and access."""
         if self._pauli_string is None:
             if self.is_diagonal:
                 self._pauli_string = PauliString.from_diagonal_elements(
@@ -173,10 +179,10 @@ class Observable:
 
     @property
     def diagonal_elements(self) -> npt.NDArray[np.float64]:
-        """The diagonal elements of the matrix representing the observable (diagonal or not)."""
+        """The diagonal elements, copied on assignment and access."""
         if self._diag_elements is None:
             self._diag_elements = np.diagonal(self.matrix).real.astype(np.float64)
-        return copy.deepcopy(self._diag_elements)
+        return self._diag_elements.copy()
 
     @matrix.setter
     def matrix(self, matrix: Matrix):
@@ -193,7 +199,8 @@ class Observable:
                 "The matrix is not hermitian (cannot define an observable)."
             )
 
-        self._matrix = matrix
+        self._matrix = matrix.copy()
+        self._key_source = "_matrix"
         self._pauli_string = None
         self._diag_elements = None
         self._is_diagonal = None
@@ -202,7 +209,8 @@ class Observable:
 
     @pauli_string.setter
     def pauli_string(self, pauli_string: PauliString):
-        self._pauli_string = pauli_string
+        self._pauli_string = copy.deepcopy(pauli_string)
+        self._key_source = "_pauli_string"
         self._matrix = None
         self._diag_elements = None
         self._is_diagonal = None
@@ -218,12 +226,13 @@ class Observable:
         if isinstance(diag_elements, list):
             self._diag_elements = np.array(diag_elements, dtype=np.float64)
         else:
-            self._diag_elements = diag_elements
+            self._diag_elements = diag_elements.copy()
         self._is_diagonal = True
         self._pauli_string = None
         self._matrix = None
         self.pre_transpiled.clear()
         self._translation_revision += 1
+        self._key_source = "_diag_elements"
 
     def is_matrix_set(self):
         """Returns if the matrix is already set in the observable."""
@@ -393,12 +402,10 @@ class Observable:
             return QLMObservable(self.nb_qubits, matrix=self.matrix)
         elif language == Language.BRAKET:
             if self._pauli_string:
-                from braket.circuits.observables import Sum, TensorProduct
+                from braket.circuits.observables import Sum
 
                 obs = self.pauli_string.to_other_language(Language.BRAKET)
-                if isinstance(obs, TensorProduct):
-                    return Sum([obs])
-                return obs
+                return obs if isinstance(obs, Sum) else Sum([obs])
             else:
                 from braket.circuits.observables import Hermitian
 
@@ -455,7 +462,9 @@ class ExpectationMeasure(Measure):
         optimize_measurement: Indicates if the Pauli grouping must be done to
             optimize the number of measurements. Default to True.
         optim_diagonal: Indicates if the computation of expectation value for
-            diagonal observables is optimized. Default to False.
+            diagonal observables is optimized. Default to False. An already
+            prepared provider circuit is executed directly instead of being
+            replaced by a newly translated sampling circuit.
 
     Warns:
         UserWarning: If the ``targets`` are not sorted and contiguous, some
@@ -573,6 +582,7 @@ class ExpectationMeasure(Measure):
                     label_counter += 1
                 prepared_observable = Observable.__new__(Observable)
                 prepared_observable.__dict__.update(observable.__dict__)
+                prepared_observable.pre_transpiled = observable.pre_transpiled.copy()
                 prepared_observable.label = f"{default_label}_{label_counter}"
                 label_counter += 1
             prepared_observables.append(prepared_observable)
@@ -767,7 +777,13 @@ class ExpectationMeasure(Measure):
         return {
             attr_name: getattr(self, attr_name)
             for attr_name in dir(self)
-            if attr_name not in {}
+            if attr_name
+            not in {
+                "current_grouping",
+                "_grouping_observable_revisions",
+                "translated_pre_measures",
+                "_translated_pre_measure_keys",
+            }
             and not attr_name.startswith("__")
             and not callable(getattr(self, attr_name))
         }

@@ -61,7 +61,7 @@ from mpqp.execution.providers.quantinuum import run_quantinuum, submit_job_nexus
 from mpqp.execution.result import BatchResult, Result
 from mpqp.tools.display import state_vector_ket_shape
 from mpqp.tools.errors import DeviceJobIncompatibleError, RemoteExecutionError
-from mpqp.tools.generics import OneOrMany, find_index
+from mpqp.tools.generics import OneOrMany, find_index, flatten
 
 BatchValuesInput = Optional[Union[BindingParameters, Sequence[BindingParameters]]]
 
@@ -97,6 +97,7 @@ def prepare_run_batch_inputs(
 def adjust_measure(
     measure: ExpectationMeasure,
     circuit: QCircuit,
+    expand_to_full_register: bool = True,
 ) -> ExpectationMeasure:
     """A measure can be incomplete and not span the entire circuit, but providers
     usually do not support this behavior. The function therefore adjusts each
@@ -105,17 +106,21 @@ def adjust_measure(
     In order to do this, we place identity operators on the qubits not targeted
     by the measure. If the targets are not ordered, each observable is first
     reordered so that its local qubit order matches the sorted target order.
-    Pauli observables are directly embedded on their target qubits, while matrix
-    observables are padded with identity matrices when the targets are ordered
-    and contiguous, and are otherwise embedded through their pauli decomposition.
+    When ``expand_to_full_register`` is enabled, Pauli observables are directly
+    embedded on their target qubits, while matrix observables are padded with
+    identity matrices when the targets are ordered and contiguous, and are
+    otherwise embedded through their pauli decomposition.
 
     Args:
         measure: The expectation measure, potentially incomplete.
-        nb_qubits: The number of qubits in the circuit.
+        circuit: The circuit from which the measure is derived.
+        expand_to_full_register: Whether observables must span the complete
+            circuit register. Providers supporting local observable targets can
+            disable this while still benefiting from target reordering.
 
     Returns:
-        A measure targeting all circuit qubits, with observables embedded into
-        the full register.
+        The reordered measure. Its observables target the complete circuit
+        register when ``expand_to_full_register`` is enabled.
 
     Raises:
         ValueError: If the number of target qubits does not match the number
@@ -151,9 +156,8 @@ def adjust_measure(
         reordered_observables: list[Observable] = []
 
         for observable in observables:
-            if (
-                observable._matrix is None  # pyright: ignore[reportPrivateUsage]
-                or measure.optimize_measurement
+            if observable._matrix is None or (  # pyright: ignore[reportPrivateUsage]
+                measure.optimize_measurement and expand_to_full_register
             ):
                 reordered_observables.append(
                     Observable(
@@ -174,66 +178,69 @@ def adjust_measure(
         targets = ordered_targets
         observables = reordered_observables
 
-    targets_are_contiguous = bool(targets) and targets == list(
-        range(targets[0], targets[-1] + 1)
-    )
-    # Extend observables to cover the circuit's full qubit register
-    adjusted_observables: list[Observable] = []
+    adjusted_observables = observables
+    adjusted_targets = targets
+    if expand_to_full_register:
+        targets_are_contiguous = bool(targets) and targets == list(
+            range(targets[0], targets[-1] + 1)
+        )
+        adjusted_observables = []
 
-    from mpqp.core.instruction.measurement.pauli_string import (
-        PauliString,
-        PauliStringMonomial,
-        pI,
-    )
+        from mpqp.core.instruction.measurement.pauli_string import (
+            PauliString,
+            PauliStringMonomial,
+            pI,
+        )
 
-    for observable in observables:
-        if (
-            observable._pauli_string is None  # pyright: ignore[reportPrivateUsage]
-            and targets_are_contiguous
-        ):
-            nb_qubits_before = targets[0]
-            nb_qubits_after = nb_qubits - targets[-1] - 1
+        for observable in observables:
+            if (
+                observable._pauli_string is None  # pyright: ignore[reportPrivateUsage]
+                and targets_are_contiguous
+            ):
+                nb_qubits_before = targets[0]
+                nb_qubits_after = nb_qubits - targets[-1] - 1
 
-            full_matrix = observable.matrix
+                full_matrix = observable.matrix
 
-            if nb_qubits_before > 0:
-                identity_before = np.eye(2**nb_qubits_before)
-                full_matrix = np.kron(identity_before, full_matrix)
+                if nb_qubits_before > 0:
+                    identity_before = np.eye(2**nb_qubits_before)
+                    full_matrix = np.kron(identity_before, full_matrix)
 
-            if nb_qubits_after > 0:
-                identity_after = np.eye(2**nb_qubits_after)
-                full_matrix = np.kron(full_matrix, identity_after)
+                if nb_qubits_after > 0:
+                    identity_after = np.eye(2**nb_qubits_after)
+                    full_matrix = np.kron(full_matrix, identity_after)
 
-            adjusted_observables.append(
-                Observable(
-                    full_matrix,  # pyright: ignore[reportArgumentType]
-                    label=observable.label,
+                adjusted_observables.append(
+                    Observable(
+                        full_matrix,  # pyright: ignore[reportArgumentType]
+                        label=observable.label,
+                    )
                 )
-            )
-        else:
-            embedded_pauli_string = PauliString()
+            else:
+                embedded_pauli_string = PauliString()
 
-            for monomial in observable.pauli_string.monomials:
-                embedded_atoms = [pI] * nb_qubits
+                for monomial in observable.pauli_string.monomials:
+                    embedded_atoms = [pI] * nb_qubits
 
-                for local_idx, target in enumerate(targets):
-                    embedded_atoms[target] = monomial.atoms[local_idx]
+                    for local_idx, target in enumerate(targets):
+                        embedded_atoms[target] = monomial.atoms[local_idx]
 
-                embedded_pauli_string += PauliStringMonomial(
-                    monomial.coef,
-                    embedded_atoms,
+                    embedded_pauli_string += PauliStringMonomial(
+                        monomial.coef,
+                        embedded_atoms,
+                    )
+
+                adjusted_observables.append(
+                    Observable(
+                        embedded_pauli_string.simplify(),
+                        label=observable.label,
+                    )
                 )
-
-            adjusted_observables.append(
-                Observable(
-                    embedded_pauli_string.simplify(),
-                    label=observable.label,
-                )
-            )
+        adjusted_targets = list(range(nb_qubits))
 
     adjusted_measure = ExpectationMeasure(
         adjusted_observables,
-        list(range(nb_qubits)),
+        adjusted_targets,
         measure.shots,
         measure.commuting_type,
         measure.grouping_method,
@@ -269,12 +276,21 @@ def generate_job(
     exec_mode = exec_mode or ExecutionMode.JOB
     from ..core.binding import CircuitBinding
 
+    if isinstance(circuit, QCircuit):
+        circuit._validate_transpilation()  # pyright: ignore[reportPrivateUsage]
+
     if values is not None:
         if isinstance(circuit, CircuitBinding):
             raise ValueError("values must be specified in CircuitBinding")
-        circuit = circuit.subs(values)  # pyright: ignore[reportArgumentType]
-        if device in circuit.transpiled_circuit:
-            circuit.bind_parameters(device, values)
+        template = circuit
+        circuit = circuit.subs(values)
+        if device in template.transpiled_circuit:
+            circuit.transpiled_circuit[device] = (
+                template._bound_transpiled_circuit(  # pyright: ignore[reportPrivateUsage]
+                    device, values
+                )
+            )
+            circuit.transpiled_noise_model = deepcopy(template.transpiled_noise_model)
 
     if isinstance(circuit, CircuitBinding):
         job = Job(circuit.job_type, circuit, device, mode=exec_mode)
@@ -296,9 +312,28 @@ def generate_job(
             )
 
         elif isinstance(measurement, ExpectationMeasure):
-            m = adjust_measure(measurement, circuit)
+            prepared_circuit = circuit
+            m = adjust_measure(
+                measurement,
+                circuit,
+                expand_to_full_register=not isinstance(device, AWSDevice),
+            )
             circuit = circuit.without_measurements(deep_copy=False)
             circuit.add(m)
+            # Provider caches already use this observable target convention.
+            # Adjusting metadata must not discard an existing native binding.
+            if device in prepared_circuit.transpiled_circuit:
+                circuit.transpiled_circuit[device] = (
+                    prepared_circuit.transpiled_circuit[device]
+                )
+                circuit.transpiled_noise_model = prepared_circuit.transpiled_noise_model
+                templates = (
+                    prepared_circuit._transpilation_templates  # pyright: ignore[reportPrivateUsage]
+                )
+                if device in templates:
+                    circuit._transpilation_templates.update(  # pyright: ignore[reportPrivateUsage]
+                        {device: templates[device]}
+                    )
             job = Job(
                 JobType.OBSERVABLE,
                 circuit,
@@ -444,17 +479,17 @@ def _run_single(
         for k in range(len(circuit.breakpoints)):
             display_kth_breakpoint(circuit, k, device)
 
-    circ_transpile = None
-    if device in circuit.transpiled_circuit:
-        circ_transpile = circuit.transpiled_circuit[device]
-
     job = generate_job(circuit, device, values, mode)
     job.status = JobStatus.INIT
 
     if len(circuit.measurements) == 1:
         measure = circuit.measurements[0]
         if isinstance(measure, ExpectationMeasure):
-            if measure.optim_diagonal and measure.only_diagonal_observables():
+            if (
+                measure.optim_diagonal
+                and measure.only_diagonal_observables()
+                and device not in circuit.transpiled_circuit
+            ):
                 if (measure.shots == 0 and not device.supports_state_vector()) or (
                     measure.shots != 0 and not device.supports_samples()
                 ):
@@ -488,56 +523,52 @@ def _run_single(
         ):
             raise NotImplementedError(f"Noisy simulations not supported on {device}.")
 
-    try:
-        if isinstance(device, (IBMDevice, StaticIBMSimulatedDevice)):
-            from mpqp.execution.providers.ibm import run_remote_ibm_batch
+    if isinstance(device, (IBMDevice, StaticIBMSimulatedDevice)):
+        from mpqp.execution.providers.ibm import run_remote_ibm_batch
 
-            if provider_params is not None and not isinstance(
-                provider_params, QiskitParams
-            ):
-                raise ValueError(
-                    f"provider_params should be QiskitParam not {type(provider_params)}"
-                )
+        if provider_params is not None and not isinstance(
+            provider_params, QiskitParams
+        ):
+            raise ValueError(
+                f"provider_params should be QiskitParam not {type(provider_params)}"
+            )
 
-            if job.mode == ExecutionMode.BATCH and device.is_remote():
-                batch_results = run_remote_ibm_batch([job], provider_params)
-                return batch_results[0]
+        if job.mode == ExecutionMode.BATCH and device.is_remote():
+            batch_results = run_remote_ibm_batch([job], provider_params)
+            return batch_results[0]
 
-            result = run_ibm(job, provider_params)
-            if not isinstance(result, Result):
-                raise TypeError("A single circuit execution must return a Result.")
-            return result
+        result = run_ibm(job, provider_params)
+        if not isinstance(result, Result):
+            raise TypeError("A single circuit execution must return a Result.")
+        return result
 
-        elif isinstance(device, ATOSDevice):
-            return run_atos(job)
-        elif isinstance(device, AWSDevice):
-            if provider_params is not None and not isinstance(
-                provider_params, BraketParams
-            ):
-                raise TypeError(
-                    "`provider_params` must be a `BraketParams` instance, "
-                    f"not `{type(provider_params).__name__}`."
-                )
-            result = run_braket(job, provider_params=provider_params)
-            if not isinstance(result, Result):
-                raise TypeError("A single circuit execution must return a Result.")
-            return result
-        elif isinstance(device, GOOGLEDevice):
-            return run_google(job)
-        elif isinstance(device, AZUREDevice):
-            return run_azure(job)
+    elif isinstance(device, ATOSDevice):
+        return run_atos(job)
+    elif isinstance(device, AWSDevice):
+        if provider_params is not None and not isinstance(
+            provider_params, BraketParams
+        ):
+            raise TypeError(
+                "`provider_params` must be a `BraketParams` instance, "
+                f"not `{type(provider_params).__name__}`."
+            )
+        result = run_braket(job, provider_params=provider_params)
+        if not isinstance(result, Result):
+            raise TypeError("A single circuit execution must return a Result.")
+        return result
+    elif isinstance(device, GOOGLEDevice):
+        return run_google(job)
+    elif isinstance(device, AZUREDevice):
+        return run_azure(job)
 
-        elif isinstance(device, QUANTINUUMDevice):
-            if provider_params is not None and not isinstance(
-                provider_params, QuantinuumParams
-            ):
-                raise TypeError("provider_params must be a QuantinuumParams instance.")
-            return run_quantinuum(job, provider_params)
-        else:
-            raise NotImplementedError(f"Device {device} not handled")
-    finally:
-        if circ_transpile is not None:
-            circuit.transpiled_circuit[device] = circ_transpile
+    elif isinstance(device, QUANTINUUMDevice):
+        if provider_params is not None and not isinstance(
+            provider_params, QuantinuumParams
+        ):
+            raise TypeError("provider_params must be a QuantinuumParams instance.")
+        return run_quantinuum(job, provider_params)
+    else:
+        raise NotImplementedError(f"Device {device} not handled")
 
 
 def _run_circuit_binding(
@@ -592,7 +623,9 @@ def _run_circuit_binding(
 
     execution_mode = mode or ExecutionMode.JOB
 
+    plan = circuit_binding._unroll_with_inputs()  # pyright: ignore[reportPrivateUsage]
     job = generate_job(circuit_binding, device, exec_mode=execution_mode)
+    job._binding_executions = plan.executions  # pyright: ignore[reportPrivateUsage]
 
     if isinstance(device, (IBMDevice, StaticIBMSimulatedDevice)):
         if provider_params is not None and not isinstance(
@@ -639,7 +672,14 @@ def _run_circuit_binding(
     #        result[i], exp_measure, job
     #    )
 
-    return result if isinstance(result, BatchResult) else BatchResult([result])
+    batch = result if isinstance(result, BatchResult) else BatchResult([result])
+    if len(batch) != len(plan.executions):
+        raise ValueError(
+            "Binding results must contain one result per resolved execution."
+        )
+    for item, input_circuit in zip(batch, plan.input_circuits):
+        item.input_circuit = input_circuit
+    return batch
 
 
 @overload
@@ -668,7 +708,19 @@ def run(
 
 @overload
 def run(
-    circuit: OneOrMany[QCircuit],
+    circuit: Sequence[QCircuit],
+    device: OneOrMany[AvailableDevice],
+    values: BatchValuesInput = None,
+    display_breakpoints: bool = True,
+    provider_params: Optional[ProviderParams] = None,
+    *,
+    mode: Optional[ExecutionMode] = None,
+) -> BatchResult: ...
+
+
+@overload
+def run(
+    circuit: QCircuit,
     device: AvailableDevice,
     values: BatchValuesInput = None,
     display_breakpoints: bool = True,
@@ -762,12 +814,7 @@ def run(
 
     """
 
-    def namer(circ: QCircuit, i: int) -> QCircuit:
-        if not isinstance(circuit, QCircuit) and circ.label is None:
-            circ.label = f"circuit {i}"
-        return circ
-
-    devices = [device] if isinstance(device, AvailableDevice) else list(device)
+    devices = flatten(device)
     exec_mode = mode or ExecutionMode.JOB
 
     if isinstance(circuit, CircuitBinding):
@@ -785,7 +832,7 @@ def run(
             results.extend(batch.results)
         return BatchResult(results)
 
-    circuits = [circuit] if isinstance(circuit, QCircuit) else list(circuit)
+    circuits = flatten(circuit)
 
     if exec_mode == ExecutionMode.BATCH:
         if len(devices) != 1:
@@ -797,9 +844,7 @@ def run(
         per_run_circuits, per_run_values = prepare_run_batch_inputs(circuits, values)
         target_device = devices[0]
         jobs = [
-            generate_job(
-                namer(circ, i + 1), target_device, per_run_values[i], exec_mode
-            )
+            generate_job(circ, target_device, per_run_values[i], exec_mode)
             for i, circ in enumerate(per_run_circuits)
         ]
 
@@ -842,14 +887,14 @@ def run(
         )
     results = [
         _run_single(
-            namer(circ, i + 1),
+            circ,
             target_device,
             values,
             display_breakpoints,
             mode=exec_mode,
             provider_params=provider_params,
         )
-        for i, circ in enumerate(circuits)
+        for circ in circuits
         for target_device in devices
     ]
     if (
@@ -858,6 +903,10 @@ def run(
         and isinstance(device, AvailableDevice)
     ):
         return results[0]
+    for i, circ in enumerate(circuits):
+        for result in results[i * len(devices) : (i + 1) * len(devices)]:
+            if circ.label is None and result.label is None:
+                result.label = f"circuit {i + 1}"
     return BatchResult(results)
 
 
@@ -868,7 +917,7 @@ def submit(
     provider_params: Optional[ProviderParams] = None,
     *,
     mode: Optional[ExecutionMode] = None,
-) -> tuple[str, Job]:
+) -> tuple[str | list[str], Job]:
     """Submit the job related to the circuit on the remote backend provided in
     parameter. The submission returns a ``job_id`` that can be used to retrieve
     the :class:`~mpqp.execution.result.Result` later using the
@@ -888,7 +937,8 @@ def submit(
         provider_params: Provider's specific parameters for remote submissions
 
     Returns:
-        The job id provided by the remote device after submission of the job.
+        The job id or ids provided by the remote device after
+        submission and the associated MPQP job.
 
     Example:
         >>> circuit = QCircuit([H(0), CNOT(0,1), BasisMeasure([0,1], shots=10)])

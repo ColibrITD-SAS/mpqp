@@ -87,3 +87,44 @@ def test_public_binding_api() -> None:
 
     assert mpqp.CircuitBinding is CircuitBinding
     assert mpqp.BindingMode is BindingMode
+
+
+@pytest.mark.parametrize(
+    "device",
+    [
+        pytest.param(IBMDevice.AER_SIMULATOR, marks=pytest.mark.provider("qiskit")),
+        pytest.param(
+            AWSDevice.BRAKET_LOCAL_SIMULATOR, marks=pytest.mark.provider("braket")
+        ),
+    ],
+)
+@pytest.mark.parametrize("cached", [False, True])
+def test_batch_parameter_sweep_preserves_template(
+    device: IBMDevice | AWSDevice, cached: bool
+):
+    from copy import deepcopy
+    from math import pi
+
+    from mpqp import BatchResult, run
+    from mpqp.execution.job import ExecutionMode
+
+    template = circuit()
+    original = deepcopy(template)
+    if cached:
+        template.transpiled_for_device(device)
+
+    batch = run(
+        template,
+        device,
+        values=[{theta: 0.0}, {theta: pi}],
+        mode=ExecutionMode.BATCH,
+    )
+
+    assert isinstance(batch, BatchResult)
+    assert [result.expectation_values for result in batch] == pytest.approx([1.0, -1.0])
+    assert all(result.job.mode == ExecutionMode.BATCH for result in batch)
+    assert template == original
+    assert template.label is None
+    assert run(
+        template, device, values={theta: 0.0}
+    ).expectation_values == pytest.approx(1.0)

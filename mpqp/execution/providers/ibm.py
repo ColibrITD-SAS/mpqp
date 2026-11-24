@@ -45,6 +45,7 @@ if TYPE_CHECKING:
     from qiskit_aer.noise import NoiseModel as Qiskit_NoiseModel
     from qiskit_ibm_runtime import RuntimeJobV2, Session
 
+    from mpqp.execution.devices import AvailableDevice
     from mpqp.execution.simulated_devices import StaticIBMSimulatedDevice
 
 
@@ -115,7 +116,13 @@ def _prepare_ibm_binding(job: Job) -> _IBMEstimatorBinding:
         raise DeviceJobIncompatibleError(
             "Remote IBM observable bindings require a positive shot count."
         )
-    translated = job.circuit.to_other_device(cast(IBMDevice, job.device))
+    from mpqp.translation.qiskit import circuitbinding_to_pubs
+
+    translated = circuitbinding_to_pubs(
+        job.circuit,
+        job.device,
+        resolved=job._get_binding_executions(),  # pyright: ignore[reportPrivateUsage]
+    )
     pubs = [pub for pub, _ in translated]
     contexts = [context for _, context in translated]
     return _IBMEstimatorBinding(
@@ -235,6 +242,27 @@ def _prepare_estimator_pubs(
     return pubs_to_run
 
 
+def _observables_for_circuit(
+    measure: ExpectationMeasure,
+    device: AvailableDevice,
+    circuit: QuantumCircuit,
+) -> list[SparsePauliOp]:
+    """Translate logical observables, then apply the current circuit's layout."""
+    from qiskit.quantum_info import SparsePauliOp
+
+    observables: list[SparsePauliOp] = []
+    for observable in measure.observables:
+        translated = observable.pre_transpiled.get(device)
+        if translated is None:
+            translated = observable.to_other_language(Language.QISKIT)
+        if TYPE_CHECKING:
+            assert isinstance(translated, SparsePauliOp)
+        if circuit.layout is not None:
+            translated = translated.apply_layout(circuit.layout)
+        observables.append(translated)
+    return observables
+
+
 def compute_expectation_value(
     job: Job,
     simulator: Optional["AerSimulator"],
@@ -275,8 +303,6 @@ def compute_expectation_value(
         This function is not meant to be used directly, please use
         :func:`~mpqp.execution.runner.run` instead.
     """
-    from qiskit.quantum_info import SparsePauliOp
-
     from mpqp.execution.simulated_devices import StaticIBMSimulatedDevice
 
     pubs_to_run = []
@@ -313,17 +339,9 @@ def compute_expectation_value(
 
         nb_shots = job.measure.shots
 
-        job.measure.pre_transpile_observables(job.device)
-        qiskit_observables: list[SparsePauliOp] = []
-        for obs in job.measure.observables:
-            translated = obs.pre_transpiled[job.device]
-            if TYPE_CHECKING:
-                assert isinstance(translated, SparsePauliOp)
-
-            if ibm_circuit.layout is not None:
-                translated = translated.apply_layout(ibm_circuit.layout)
-
-            qiskit_observables.append(translated)
+        qiskit_observables = _observables_for_circuit(
+            job.measure, job.device, ibm_circuit
+        )
 
         pubs_to_run = [(ibm_circuit, qiskit_observables)]
         context_jobs_to_run = [[ExecutionContext(job=job, index=0)]]
@@ -351,6 +369,7 @@ def compute_expectation_value(
 
     job.status = JobStatus.RUNNING
     job_expectation = estimator.run(pubs_to_run)
+    job.id = job_expectation.job_id()
     estimator_result = job_expectation.result()
 
     if TYPE_CHECKING:
@@ -395,6 +414,7 @@ def _extract_estimator_pubs_result(
         offset = 0
         for context in contexts:
             context_job = context.job
+            context_job.id = job.id
             pub_result = estimator_result[i]
             if split_contexts:
                 if not isinstance(context_job.measure, ExpectationMeasure):
@@ -760,6 +780,8 @@ def run_aer(job: Job) -> Result | BatchResult:
 
     if isinstance(job.circuit, CircuitBinding):
         binding = job.circuit
+        resolved = job._get_binding_executions()  # pyright: ignore[reportPrivateUsage]
+        backend_sim = None
 
         if isinstance(job.device, StaticIBMSimulatedDevice):
             if binding.is_noisy:
@@ -771,7 +793,12 @@ def run_aer(job: Job) -> Result | BatchResult:
             backend_sim = AerSimulator(method=job.device.value)
 
         if job.job_type == JobType.OBSERVABLE:
-            pubs_with_context = binding.to_other_device(job.device)
+
+            from mpqp.translation.qiskit import circuitbinding_to_pubs
+
+            pubs_with_context = circuitbinding_to_pubs(
+                binding, job.device, resolved=resolved
+            )
             if (
                 not isinstance(job.device, StaticIBMSimulatedDevice)
                 and binding.transpiled_noise_model is not None
@@ -785,14 +812,14 @@ def run_aer(job: Job) -> Result | BatchResult:
             return compute_expectation_value(
                 job,
                 backend_sim,
-                pubs=pubs,  # pyright: ignore[reportArgumentType]
-                pubs_contexts=contexts,  # pyright: ignore[reportArgumentType]
+                pubs=pubs,
+                pubs_contexts=contexts,
                 shots=binding.shots,
             )
         elif job.job_type in (JobType.SAMPLE, JobType.STATE_VECTOR):
             from mpqp.tools.binding_utils import translate_binding_circuits
 
-            unrolled_items = binding.unroll()
+            unrolled_items = resolved
             bound_circuits: list[QuantumCircuit] = []
             context_jobs: list[Job] = []
             translated_circuits = translate_binding_circuits(
@@ -862,9 +889,12 @@ def run_aer(job: Job) -> Result | BatchResult:
             else:
                 shots = binding.shots if binding.shots is not None else 1024
                 job_sim = backend_sim.run(bound_circuits, shots=shots)
+
+            job.id = job_sim.job_id()
             result_sim = job_sim.result()
             extracted_items: list[Result] = []
             for i, context_job in enumerate(context_jobs):
+                context_job.id = job.id
                 extracted = extract_result(
                     result=result_sim,
                     job=context_job,
@@ -904,13 +934,17 @@ def run_aer(job: Job) -> Result | BatchResult:
         qiskit_circuit = qiskit_circuit.copy()
         qiskit_circuit.save_statevector()  # pyright: ignore[reportAttributeAccessIssue]
         job.status = JobStatus.RUNNING
-        result_sim = backend_sim.run(qiskit_circuit, shots=0).result()
+        job_sim = backend_sim.run(qiskit_circuit, shots=0)
+        job.id = job_sim.job_id()
+        result_sim = job_sim.result()
         result = extract_result(result_sim, job, job.device)
     elif job.job_type == JobType.SAMPLE:
         if TYPE_CHECKING:
             assert job.measure is not None
         job.status = JobStatus.RUNNING
-        result_sim = backend_sim.run(qiskit_circuit, shots=job.measure.shots).result()
+        job_sim = backend_sim.run(qiskit_circuit, shots=job.measure.shots)
+        job.id = job_sim.job_id()
+        result_sim = job_sim.result()
         result = extract_result(result_sim, job, job.device)
     elif job.job_type == JobType.OBSERVABLE:
         result = compute_expectation_value(job, backend_sim, qiskit_circuit)
@@ -941,7 +975,6 @@ def _submit_remote_ibm(
         :func:`~mpqp.execution.runner.run` instead.
     """
     from qiskit import QuantumCircuit
-    from qiskit.quantum_info import SparsePauliOp
     from qiskit_ibm_runtime import EstimatorV2 as Runtime_Estimator
     from qiskit_ibm_runtime import SamplerV2 as Runtime_Sampler
 
@@ -980,16 +1013,7 @@ def _submit_remote_ibm(
         if TYPE_CHECKING:
             assert isinstance(meas, ExpectationMeasure)
         estimator = Runtime_Estimator(mode=runtime_target, options=runtime_options)
-        qiskit_observables = [
-            (
-                obs.to_other_language(Language.QISKIT).apply_layout(qiskit_circ.layout)
-                if job.device not in obs.pre_transpiled
-                else obs.pre_transpiled[job.device]
-            )
-            for obs in meas.observables
-        ]
-        if TYPE_CHECKING:
-            assert all(isinstance(obs, SparsePauliOp) for obs in qiskit_observables)
+        qiskit_observables = _observables_for_circuit(meas, job.device, qiskit_circ)
 
         # We have to disable all the twirling options and set manually the number of circuits and shots per circuits
         twirling = getattr(estimator.options, "twirling", None)
@@ -1013,9 +1037,10 @@ def _submit_remote_ibm(
             f"{job.job_type} not handled by remote remote IBM devices."
         )
 
-    job.id = ibm_job.job_id()
+    job_id = ibm_job.job_id()
+    job.id = job_id
 
-    return job.id, ibm_job
+    return job_id, ibm_job
 
 
 def submit_remote_ibm(
@@ -1052,7 +1077,6 @@ def submit_remote_ibm_batch(
         qiskit_params = QiskitParams()
     backend = get_backend(reference_job.device, qiskit_params.instance)
 
-    from qiskit.quantum_info import SparsePauliOp
     from qiskit_ibm_runtime import EstimatorV2 as Runtime_Estimator
 
     from mpqp.execution.connection.ibm_connection import get_or_create_ibm_session
@@ -1087,19 +1111,7 @@ def submit_remote_ibm_batch(
 
         if TYPE_CHECKING:
             assert isinstance(meas, ExpectationMeasure)
-        meas.pre_transpile_observables(job.device)
-
-        obs_list: list[SparsePauliOp] = []
-
-        for obs in meas.observables:
-            translated = obs.pre_transpiled[job.device]
-            if TYPE_CHECKING:
-                assert isinstance(translated, SparsePauliOp)
-            obs_list.append(translated.apply_layout(qc.layout))
-
-        if TYPE_CHECKING:
-            assert all(isinstance(obs, SparsePauliOp) for obs in obs_list)
-
+        obs_list = _observables_for_circuit(meas, job.device, qc)
         per_job_observables.append(obs_list)
 
     estimator_input = list(zip(per_job_circuits, per_job_observables))
@@ -1647,6 +1659,8 @@ def get_result_from_ibm_job_id(job_id: str) -> Result:
     result = extract_result(result, None, ibm_device)
     if TYPE_CHECKING:
         assert isinstance(result, Result)
+    result.job.id = job_id
+    result.job.status = JobStatus.DONE
     return result
 
 

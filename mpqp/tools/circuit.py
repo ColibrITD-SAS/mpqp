@@ -310,6 +310,33 @@ def compute_expected_matrix(qcircuit: QCircuit):
     return np.vectorize(N)(result_matrix).astype(complex)
 
 
+def _preserves_operator(
+    circuit: QuantumCircuit,
+    targets: list[int],
+    expected: Optional[npt.NDArray[np.complex128]],
+) -> bool:
+    """Compare a Qiskit decomposition on MPQP-ordered targets, including phase."""
+    # StatePreparation does not expose a matrix to validate.
+    if expected is None:
+        return True
+
+    from qiskit import QuantumCircuit
+    from qiskit.quantum_info import Operator
+
+    # Do not build a matrix for unused surrounding register qubits.
+    target_indices = {target: index for index, target in enumerate(reversed(targets))}
+    local = QuantumCircuit(len(targets), global_phase=circuit.global_phase)
+    for instruction in circuit.data:
+        local.append(
+            instruction.operation,
+            [
+                target_indices[circuit.find_bit(qubit).index]
+                for qubit in instruction.qubits
+            ],
+        )
+    return bool(np.allclose(Operator(local).data, expected, atol=1e-8, rtol=1e-8))
+
+
 def replace_custom_gate(
     custom_unitary: "CircuitInstruction | QuantumCircuit",
     nb_qubits: int,
@@ -322,7 +349,12 @@ def replace_custom_gate(
         When using Qiskit, a global phase is introduced (related to usage of
         ``u`` in OpenQASM2). This may be problematic in some cases, so this
         function also returns the global phase introduced so it can be corrected
-        later on.
+        later on. A numerical Weyl-decomposition failure is retried once using
+        the closest unitary matrix, whether Qiskit reports it as a QiskitError
+        or as a Rust panic. A numerically incorrect decomposition is retried
+        the same way and rejected if recovery still changes the operator.
+        Validation uses only the gate's target qubits. Other failures propagate
+        unchanged.
 
     Args:
         custom_unitary: instruction containing the custom unitary operator.
@@ -345,24 +377,40 @@ def replace_custom_gate(
     else:
         transpilation_circuit = custom_unitary
         matrix = custom_unitary.data[0].matrix
+    original_phase = transpilation_circuit.global_phase
+    expected = (
+        np.exp(1j * float(original_phase)) * matrix if matrix is not None else None
+    )
+
     try:
         transpiled = transpile(
             transpilation_circuit, basis_gates=['u3', 'cx'], optimization_level=0
         )
-    except QiskitError as e:
-        # if the error is arising from TwoQubitWeylDecomposition, we replace the
-        # matrix by the closest unitary
-        if "TwoQubitWeylDecomposition" in str(e):
-            custom_closest_unitary = UnitaryGate(closest_unitary(matrix))
-            transpilation_circuit = QuantumCircuit(nb_qubits)
-            transpilation_circuit.unitary(
-                custom_closest_unitary, list(reversed(targets))
+    except BaseException as error:
+        # PyO3 wraps Rust panics in a BaseException rather than QiskitError.
+        # Recover only the known numerical failure; propagate everything else.
+        is_rust_panic = (
+            type(error).__module__ == "pyo3_runtime"
+            and type(error).__name__ == "PanicException"
+        )
+        if not (
+            (isinstance(error, QiskitError) or is_rust_panic)
+            and "TwoQubitWeylDecomposition" in str(error)
+        ):
+            raise
+        transpiled = None
+
+    if transpiled is None or not _preserves_operator(transpiled, targets, expected):
+        custom_closest_unitary = UnitaryGate(closest_unitary(matrix))
+        transpilation_circuit = QuantumCircuit(nb_qubits, global_phase=original_phase)
+        transpilation_circuit.unitary(custom_closest_unitary, list(reversed(targets)))
+        transpiled = transpile(
+            transpilation_circuit,
+            basis_gates=['u1', 'u2', 'u3', 'cx'],
+            optimization_level=0,
+        )
+        if not _preserves_operator(transpiled, targets, expected):
+            raise ValueError(
+                "Custom gate decomposition does not preserve its operator."
             )
-            transpiled = transpile(
-                transpilation_circuit,
-                basis_gates=['u1', 'u2', 'u3', 'cx'],
-                optimization_level=0,
-            )
-        else:
-            raise e
     return transpiled, transpiled.global_phase

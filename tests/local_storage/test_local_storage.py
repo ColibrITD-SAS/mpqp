@@ -278,6 +278,21 @@ def test_fetch_jobs_with_id(mock_local_storage_jobs: list[dict[str, DictDB | Job
             assert fetched_job == expected_job
 
 
+def _matching_result_entries(
+    results: list[dict[str, DictDB | Result]],
+) -> list[dict[str, DictDB | Result]]:
+    """Select every fixture row with the queried data, error and shots."""
+    reference = results[0]['result_local_storage']
+    assert isinstance(reference, dict)
+    matches = []
+    for entry in results:
+        row = entry['result_local_storage']
+        assert isinstance(row, dict)
+        if all(row[key] == reference[key] for key in ('data', 'error', 'shots')):
+            matches.append(entry)
+    return matches
+
+
 def test_get_results_with_result(
     mock_local_storage_results: list[dict[str, DictDB | Result]],
 ):
@@ -286,8 +301,11 @@ def test_get_results_with_result(
         assert isinstance(result, Result)
         fetched_results = get_results_with_result(result)
 
-        for fetched_result in fetched_results:
-            assert fetched_result == result
+        expected_results = [
+            entry['result']
+            for entry in _matching_result_entries(mock_local_storage_results)
+        ]
+        assert sorted(fetched_results, key=repr) == sorted(expected_results, key=repr)
 
 
 def test_fetch_results_with_result(
@@ -297,20 +315,11 @@ def test_fetch_results_with_result(
         result = mock_local_storage_results[0]['result']
         assert isinstance(result, Result)
         fetched_results = fetch_results_with_result(result)
-        expected_result = mock_local_storage_results[0]['result_local_storage']
-        assert isinstance(expected_result, dict)
-
-        excluded_keys = {'created_at', 'job_id'}
-
-        for fetched_result in fetched_results:
-            filtered_fetched = {
-                k: v for k, v in fetched_result.items() if k not in excluded_keys
-            }
-            filtered_expected = {
-                k: v for k, v in expected_result.items() if k not in excluded_keys
-            }
-
-            assert filtered_fetched == filtered_expected
+        expected_results = [
+            entry['result_local_storage']
+            for entry in _matching_result_entries(mock_local_storage_results)
+        ]
+        assert sorted(fetched_results, key=repr) == sorted(expected_results, key=repr)
 
 
 def test_get_results_with_job_id(
@@ -427,10 +436,13 @@ def test_fetch_results_with_result_and_job(
         result = mock_local_storage_results[0]['result']
         assert isinstance(result, Result)
         fetched_results = fetch_results_with_result_and_job(result)
-        expected_result = mock_local_storage_results[0]['result_local_storage']
-
-        for fetched_result in fetched_results:
-            assert fetched_result == expected_result
+        expected_results = []
+        for entry in _matching_result_entries(mock_local_storage_results):
+            candidate = entry['result']
+            assert isinstance(candidate, Result)
+            if candidate.job == result.job:
+                expected_results.append(entry['result_local_storage'])
+        assert sorted(fetched_results, key=repr) == sorted(expected_results, key=repr)
 
 
 def test_get_jobs_with_result(
@@ -443,7 +455,7 @@ def test_get_jobs_with_result(
         fetched_jobs = get_jobs_with_result(result)
 
         expected_jobs = []
-        for result in mock_local_storage_results:
+        for result in _matching_result_entries(mock_local_storage_results):
             results_local_storage = result['result_local_storage']
             assert isinstance(results_local_storage, dict)
             for job in mock_local_storage_jobs:
@@ -452,8 +464,7 @@ def test_get_jobs_with_result(
                 if results_local_storage['job_id'] == job_local_storage['id']:
                     expected_jobs.append(job['job'])
 
-        for expected_job, fetched_job in zip(expected_jobs, fetched_jobs):
-            assert fetched_job == expected_job
+        assert sorted(fetched_jobs, key=repr) == sorted(expected_jobs, key=repr)
 
 
 def test_fetch_jobs_with_result(
@@ -465,20 +476,17 @@ def test_fetch_jobs_with_result(
         assert isinstance(result, Result)
         fetched_jobs = fetch_jobs_with_result(result)
 
-        results_local_storage = mock_local_storage_results[0]['result_local_storage']
-        assert isinstance(results_local_storage, dict)
         expected_jobs = []
-        for job in mock_local_storage_jobs:
-            job_local_storage = job['job_local_storage']
-            assert isinstance(job_local_storage, dict)
-            if (
-                results_local_storage['job_id'] == job_local_storage['id']
-                and not job_local_storage in expected_jobs
-            ):
-                expected_jobs.append(job_local_storage)
+        for entry in _matching_result_entries(mock_local_storage_results):
+            row = entry['result_local_storage']
+            assert isinstance(row, dict)
+            for job in mock_local_storage_jobs:
+                job_row = job['job_local_storage']
+                assert isinstance(job_row, dict)
+                if row['job_id'] == job_row['id']:
+                    expected_jobs.append(job_row)
 
-        for expected_job, fetched_job in zip(expected_jobs, fetched_jobs):
-            assert fetched_job == expected_job
+        assert sorted(fetched_jobs, key=repr) == sorted(expected_jobs, key=repr)
 
 
 def test_get_jobs_with_job(mock_local_storage_jobs: list[dict[str, DictDB | Job]]):

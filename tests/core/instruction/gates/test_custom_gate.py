@@ -140,10 +140,22 @@ def test_custom_gate_with_random_circuit_myqlm(circ_size: int):
     exec_custom_gate_with_random_circuit(circ_size, ATOSDevice.MYQLM_PYLINALG)
 
 
+@pytest.mark.provider("myqlm")
+@pytest.mark.parametrize("seed", [1, 119])
+def test_custom_gate_with_ci_seed_myqlm(seed: int):
+    # Replay the three-qubit circuits from the CI failures.
+    exec_custom_gate_with_random_circuit(3, ATOSDevice.MYQLM_PYLINALG, seed=seed)
+
+
 def exec_custom_gate_with_random_circuit(
-    circ_size: int, device: AvailableDevice, use_all_qubits: bool = False
+    circ_size: int,
+    device: AvailableDevice,
+    use_all_qubits: bool = False,
+    seed: int | None = None,
 ):
-    random_circ = random_circuit(nb_qubits=circ_size, use_all_qubits=use_all_qubits)
+    random_circ = random_circuit(
+        nb_qubits=circ_size, use_all_qubits=use_all_qubits, seed=seed
+    )
     matrix = random_circ.to_matrix()
     custom_gate_circ = QCircuit([CustomGate(matrix, list(range(circ_size)))])
 

@@ -10,10 +10,23 @@ if TYPE_CHECKING:
 import numpy as np
 import pytest
 
-from mpqp import ExpectationMeasure, Language, Observable, QCircuit, X, pI, pX, pY, pZ
+from mpqp import (
+    ExpectationMeasure,
+    Language,
+    Observable,
+    QCircuit,
+    X,
+    pI,
+    pX,
+    pY,
+    pZ,
+    run,
+)
 from mpqp.core.instruction.measurement.pauli_string import (
     CommutingTypes,
     GroupingMethods,
+    PauliString,
+    PauliStringMonomial,
 )
 from mpqp.execution.devices import AWSDevice, IBMDevice
 from mpqp.tools.errors import NumberQubitsError
@@ -53,6 +66,103 @@ def test_pre_transpile_observables_caches_translation_per_device():
 
     measurement.pre_transpile_observables(device)
     assert observable.pre_transpiled[device] is cached
+
+
+@pytest.mark.provider("qiskit")
+@pytest.mark.parametrize("source", ["constructor", "matrix", "diagonal", "pauli"])
+def test_observable_owns_assigned_data_after_preparation(source: str):
+    matrix = np.diag([1.0, -1.0])
+    diagonal = np.array([1.0, -1.0])
+    pauli = 1 * pZ
+    observable = Observable(matrix, label="operator")
+    if source == "matrix":
+        observable.matrix = matrix
+    elif source == "diagonal":
+        observable.diagonal_elements = diagonal
+    elif source == "pauli":
+        observable.pauli_string = pauli
+    measure = ExpectationMeasure(observable)
+    device = IBMDevice.AER_SIMULATOR_STATEVECTOR
+    measure.pre_transpile_observables(device)
+
+    matrix[:] = [[0, 1], [1, 0]]
+    diagonal[:] = [1, 1]
+    pauli.monomials[0].coef = -1
+
+    assert np.array_equal(observable.matrix, np.diag([1, -1]))
+    circuit = QCircuit([X(0), measure])
+    assert run(circuit, device).expectation_values == pytest.approx(-1)
+    observable.matrix = matrix
+    assert run(circuit, device).expectation_values == pytest.approx(0)
+
+
+@pytest.mark.parametrize("dtype", [np.float64, np.complex128])
+def test_observable_matrix_access_returns_independent_complex_array(dtype: type):
+    observable = Observable(np.diag([1, -1]).astype(dtype))
+    first = observable.matrix
+    second = observable.matrix
+    assert first.dtype == np.complex128
+    assert not np.shares_memory(first, second)
+    first[:] = 0
+    np.testing.assert_array_equal(observable.matrix, np.diag([1, -1]))
+
+
+def test_observable_diagonal_access_returns_independent_array():
+    observable = Observable([1.0, -1.0])
+    diagonal = observable.diagonal_elements
+    diagonal[:] = 0
+    np.testing.assert_array_equal(observable.diagonal_elements, [1, -1])
+
+
+@pytest.mark.parametrize("kind", ["sum", "monomial", "atom", "zero"])
+def test_observable_pauli_constructor_owns_mutable_terms(kind: str):
+    source = {
+        "sum": 2 * pZ + pX,
+        "monomial": 2 * pZ,
+        "atom": pZ,
+        "zero": PauliString([2 * pZ, -2 * pZ]),
+    }[kind]
+    expected = {
+        "sum": np.array([[2, 1], [1, -2]]),
+        "monomial": np.diag([2, -2]),
+        "atom": np.diag([1, -1]),
+        "zero": np.zeros((2, 2)),
+    }[kind]
+    observable = Observable(source)
+    if type(source) is PauliString:
+        source.monomials[0].coef = 7
+        source.monomials[0].atoms[:] = [pX]
+    elif kind == "monomial":
+        assert type(source) is PauliStringMonomial
+        source.coef = 7
+        source.atoms[:] = [pX]
+    np.testing.assert_array_equal(observable.matrix, expected)
+    assert observable.nb_qubits == 1
+
+
+@pytest.mark.provider("braket")
+def test_measurement_equality_ignores_preparation():
+    measure = ExpectationMeasure(Observable(pZ), shots=100)
+    other = ExpectationMeasure(Observable(pZ), shots=100)
+    measure.pre_transpile_observables(AWSDevice.BRAKET_LOCAL_SIMULATOR)
+    assert measure == other
+    assert QCircuit([X(0), measure]) == QCircuit([X(0), other])
+
+
+@pytest.mark.provider("qiskit")
+def test_measurements_from_one_observable_keep_independent_translations():
+    observable = Observable(pZ)
+    first = ExpectationMeasure(observable)
+    second = ExpectationMeasure(observable)
+    device = IBMDevice.AER_SIMULATOR_STATEVECTOR
+    second.pre_transpile_observables(device)
+
+    first.observables[0].pauli_string = pX
+    first.pre_transpile_observables(device)
+
+    assert run(QCircuit([X(0), first]), device).expectation_values == pytest.approx(0)
+    assert run(QCircuit([X(0), second]), device).expectation_values == pytest.approx(-1)
+    assert observable.pauli_string == pZ
 
 
 @pytest.mark.provider("qiskit")

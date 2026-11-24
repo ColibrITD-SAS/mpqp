@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union, cast
 
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.gates.native_gates import NativeGate
@@ -19,7 +19,7 @@ from mpqp import Language
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
 from mpqp.execution.devices import GOOGLEDevice
-from mpqp.execution.job import Job, JobType
+from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.result import Result, Sample, StateVector
 from mpqp.noise import NoiseModel
 
@@ -156,6 +156,7 @@ def run_cirq_observable(
     Returns:
         A result containing the expectation values of the observables.
     """
+    from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
     from cirq.ops.pauli_string import PauliString as CirqPauliString
     from cirq.work.observable_measurement import (
         RepetitionsStoppingCriteria,
@@ -255,6 +256,9 @@ def run_cirq_observable(
                 obs.pre_transpiled[job.device] = cirq_obs
             else:
                 cirq_obs = obs.pre_transpiled[job.device]
+            if not isinstance(cirq_obs, (CirqPauliSum, CirqPauliString)):
+                raise TypeError("Expected a Cirq PauliSum or PauliString observable.")
+            cirq_obs = cast(Union[CirqPauliSum, CirqPauliString], cirq_obs)
             job.status = JobStatus.RUNNING
             from cirq_google.engine.simulated_local_engine import SimulatedLocalEngine
 
@@ -288,7 +292,7 @@ def run_cirq_observable(
                 results = measure_observables(
                     circuit,
                     observables=(
-                        [cirq_obs]  # pyright: ignore[reportArgumentType]
+                        [cirq_obs]
                         if isinstance(cirq_obs, CirqPauliString)
                         else cirq_obs
                     ),
@@ -352,12 +356,27 @@ def run_cirq_observable_remote(
         pauli_monomial_eigenvalues,
     )
 
+    job.status = JobStatus.RUNNING
+    job_ids: list[str] = []
+
     for group in grouping:
         pre_measure = QCircuit(find_qubitwise_rotations(group)).to_other_language(
             Language.CIRQ
         )
+        ionq_job = service.create_job(
+            circuit=circuit + pre_measure, repetitions=job.measure.shots
+        )
+        job_ids.append(ionq_job.job_id())
+        job.id = job_ids[0] if len(job_ids) == 1 else list(job_ids)
+
+        ionq_results = ionq_job.results()
+        if len(ionq_results) != 1:
+            job.status = JobStatus.ERROR
+            raise NotImplementedError(
+                "Can't retrieve remote result for a Google IonQ job with multiple results."
+            )
         local_result = extract_result_SAMPLE(
-            service.run(circuit=circuit + pre_measure, repetitions=job.measure.shots),
+            ionq_results[0].to_cirq_result(),
             job,
         )
         assert isinstance(local_result, Result)
@@ -376,6 +395,8 @@ def run_cirq_observable_remote(
             assert isinstance(monoms.coef, (int, float))
             local += expectation_values[monoms.name] * monoms.coef
         result.update({f"observable_{i}": local})
+
+    job.status = JobStatus.DONE
     if len(result) == 1:
         return Result(job, result["observable_0"])
     return Result(job, result)
@@ -424,10 +445,22 @@ def run_google_remote(job: Job) -> Result:
             if TYPE_CHECKING:
                 assert isinstance(job.measure, BasisMeasure)
 
-            return extract_result_SAMPLE(
-                service.run(circuit=job_CirqCircuit, repetitions=job.measure.shots),
-                job,
+            job.status = JobStatus.RUNNING
+            ionq_job = service.create_job(
+                circuit=job_CirqCircuit, repetitions=job.measure.shots
             )
+            job.id = ionq_job.job_id()
+
+            ionq_results = ionq_job.results()
+            if len(ionq_results) != 1:
+                raise NotImplementedError(
+                    "Can't retrieve remote result for a Google IonQ job with multiple results."
+                )
+
+            cirq_result = ionq_results[0].to_cirq_result()
+
+            job.status = JobStatus.DONE
+            return extract_result_SAMPLE(cirq_result, job)
         elif job.job_type == JobType.OBSERVABLE:
             return run_cirq_observable_remote(job, job_CirqCircuit, service)
         else:
