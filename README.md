@@ -24,10 +24,8 @@ On this page, you will find:
 
 ## Installation
 
-MPQP supports Python 3.11 through 3.13 on Windows, Linux, and macOS. We are
-dependant on the SDKs we support to enable various python versions and OS
-support, for instance, MPQP was validated on Ubuntu LTS 20.04, while Ubuntu
-18.04 is not supported because myQLM does not support it.
+MPQP supports Python 3.11 through 3.13 on Windows, Linux, and macOS. Additional
+platform requirements depend on the optional provider SDKs installed.
 
 The preferred installation method is with the `pipy` repo. Install MPQP with
 its built-in Qiskit Aer simulation support:
