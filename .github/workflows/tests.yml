@@ -99,9 +99,10 @@ jobs:
         run: pyright
 
   mimiq:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
+        os: [ubuntu-latest, windows-latest]
         python-version: ["3.11", "3.12", "3.13"]
     steps:
       - name: Checkout repository
@@ -117,5 +118,5 @@ jobs:
         run: pip install ".[mimiq]" pytest
       - name: Run offline MIMIQ tests and doctests
         run: >-
-          python -m pytest tests/execution/test_mimiq.py tests/test_doc.py
+          python -m pytest tests/execution/test_mimiq.py tests/execution/test_mimiq_local.py tests/test_doc.py
           -k mimiq --providers mimiq --seed 7
