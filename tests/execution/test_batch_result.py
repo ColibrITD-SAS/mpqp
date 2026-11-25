@@ -365,7 +365,9 @@ def test_observable_key_ignores_lazy_caches(
     _ = observable.matrix
     _ = observable.pauli_string
     _ = observable.diagonal_elements
-    monkeypatch.setattr(observable, "pre_transpiled", object())
+    monkeypatch.setattr(
+        observable, "pre_transpiled", {IBMDevice.AER_SIMULATOR: object()}
+    )
     assert object_key(observable) == before
     observable.matrix = np.diag([2, -2])
     assert object_key(observable) != before
@@ -394,7 +396,9 @@ def test_semantic_fields_and_execution_caches(monkeypatch: pytest.MonkeyPatch):
 
 def test_unknown_extensions_fail_explicitly():
     class UnhandledGate(H):
-        pass
+        def __init__(self, target: int):
+            super().__init__(target)
+            self.unsupported_state = object()
 
     with pytest.raises(TypeError, match="explicit structural key"):
         object_key(UnhandledGate(0))
@@ -503,7 +507,7 @@ def test_binding_matches_input_and_recorded_circuits():
     measurement = ExpectationMeasure(Observable(pZ))
     binding = CircuitBinding(circuits, measurements=measurement)
     with patch(
-        "mpqp.core._keys.Snapshot.__call__",
+        "mpqp.execution.result.Snapshot",
         side_effect=AssertionError("Unnecessary capture"),
     ):
         batch = run(binding, IBMDevice.AER_SIMULATOR)
@@ -1238,7 +1242,9 @@ def test_basic_batch_operations_do_not_capture_metadata():
 
 def test_measurement_queries_do_not_inspect_circuits():
     class UnsupportedGate(H):
-        pass
+        def __init__(self, target: int):
+            super().__init__(target)
+            self.unsupported_state = object()
 
     measurement = BasisMeasure([0], shots=16)
     circuit = QCircuit([UnsupportedGate(0), measurement])

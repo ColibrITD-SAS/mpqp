@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from sympy import Expr
     from scipy.optimize import OptimizeResult
 
+from mpqp.core._types import BindingParameters
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction import ExpectationMeasure
 from mpqp.execution.devices import AvailableDevice
@@ -299,7 +300,7 @@ def _minimize_local_circ(
             params  # pyright: ignore[reportAssignmentType]
         )
 
-        values: dict[Expr | str, Complex] = _maps(variables, params_fixed_type)
+        values: BindingParameters = _maps(variables, params_fixed_type)
         result = run(circ, device, values)
         if TYPE_CHECKING:
             assert isinstance(result.expectation_values, float)

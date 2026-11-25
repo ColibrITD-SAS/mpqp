@@ -2,8 +2,12 @@
 Add ``--long-costly`` to the cli args to run test with credits (disabled by default)"""
 
 import sys
+from unittest.mock import Mock
 
+import numpy as np
 import pytest
+from qiskit.quantum_info import Statevector
+from sympy import Symbol
 
 from mpqp import (
     CNOT,
@@ -20,12 +24,45 @@ from mpqp import (
     X,
     Y,
     run,
+    submit,
 )
+from mpqp.execution.providers import azure as azure_provider
 from mpqp.execution.providers.azure import (
     get_result_from_azure_job_id,
     submit_job_azure,
 )
 from mpqp.execution.runner import generate_job
+
+
+@pytest.mark.provider("qiskit")
+@pytest.mark.parametrize("cached", [False, True])
+def test_azure_submission_translates_and_binds_locally(
+    monkeypatch: pytest.MonkeyPatch, cached: bool
+):
+    theta = Symbol("theta")
+    device = AZUREDevice.IONQ_SIMULATOR
+    circuit = QCircuit([Ry(theta, 0), BasisMeasure(shots=10)])
+    if cached:
+        circuit.transpiled_for_device(device)
+    backend = Mock()
+    backend.run.return_value.id.return_value = "mock-azure-job"
+    provider = Mock()
+    provider.get_backend.return_value = backend
+    monkeypatch.setattr(azure_provider, "get_azure_provider", lambda: provider)
+
+    job_id, _ = submit(circuit, device, values={theta: np.pi})
+
+    assert job_id == "mock-azure-job"
+    provider.get_backend.assert_called_once_with(device.value)
+    backend.run.assert_called_once()
+    translated = backend.run.call_args.args[0]
+    assert translated.count_ops()["measure"] == 1
+    assert backend.run.call_args.kwargs == {"shots": 10}
+    assert Statevector(
+        translated.remove_final_measurements(inplace=False)
+    ).probabilities()[1] == pytest.approx(1)
+    assert circuit.variables() == {theta}
+
 
 sampling_devices_cost = [
     AZUREDevice.IONQ_SIMULATOR,

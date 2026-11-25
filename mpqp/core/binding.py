@@ -31,11 +31,9 @@ from __future__ import annotations
 
 from copy import copy
 from enum import Enum, auto
-from numbers import Complex
-from typing import TYPE_CHECKING, Any, NamedTuple, Optional, TypeVar, Union, overload
+from typing import TYPE_CHECKING, Any, NamedTuple, Optional, TypeVar, overload
 
-from sympy import Expr
-
+from mpqp.core._types import BindingParameters
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.measurement.measure import Measure
 from mpqp.noise.noise_model import NoiseModel
@@ -50,8 +48,6 @@ if TYPE_CHECKING:
     from mpqp.execution.devices import AvailableDevice, AWSDevice, IBMDevice
 
 
-BindingParameters = dict[Union[Expr, str], Union[Complex, float]]
-"""Parameter values keyed by symbolic expressions or parameter names."""
 BindingExecution = tuple[QCircuit, Optional[BindingParameters], Optional[Measure]]
 """One logical execution: circuit, optional parameters and optional measurement."""
 BindingOptions = tuple[Optional[BindingParameters], Optional[Measure]]
@@ -189,7 +185,7 @@ class CircuitBinding:
     def __init__(
         self,
         circuits: OneOrMany[QCircuit | CircuitBinding],
-        values: Optional[OneOrMany[dict[str, float] | dict[Expr, float]]] = None,
+        values: Optional[OneOrMany[BindingParameters]] = None,
         measurements: Optional[OneOrMany[Measure]] = None,
         mode: BindingMode = BindingMode.PRODUCT,
         noises: Optional[list[NoiseModel]] = None,
@@ -242,8 +238,6 @@ class CircuitBinding:
                 circuit_without_measurements = circuit.without_measurements(
                     deep_copy=False
                 )
-
-                circuit_without_measurements.transpiled_circuit = None
 
                 normalized = CircuitBinding(
                     circuits=circuit_without_measurements,
@@ -443,7 +437,6 @@ class CircuitBinding:
     def _unroll_with_inputs(self) -> _BindingPlan:
         """Resolve executions while retaining their original circuit references."""
         from copy import deepcopy
-        from typing import cast
 
         from mpqp.core.instruction.measurement import ExpectationMeasure
         from mpqp.execution.runner import adjust_measure
@@ -459,19 +452,11 @@ class CircuitBinding:
                 return branch._unroll_with_inputs()
             return _BindingPlan([(branch, None, None)], [branch])
 
-        raw_parent_values = (
-            self.value
-            if isinstance(self.value, list)
-            else ([self.value] if self.value is not None else [None])
+        parent_values: list[Optional[BindingParameters]] = (
+            [parameter_set for parameter_set in self.value]
+            if self.value is not None
+            else [None]
         )
-        parent_values: list[Optional[BindingParameters]] = [
-            (
-                cast(BindingParameters, parameter_set)
-                if parameter_set is not None
-                else None
-            )
-            for parameter_set in raw_parent_values
-        ]
         parent_measurements: list[Measure | None] = (
             self.measurements
             if isinstance(self.measurements, list)

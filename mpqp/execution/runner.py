@@ -18,13 +18,14 @@ return the corresponding job id and :class:`~mpqp.execution.job.Job` object.
 
 from __future__ import annotations
 
+from copy import deepcopy
 from itertools import pairwise
-from numbers import Complex
 from textwrap import indent
 from typing import TYPE_CHECKING, Iterable, Optional, Sequence, overload
 
 import numpy as np
 
+from mpqp.core._types import BindingParameters
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.breakpoint import Breakpoint
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
@@ -64,8 +65,6 @@ from mpqp.tools.errors import DeviceJobIncompatibleError, RemoteExecutionError
 from mpqp.tools.generics import OneOrMany, find_index, flatten
 
 if TYPE_CHECKING:
-    from sympy import Expr
-
     from mpqp.core.binding import CircuitBinding
 
 
@@ -229,7 +228,7 @@ def adjust_measure(
 def generate_job(
     circuit: QCircuit | CircuitBinding,
     device: AvailableDevice,
-    values: "Optional[dict[Expr | str, Complex]]" = None,
+    values: Optional[BindingParameters] = None,
 ) -> Job:
     """Creates the Job of appropriate type and containing the information needed
     for the execution of the circuit.
@@ -248,10 +247,21 @@ def generate_job(
     """
     from ..core.binding import CircuitBinding
 
+    if isinstance(circuit, QCircuit):
+        circuit._validate_transpilation()  # pyright: ignore[reportPrivateUsage]
+
     if values is not None:
         if isinstance(circuit, CircuitBinding):
             raise ValueError("values must be specified in CircuitBinding")
+        template = circuit
         circuit = circuit.subs(values)
+        if device in template.transpiled_circuit:
+            circuit.transpiled_circuit[device] = (
+                template._bound_transpiled_circuit(  # pyright: ignore[reportPrivateUsage]
+                    device, values
+                )
+            )
+            circuit.transpiled_noise_model = deepcopy(template.transpiled_noise_model)
 
     if isinstance(circuit, CircuitBinding):
         job = Job(circuit.job_type, circuit, device)
@@ -270,6 +280,7 @@ def generate_job(
             else:
                 job = Job(JobType.SAMPLE, circuit, device)
         elif isinstance(measurement, ExpectationMeasure):
+            prepared_circuit = circuit
             m = adjust_measure(
                 measurement,
                 circuit,
@@ -277,6 +288,20 @@ def generate_job(
             )
             circuit = circuit.without_measurements(deep_copy=False)
             circuit.add(m)
+            # Provider caches already use this observable target convention.
+            # Adjusting metadata must not discard an existing native binding.
+            if device in prepared_circuit.transpiled_circuit:
+                circuit.transpiled_circuit[device] = (
+                    prepared_circuit.transpiled_circuit[device]
+                )
+                circuit.transpiled_noise_model = prepared_circuit.transpiled_noise_model
+                templates = (
+                    prepared_circuit._transpilation_templates  # pyright: ignore[reportPrivateUsage]
+                )
+                if device in templates:
+                    circuit._transpilation_templates.update(  # pyright: ignore[reportPrivateUsage]
+                        {device: templates[device]}
+                    )
             job = Job(
                 JobType.OBSERVABLE,
                 circuit,
@@ -300,7 +325,7 @@ def _run_diagonal_observables(
     exp_measure: ExpectationMeasure,
     device: AvailableDevice,
     observable_job: Job,
-    values: "Optional[dict[Expr | str, Complex]]" = None,
+    values: Optional[BindingParameters] = None,
     provider_params: Optional[ProviderParams] = None,
 ) -> Result:
 
@@ -362,7 +387,7 @@ def _compute_result_diagonal_observables(
 def _run_single(
     circuit: QCircuit,
     device: AvailableDevice,
-    values: "Optional[dict[Expr | str, Complex]]" = None,
+    values: Optional[BindingParameters] = None,
     display_breakpoints: bool = True,
     provider_params: Optional[ProviderParams] = None,
 ) -> Result:
@@ -415,7 +440,11 @@ def _run_single(
     if len(circuit.measurements) == 1:
         measure = circuit.measurements[0]
         if isinstance(measure, ExpectationMeasure):
-            if measure.optim_diagonal and measure.only_diagonal_observables():
+            if (
+                measure.optim_diagonal
+                and measure.only_diagonal_observables()
+                and device not in circuit.transpiled_circuit
+            ):
                 if (measure.shots == 0 and not device.supports_state_vector()) or (
                     measure.shots != 0 and not device.supports_samples()
                 ):
@@ -585,7 +614,7 @@ def _run_circuit_binding(
 def run(
     circuit: CircuitBinding | OneOrMany[QCircuit],
     device: Sequence[AvailableDevice],
-    values: "Optional[dict[Expr | str, Complex]]" = None,
+    values: Optional[BindingParameters] = None,
     display_breakpoints: bool = True,
     provider_params: Optional[ProviderParams] = None,
 ) -> BatchResult: ...
@@ -595,7 +624,7 @@ def run(
 def run(
     circuit: CircuitBinding,
     device: OneOrMany[AvailableDevice],
-    values: "Optional[dict[Expr | str, Complex]]" = None,
+    values: Optional[BindingParameters] = None,
     display_breakpoints: bool = True,
     provider_params: Optional[ProviderParams] = None,
 ) -> BatchResult: ...
@@ -605,7 +634,7 @@ def run(
 def run(
     circuit: Sequence[QCircuit],
     device: OneOrMany[AvailableDevice],
-    values: "Optional[dict[Expr | str, Complex]]" = None,
+    values: Optional[BindingParameters] = None,
     display_breakpoints: bool = True,
     provider_params: Optional[ProviderParams] = None,
 ) -> BatchResult: ...
@@ -615,7 +644,7 @@ def run(
 def run(
     circuit: QCircuit,
     device: AvailableDevice,
-    values: "Optional[dict[Expr | str, Complex]]" = None,
+    values: Optional[BindingParameters] = None,
     display_breakpoints: bool = True,
     provider_params: Optional[ProviderParams] = None,
 ) -> Result: ...
@@ -624,7 +653,7 @@ def run(
 def run(
     circuit: OneOrMany[QCircuit] | CircuitBinding,
     device: OneOrMany[AvailableDevice],
-    values: "Optional[dict[Expr | str, Complex]]" = None,
+    values: Optional[BindingParameters] = None,
     display_breakpoints: bool = True,
     provider_params: Optional[ProviderParams] = None,
 ) -> Result | BatchResult:
@@ -738,7 +767,7 @@ def run(
 def submit(
     circuit: QCircuit,
     device: AvailableDevice,
-    values: Optional[dict[Expr | str, Complex]] = None,
+    values: Optional[BindingParameters] = None,
     provider_params: Optional[ProviderParams] = None,
 ) -> tuple[str | list[str], Job]:
     """Submit the job related to the circuit on the remote backend provided in

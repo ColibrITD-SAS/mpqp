@@ -366,7 +366,7 @@ def test_retrieve_exact_braket_observables_with_cached_result_types(
     )
     cached.add_result_type(Expectation(observable=BraketZ(), target=[0]))
     assert isinstance(job.circuit, QCircuit)
-    job.circuit.transpiled_circuit = cached
+    job.circuit.transpiled_circuit[job.device] = cached
     original_result_types = list(cached.result_types)
 
     run_braket(job)
@@ -421,7 +421,7 @@ def test_braket_binding_noise_targets(
     circuit = QCircuit([X(0), X(1)])
     device = AWSDevice.BRAKET_LOCAL_SIMULATOR
     if cached:
-        circuit.transpiled_circuit = circuit.to_other_device(device)
+        circuit.transpiled_circuit[device] = circuit.to_other_device(device)
     binding = CircuitBinding(
         circuit,
         measurements=BasisMeasure([0, 1], shots=2048),
@@ -442,7 +442,7 @@ def test_braket_binding_empty_noise_targets(cached: bool):
     circuit = QCircuit([X(0)])
     device = AWSDevice.BRAKET_LOCAL_SIMULATOR
     if cached:
-        circuit.transpiled_circuit = circuit.to_other_device(device)
+        circuit.transpiled_circuit[device] = circuit.to_other_device(device)
     binding = CircuitBinding(
         circuit,
         measurements=BasisMeasure([0], shots=100),
