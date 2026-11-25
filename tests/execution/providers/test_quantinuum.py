@@ -581,7 +581,7 @@ def test_nexus_submission_rejects_more_than_300_programs(
     upload.assert_not_called()
 
 
-def test_submit_and_retrieve_nexus_binding():
+def test_nexus_binding_retrieval_uses_submitted_executions():
     binding = CircuitBinding(
         [QCircuit([X(0)]), QCircuit(1)],
         measurements=BasisMeasure(shots=10),
@@ -602,6 +602,7 @@ def test_submit_and_retrieve_nexus_binding():
         job_id, job = submit(binding, QUANTINUUMDevice.NEXUS_AER_SIMULATOR)
 
     assert job_id == "nexus-binding-id"
+    binding.circuits.append(QCircuit(1))
     with (
         patch("qnexus.jobs.get", return_value=nexus_job_ref),
         patch.object(
