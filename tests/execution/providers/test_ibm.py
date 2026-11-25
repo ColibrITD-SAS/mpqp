@@ -1,6 +1,7 @@
 import sys
 from types import SimpleNamespace
 from typing import Any
+from unittest.mock import Mock
 
 import numpy as np
 import pytest
@@ -76,6 +77,85 @@ def test_ibm_circuit_binding_binds_job_id():
     assert isinstance(job.id, str)
     assert len(result.results) == 2
     assert all(execution.job.id == job.id for execution in result.results)
+
+
+@pytest.mark.provider("qiskit")
+@pytest.mark.parametrize("submit_only", [False, True], ids=["run", "submit"])
+@pytest.mark.parametrize("observable", [False, True], ids=["sampler", "estimator"])
+def test_ibm_session_preserves_instance_and_options(
+    monkeypatch: pytest.MonkeyPatch, submit_only: bool, observable: bool
+):
+    import qiskit_ibm_runtime
+
+    from mpqp import submit
+    from mpqp.execution import ExecutionMode
+    from mpqp.execution.connection import ibm_connection
+
+    shots = 32
+    measurement = (
+        ExpectationMeasure(Observable(pZ), shots=shots)
+        if observable
+        else BasisMeasure([0], shots=shots)
+    )
+    circuit = QCircuit([measurement], nb_qubits=1)
+    device = IBMDevice.IBM_BRISBANE
+    options = {
+        "environment": {"private": True, "job_tags": ["session-test"]},
+        "execution": {"init_qubits": False},
+    }
+    params = QiskitParams(instance="requested-instance", options=options)
+    backend = SimpleNamespace(name=device.value)
+    backend_lookup = Mock(return_value=backend)
+    session = object()
+    session_lookup = Mock(return_value=session)
+
+    data = (
+        PubResult(
+            DataBin(evs=np.array([1.0]), stds=np.array([0.0])),
+            metadata={"shots": shots},
+        )
+        if observable
+        else SamplerPubResult(DataBin(c=BitArray.from_counts({"0": shots})))
+    )
+    remote_job = Mock()
+    remote_job.job_id.return_value = "session-job"
+    remote_job.result.return_value = PrimitiveResult([data])
+    primitive = Mock()
+    primitive.options = SimpleNamespace()
+    primitive.run.return_value = remote_job
+    primitive_factory = Mock(return_value=primitive)
+
+    monkeypatch.setattr(ibm_provider, "get_backend", backend_lookup)
+    monkeypatch.setattr(ibm_connection, "get_backend", backend_lookup)
+    monkeypatch.setattr(ibm_connection, "get_or_create_ibm_session", session_lookup)
+    monkeypatch.setattr(qiskit_ibm_runtime, "EstimatorV2", primitive_factory)
+    monkeypatch.setattr(qiskit_ibm_runtime, "SamplerV2", primitive_factory)
+    monkeypatch.setattr(
+        QCircuit, "transpiled_for_device", lambda _self, _device: QuantumCircuit(1)
+    )
+
+    if submit_only:
+        job_id, job = submit(
+            circuit, device, provider_params=params, mode=ExecutionMode.SESSION
+        )
+        assert job_id == "session-job"
+        remote_job.result.assert_not_called()
+    else:
+        result = run(
+            circuit, device, provider_params=params, mode=ExecutionMode.SESSION
+        )
+        assert result.shots == shots
+        if observable:
+            assert result.expectation_values == pytest.approx(1.0)
+        else:
+            assert result.counts == [shots, 0]
+        job = result.job
+    assert job.id == "session-job"
+    assert job.mode == ExecutionMode.SESSION
+    backend_lookup.assert_called_once_with(device, "requested-instance")
+    session_lookup.assert_called_once_with(backend)
+    primitive_factory.assert_called_once_with(mode=session, options=options)
+    assert params.options == options
 
 
 class _FakeQctrlRun:

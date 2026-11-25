@@ -979,9 +979,10 @@ def submit(
             )
             from mpqp.execution.providers.ibm import submit_remote_ibm_session
 
-            backend = get_backend(device)
+            instance = provider_params.instance if provider_params is not None else None
+            backend = get_backend(device, instance)
             session = get_or_create_ibm_session(backend)
-            job_id, _ = submit_remote_ibm_session(job, session)
+            job_id, _ = submit_remote_ibm_session(job, session, provider_params)
         else:
             job_id, _ = submit_remote_ibm(job, provider_params)
 

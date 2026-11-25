@@ -199,7 +199,7 @@ def run_ibm(
         )
 
     if job.mode == ExecutionMode.SESSION:
-        return run_remote_ibm_session(job)
+        return run_remote_ibm_session(job, qiskit_params)
 
     return run_remote_ibm(job, qiskit_params)
 
@@ -1125,10 +1125,22 @@ def submit_remote_ibm_batch(
 
 
 def submit_remote_ibm_session(
-    job: Job, session: "Session"
+    job: Job,
+    session: "Session",
+    qiskit_params: Optional[QiskitParams] = None,
 ) -> tuple[str, "RuntimeJobV2"]:
-    # TODO: docs
-    return _submit_remote_ibm(job, runtime_target=session)
+    """Submit a job in an existing IBM Runtime session.
+
+    Args:
+        job: Job to submit.
+        session: Session in which the job is submitted.
+        qiskit_params: IBM Runtime primitive options. The session determines
+            the backend and instance.
+
+    Returns:
+        The job identifier and the submitted Runtime job.
+    """
+    return _submit_remote_ibm(job, qiskit_params, runtime_target=session)
 
 
 def run_remote_ibm(
@@ -1165,16 +1177,27 @@ def run_remote_ibm(
     return result
 
 
-def run_remote_ibm_session(job: Job) -> Result | BatchResult:
-    # TODO: docs
+def run_remote_ibm_session(
+    job: Job, qiskit_params: Optional[QiskitParams] = None
+) -> Result | BatchResult:
+    """Run a job in an IBM Runtime session and wait for its result.
+
+    Args:
+        job: Job to execute.
+        qiskit_params: IBM instance and Runtime primitive options.
+
+    Returns:
+        The completed job's result or batch of results.
+    """
     from mpqp.execution.connection.ibm_connection import get_or_create_ibm_session
 
     if TYPE_CHECKING:
         assert isinstance(job.device, IBMDevice)
-    backend = get_backend(job.device)
+    instance = qiskit_params.instance if qiskit_params is not None else None
+    backend = get_backend(job.device, instance)
     session = get_or_create_ibm_session(backend)
 
-    _, remote_job = submit_remote_ibm_session(job, session)
+    _, remote_job = submit_remote_ibm_session(job, session, qiskit_params)
     ibm_result = remote_job.result()
     if isinstance(job.circuit, CircuitBinding):
         return _extract_ibm_binding_results(
