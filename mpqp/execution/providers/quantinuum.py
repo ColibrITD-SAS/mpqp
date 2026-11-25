@@ -145,6 +145,7 @@ def run_quantinuum_binding(
         prepared_executions = prepare_binding_execution_groups(
             job.circuit,
             job.device,
+            executions=job._get_binding_executions(),  # pyright: ignore[reportPrivateUsage]
         )
         execution_contexts = _ordered_binding_execution_contexts(prepared_executions)
         for execution_context in execution_contexts:
@@ -680,6 +681,7 @@ def submit_nexus_circuit_binding(
         prepared_executions = prepare_binding_execution_groups(
             job.circuit,
             job.device,
+            executions=job._get_binding_executions(),  # pyright: ignore[reportPrivateUsage]
         )
         execution_contexts = _ordered_binding_execution_contexts(prepared_executions)
         for execution_context in execution_contexts:
@@ -1479,6 +1481,7 @@ def get_result_from_quantinuum_job_id(
         prepared_executions = prepare_binding_execution_groups(
             job.circuit,
             job.device,
+            executions=job._get_binding_executions(),  # pyright: ignore[reportPrivateUsage]
         )
         execution_contexts = _ordered_binding_execution_contexts(prepared_executions)
         group_counts = _nexus_binding_group_counts(job, execution_contexts)

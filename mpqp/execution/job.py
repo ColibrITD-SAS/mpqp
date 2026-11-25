@@ -26,8 +26,8 @@ if TYPE_CHECKING:
     from ..core.circuit import QCircuit
     from ..core.binding import BindingExecution, CircuitBinding
 
-from mpqp.core.instruction.measurement import BasisMeasure, ExpectationMeasure, Measure
 from mpqp.core._types import BindingParameters
+from mpqp.core.instruction.measurement import BasisMeasure, ExpectationMeasure, Measure
 
 from ..tools.errors import IBMRemoteExecutionError, QLMRemoteExecutionError
 from .connection.azure_connection import get_jobs_by_id
@@ -153,9 +153,9 @@ class Job:
 
         if not isinstance(self.circuit, CircuitBinding):
             raise TypeError("Binding executions require a CircuitBinding job.")
-        if self._binding_executions is not None:
-            return self._binding_executions
-        return self.circuit.unroll()
+        if self._binding_executions is None:
+            self._binding_executions = self.circuit.unroll()
+        return self._binding_executions
 
     @property
     def measure(self) -> Optional[Measure]:

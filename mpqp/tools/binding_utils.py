@@ -87,6 +87,7 @@ def create_binding_execution_circuit(
 def prepare_binding_execution_groups(
     cb: CircuitBinding,
     device: AvailableDevice,
+    executions: Optional[list[BindingExecution]] = None,
 ) -> list[PreparedBindingExecutionGroup]:
     """Expand and group the executions described by a binding before provider translation.
 
@@ -97,6 +98,8 @@ def prepare_binding_execution_groups(
     Args:
         cb: Circuit binding to expand and group.
         device: Device associated with the execution jobs.
+        executions: Pre-resolved binding executions. If omitted, ``cb.unroll()``
+            is called.
 
     Returns:
         Each original circuit, its prepared execution circuit, and the
@@ -107,7 +110,8 @@ def prepare_binding_execution_groups(
 
     execution_groups: dict[tuple[int, object, int], PreparedBindingExecutionGroup] = {}
 
-    for index, (circuit, values, measurement) in enumerate(cb.unroll()):
+    resolved_executions = cb.unroll() if executions is None else executions
+    for index, (circuit, values, measurement) in enumerate(resolved_executions):
         execution_circuit = create_binding_execution_circuit(circuit, measurement)
         prepared_measurement = (
             execution_circuit.measurements[0]
@@ -266,8 +270,8 @@ def translate_binding_measurements(
     Args:
         cb: Circuit binding containing the measurements.
         device: Device for which the measurements are translated.
-        executions: Binding executions returned by ``cb.unroll()``. If omitted,
-            ``cb.unroll()`` is called here.
+        executions: Pre-resolved binding executions. If omitted, ``cb.unroll()``
+            is called.
 
     Returns:
         A dictionary mapping each measurement's :func:`id` and the circuit's
