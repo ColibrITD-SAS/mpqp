@@ -140,6 +140,9 @@ class QuantinuumParams(ProviderParams):
 class MimiqParams(ProviderParams):
     """Execution settings for MIMIQ simulators.
 
+    ``seed`` controls both local Exaqt and cloud sampling. The remaining
+    settings apply to cloud execution only.
+
     Args:
         seed: Nonnegative random seed smaller than ``2**63``, or ``None``.
         bonddim: Maximum MPS bond dimension, from 1 to 4096. A larger value can

@@ -1,4 +1,13 @@
-"""Execution on native MIMIQ cloud simulators.
+"""Execution on local and cloud MIMIQ simulators.
+
+For offline execution, install ``mpqp[mimiq]`` and select
+:attr:`~mpqp.execution.devices.MIMIQDevice.LOCAL_STATEVECTOR`. No account is
+required. Both basis sampling and complete statevectors use MPQP qubit order:
+
+    >>> from mpqp import MIMIQDevice, QCircuit, X, run
+    >>> result = run(QCircuit([X(0)], nb_qubits=2), MIMIQDevice.LOCAL_STATEVECTOR) # doctest: +MIMIQ
+    >>> result.amplitudes # doctest: +MIMIQ
+    array([0.+0.j, 0.+0.j, 1.+0.j, 0.+0.j])
 
 For cloud execution, install ``mpqp[mimiq]`` and call
 :func:`~mpqp.execution.connection.mimiq_connection.setup_mimiq_account` once.
@@ -11,9 +20,10 @@ or submit a job and retrieve it later:
     >>> result = get_remote_result(job) # doctest: +SKIP
 
 Sample bitstrings follow ``BasisMeasure.targets`` in their declared order,
-independently of the classical register indices. Complete statevectors,
-observable jobs, and MPQP noise models are not supported. The MPS bond dimension
-controls the accuracy/cost tradeoff; results with a reported fidelity estimate
+independently of the classical register indices. Complete statevectors are
+available locally. Cloud statevectors, general observable jobs, and MPQP noise
+models are not supported. The MPS bond dimension controls the accuracy/cost
+tradeoff; results with a reported fidelity estimate
 below one emit a truncation warning.
 """
 
@@ -31,7 +41,7 @@ from mpqp.execution.connection.mimiq_connection import get_mimiq_connection
 from mpqp.execution.devices import MIMIQDevice
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.providers.providers_params import MimiqParams
-from mpqp.execution.result import Result, Sample
+from mpqp.execution.result import Result, Sample, StateVector
 from mpqp.tools.errors import DeviceJobIncompatibleError, RemoteExecutionError
 from mpqp.translation.mimiq import mpqp_to_mimiq
 
@@ -46,11 +56,17 @@ def _prepare(job: Job) -> Circuit:
         raise DeviceJobIncompatibleError(
             'MIMIQ does not support MPQP noise models yet.'
         )
-    if job.job_type != JobType.SAMPLE:
-        raise DeviceJobIncompatibleError('MIMIQ supports sampling jobs only.')
-    if not isinstance(job.measure, BasisMeasure):
+    if job.job_type != JobType.SAMPLE and (
+        job.device.is_remote() or job.job_type != JobType.STATE_VECTOR
+    ):
+        raise DeviceJobIncompatibleError(
+            'MIMIQ supports sampling and local statevector jobs only.'
+        )
+    if job.job_type == JobType.SAMPLE and not isinstance(job.measure, BasisMeasure):
         raise ValueError('MIMIQ sampling requires a BasisMeasure.')
-    translated = mpqp_to_mimiq(job.circuit)
+    translated = mpqp_to_mimiq(
+        job.circuit, skip_measurements=job.job_type == JobType.STATE_VECTOR
+    )
     if translated.is_symbolic():
         raise ValueError('Bind all circuit parameters before MIMIQ execution.')
     return translated
@@ -89,11 +105,45 @@ def _extract_samples(raw: QCSResults, job: Job) -> Result:
     return result
 
 
+def _run_local(job: Job, params: MimiqParams) -> Result:
+    translated = _prepare(job)
+    try:
+        from exaqt import ExaqtQCS
+    except ModuleNotFoundError as error:
+        if error.name != 'exaqt':
+            raise
+        raise ModuleNotFoundError(
+            'Local MIMIQ execution requires Exaqt. Install "mpqp[mimiq]".',
+            name='exaqt',
+        ) from error
+
+    from mimiqcircuits import QCSResults
+
+    simulator = ExaqtQCS(seed=params.seed)
+    job.status = JobStatus.RUNNING
+    if job.job_type == JobType.SAMPLE:
+        measure = job.measure
+        assert isinstance(measure, BasisMeasure)
+        raw = simulator.execute(translated, nsamples=measure.shots)
+        if not isinstance(raw, QCSResults):
+            raise RuntimeError('Exaqt did not return one result for the circuit.')
+        return _extract_samples(raw, job)
+
+    state, _ = simulator.evolvezerostate(translated)
+    amplitudes = np.asarray(state.q.amplitudes(), dtype=np.complex128)
+    # Exaqt numbers qubit 0 as the least significant bit; MPQP uses it first.
+    vector = amplitudes.reshape((2,) * translated.num_qubits()).T.reshape(-1)
+    # The translated circuit already carries the input global phase.
+    result = Result(job, StateVector(vector), errors=0, shots=0, g_phase_handling=False)
+    job.status = JobStatus.DONE
+    return result
+
+
 def run_mimiq(job: Job, params: Optional[MimiqParams] = None) -> Result:
     """Execute a MIMIQ job and return its MPQP result.
 
     Args:
-        job: Sampling job to execute.
+        job: Sampling job, or a local statevector job, to execute.
         params: Simulator settings, or defaults.
 
     Returns:
@@ -101,7 +151,10 @@ def run_mimiq(job: Job, params: Optional[MimiqParams] = None) -> Result:
 
     Raises:
         DeviceJobIncompatibleError: If the requested job type is unsupported.
+        ModuleNotFoundError: If Exaqt is unavailable for local execution.
     """
+    if not job.device.is_remote():
+        return _run_local(job, params or MimiqParams())
     job_id, _ = submit_mimiq(job, params)
     return get_result_from_mimiq_job_id(job_id, job=job)
 
@@ -115,7 +168,12 @@ def submit_mimiq(job: Job, params: Optional[MimiqParams] = None) -> tuple[str, J
 
     Returns:
         The persistent execution ID and associated job.
+
+    Raises:
+        RemoteExecutionError: If the selected device is local.
     """
+    if not job.device.is_remote():
+        raise RemoteExecutionError('MIMIQ cloud submission requires a remote device.')
     params = params or MimiqParams()
     translated = _prepare(job)
     measure = job.measure

@@ -208,7 +208,7 @@ def test_empty_circuit_with_declared_qubits():
         mpqp_to_mimiq(QCircuit(0))
 
 
-@pytest.mark.parametrize('device', list(MIMIQDevice))
+@pytest.mark.parametrize('device', [d for d in MIMIQDevice if d.is_remote()])
 def test_capabilities_and_unsupported_observables(device: MIMIQDevice):
     assert device.is_remote()
     assert device.supports_samples()
@@ -399,7 +399,7 @@ def test_mpqp_import_does_not_load_optional_mimiq_sdks():
 import builtins
 original_import = builtins.__import__
 def guarded_import(name, *args, **kwargs):
-    if name.split('.')[0] in {'mimiqcircuits'}:
+    if name.split('.')[0] in {'mimiqcircuits', 'exaqt'}:
         raise RuntimeError('Optional SDK imported while loading MPQP: ' + name)
     return original_import(name, *args, **kwargs)
 builtins.__import__ = guarded_import
@@ -505,10 +505,11 @@ def test_cloud_recovery_preserves_custom_gate_matrix(cloud: Mock, controlled: bo
     )
 
 
-def test_mimiq_exposes_only_cloud_devices():
+def test_mimiq_devices():
     assert {device.value for device in MIMIQDevice} == {
         'cloud-statevector',
         'cloud-mps',
+        'local-statevector',
     }
 
 
