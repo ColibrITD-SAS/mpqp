@@ -278,15 +278,17 @@ def run_pseudo_circuit_binding(
         assert isinstance(cb, CircuitBinding)
         assert isinstance(job.device, AWSDevice)
 
+    resolved = job._get_binding_executions()  # pyright: ignore[reportPrivateUsage]
     translated_circuit = translate_binding_circuits(cb, job.device)
-    translated_measurement = translate_binding_measurements(cb, job.device)
+    translated_measurement = translate_binding_measurements(
+        cb, job.device, executions=resolved
+    )
     device = get_braket_device(job.device, is_noisy=cb.is_noisy)
     reservation_arn = provider_params.reservation_arn if provider_params else None
     results = []
     job_ids: list[str] = []
 
     job.status = JobStatus.RUNNING
-    resolved = job._get_binding_executions()  # pyright: ignore[reportPrivateUsage]
     for c, v, m in resolved:
         transpiled_circuit = translated_circuit[id(c)]
         transpiled_measurement = (

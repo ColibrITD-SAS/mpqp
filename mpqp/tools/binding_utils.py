@@ -253,7 +253,9 @@ def translate_binding_circuits(
 
 
 def translate_binding_measurements(
-    cb: CircuitBinding, device: AvailableDevice
+    cb: CircuitBinding,
+    device: AvailableDevice,
+    executions: Optional[list[BindingExecution]] = None,
 ) -> dict[tuple[int, int], Any]:
     """Translate each binding measurement for the circuit where it is used.
 
@@ -264,13 +266,16 @@ def translate_binding_measurements(
     Args:
         cb: Circuit binding containing the measurements.
         device: Device for which the measurements are translated.
+        executions: Binding executions returned by ``cb.unroll()``. If omitted,
+            ``cb.unroll()`` is called here.
 
     Returns:
         A dictionary mapping each measurement's :func:`id` and the circuit's
         number of qubits to its provider translation.
     """
     translated: dict[tuple[int, int], Any] = {}
-    for circuit, _, measurement in cb.unroll():
+    resolved_executions = cb.unroll() if executions is None else executions
+    for circuit, _, measurement in resolved_executions:
         if measurement is None:
             continue
         key = (id(measurement), circuit.nb_qubits)
