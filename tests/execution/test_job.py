@@ -1,6 +1,7 @@
 import pytest
 
-from mpqp import AWSDevice, Job, JobStatus, JobType, QCircuit
+from mpqp import AWSDevice, IBMDevice, Job, JobStatus, JobType, QCircuit
+from mpqp.execution import ExecutionMode
 
 JOB_STATUSES = tuple(JobStatus)
 STATUS_PRIORITY = (
@@ -63,3 +64,20 @@ def test_status_with_multiple_remote_job_ids(
     job.id = list(status_by_id)
 
     assert job.status == expected_status
+
+
+@pytest.mark.parametrize("mode", list(ExecutionMode))
+def test_job_repr_round_trip_preserves_mode(mode: ExecutionMode):
+    job = Job(JobType.STATE_VECTOR, QCircuit(1), IBMDevice.AER_SIMULATOR, mode=mode)
+    restored = eval(
+        repr(job),
+        {
+            "Job": Job,
+            "JobType": JobType,
+            "QCircuit": QCircuit,
+            "IBMDevice": IBMDevice,
+            "ExecutionMode": ExecutionMode,
+        },
+    )
+    assert restored == job
+    assert restored.mode is mode

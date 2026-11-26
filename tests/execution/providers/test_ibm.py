@@ -38,7 +38,7 @@ from mpqp.execution.providers.providers_params import QiskitParams
 from mpqp.execution.runner import generate_job
 from mpqp.gates import *
 from mpqp.measures import *
-from mpqp.tools.errors import IBMRemoteExecutionError
+from mpqp.tools.errors import DeviceJobIncompatibleError, IBMRemoteExecutionError
 
 
 @pytest.mark.provider("qiskit")
@@ -158,6 +158,92 @@ def test_ibm_session_preserves_instance_and_options(
     assert params.options == options
 
 
+@pytest.mark.provider("qiskit")
+@pytest.mark.filterwarnings(
+    "ignore:Options .* have no effect in local testing mode.:UserWarning"
+)
+@pytest.mark.parametrize("shots", [(1,), (100, 100), (100, 1000, 1571, 100)])
+def test_ibm_batch_preserves_each_shot_count(
+    monkeypatch: pytest.MonkeyPatch, shots: tuple[int, ...]
+):
+    import qiskit_ibm_runtime
+
+    from mpqp.execution import ExecutionMode
+    from mpqp.execution.connection import ibm_connection
+
+    backend = AerSimulator(max_parallel_threads=1)
+    estimators: list[EstimatorV2] = []
+
+    def local_estimator(mode: object, options: dict[str, Any]) -> EstimatorV2:
+        assert mode is backend
+        estimator = EstimatorV2(mode=backend, options=options)
+        estimators.append(estimator)
+        return estimator
+
+    monkeypatch.setattr(ibm_provider, "get_backend", lambda *_args: backend)
+    monkeypatch.setattr(ibm_connection, "get_backend", lambda *_args: backend)
+    monkeypatch.setattr(qiskit_ibm_runtime, "EstimatorV2", local_estimator)
+    options = {
+        "default_shots": 17,
+        "default_precision": 0.25,
+        "twirling": {
+            "enable_gates": True,
+            "enable_measure": True,
+            "num_randomizations": 8,
+            "shots_per_randomization": 13,
+        },
+        "environment": {"job_tags": ["batch-shots"]},
+    }
+    params = QiskitParams(options=options)
+    circuits = [
+        QCircuit(
+            [
+                X(0) if index % 2 == 0 else Id(0),
+                ExpectationMeasure(Observable(pZ), shots=count),
+            ]
+        )
+        for index, count in enumerate(shots)
+    ]
+
+    batch = run(
+        circuits,
+        IBMDevice.IBM_BRISBANE,
+        provider_params=params,
+        mode=ExecutionMode.BATCH,
+    )
+
+    assert [result.shots for result in batch] == list(shots)
+    assert [result.expectation_values for result in batch] == pytest.approx(
+        [-1.0 if index % 2 == 0 else 1.0 for index in range(len(shots))]
+    )
+    assert batch[0].job.id is not None
+    assert all(result.job.id == batch[0].job.id for result in batch)
+    assert len(estimators) == 1
+    twirling = getattr(estimators[0].options, "twirling")
+    assert twirling.enable_gates is False
+    assert twirling.enable_measure is False
+    assert twirling.num_randomizations == 1
+    assert twirling.shots_per_randomization == "auto"
+    assert params.options == options
+
+
+@pytest.mark.provider("qiskit")
+def test_ibm_batch_rejects_zero_shots_without_submission(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    import qiskit_ibm_runtime
+
+    from mpqp.execution import ExecutionMode
+
+    primitive_factory = Mock()
+    monkeypatch.setattr(ibm_provider, "get_backend", lambda *_args: SimpleNamespace())
+    monkeypatch.setattr(qiskit_ibm_runtime, "EstimatorV2", primitive_factory)
+    circuit = QCircuit([ExpectationMeasure(Observable(pZ), shots=0)], nb_qubits=1)
+    with pytest.raises(DeviceJobIncompatibleError, match="cannot be computed exactly"):
+        run([circuit], IBMDevice.IBM_BRISBANE, mode=ExecutionMode.BATCH)
+    primitive_factory.return_value.run.assert_not_called()
+
+
 class _FakeQctrlRun:
     def __init__(self, result: Any, status: str = "DONE"):
         self.job_id = "qctrl-job-id"
@@ -235,12 +321,9 @@ def test_remote_observables_apply_layout_to_cached_logical_translation(
         def run(self, pubs: list[Any]):
             pub = EstimatorPub.coerce(pubs[0])
             submitted.append(pub)
-            circuit, observables = pubs[0]
-            assert circuit.num_qubits == physical_qubits
-            assert observables[0].num_qubits == physical_qubits
-            assert Statevector(circuit).expectation_value(
-                observables[0]
-            ) == pytest.approx(-1)
+            assert pub.circuit.num_qubits == physical_qubits
+            exact = StatevectorEstimator().run([(pub.circuit, pub.observables)])
+            assert exact.result()[0].data["evs"][0] == pytest.approx(-1)
             return SimpleNamespace(job_id=lambda: "mock-ibm-job")
 
     monkeypatch.setattr(qiskit_ibm_runtime, "EstimatorV2", FakeEstimator)

@@ -649,7 +649,7 @@ def _run_circuit_binding(
         result = run_braket(job, provider_params)
     elif isinstance(device, (ATOSDevice, GOOGLEDevice, AZUREDevice, QUANTINUUMDevice)):
         results: list[Result] = []
-        for circuit, values, measurement in circuit_binding.unroll():
+        for circuit, values, measurement in plan.executions:
             executable = circuit.without_measurements()
             if measurement is not None:
                 executable.add(deepcopy(measurement))
@@ -663,7 +663,7 @@ def _run_circuit_binding(
                     provider_params=provider_params,
                 )
             )
-        return BatchResult(results)
+        result = BatchResult(results)
     else:
         raise NotImplementedError(f"Device {device} not handled")
 
