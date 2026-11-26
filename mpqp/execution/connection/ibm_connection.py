@@ -12,7 +12,8 @@ if TYPE_CHECKING:
     from qiskit_ibm_runtime import QiskitRuntimeService, Session
 
 
-_ibm_sessions: dict[str, "Session"] = {}
+_IBMSessionKey = tuple[object, Optional[str], str]
+_ibm_sessions: dict[_IBMSessionKey, "Session"] = {}
 Runtime_Service: dict[Optional[str], "QiskitRuntimeService"] = {}
 """Dictionary regrouping QiskitRuntimeServices related to specific instances (key)."""
 
@@ -302,47 +303,71 @@ def get_all_job_ids() -> list[str]:
     return []
 
 
+def _ibm_session_key(backend: "BackendV2") -> _IBMSessionKey:
+    # Runtime binds a session to its service and backend-specific instance.
+    return (
+        getattr(backend, "service", backend),
+        getattr(backend, "_instance", None),
+        backend.name,
+    )
+
+
 def get_or_create_ibm_session(
     backend: "BackendV2", max_time: Optional[int] = None
 ) -> "Session":
-    """Get an active IBM Runtime session for the given backend.
-    If a session exists and is valid, reuse it. Otherwise, create a new one.
+    """Reuse an accepting session for the same service, instance and backend.
+
+    Args:
+        backend: Backend identifying the execution context.
+        max_time: Maximum duration in seconds when creating a new session.
+            Reused sessions retain their original duration.
+
+    Returns:
+        An existing session that accepts jobs, or a newly created session.
     """
     from qiskit_ibm_runtime import Session
     from qiskit_ibm_runtime.exceptions import IBMNotAuthorizedError, IBMRuntimeError
 
-    backend_name = backend.name
-    if backend_name in _ibm_sessions:
-        session = _ibm_sessions[backend_name]
+    key = _ibm_session_key(backend)
+    if key in _ibm_sessions:
+        session = _ibm_sessions[key]
         try:
             status = session.status()
         except (IBMNotAuthorizedError, IBMRuntimeError):
             status = "Closed"
 
-        if status not in ("Closed", None):
+        if status in ("Pending", "In progress, accepting new jobs"):
             return session
 
     new_session = Session(backend=backend, max_time=max_time)
-    _ibm_sessions[backend_name] = new_session
+    _ibm_sessions[key] = new_session
     return new_session
 
 
 def close_ibm_session(backend: "BackendV2") -> None:
-    """Close the currently active session, if one exists."""
+    """Close the cached session for this service, instance and backend.
+
+    Args:
+        backend: Backend identifying the execution context to close.
+
+    Raises:
+        IBMRemoteExecutionError: If closing fails. The session is retained so
+            closing can be retried.
+    """
 
     from qiskit_ibm_runtime.exceptions import IBMNotAuthorizedError, IBMRuntimeError
 
-    backend_name = backend.name
-    if backend_name not in _ibm_sessions:
+    key = _ibm_session_key(backend)
+    if key not in _ibm_sessions:
         return
 
-    session = _ibm_sessions[backend_name]
+    session = _ibm_sessions[key]
     try:
         session.close()
     except (IBMNotAuthorizedError, IBMRuntimeError) as err:
         raise IBMRemoteExecutionError(
-            f"Failed to close IBM session for backend '{backend_name}'. "
+            f"Failed to close IBM session for backend '{backend.name}'. "
             "Session was not removed; you can retry.\nTrace: " + str(err)
         )
     else:
-        del _ibm_sessions[backend_name]
+        del _ibm_sessions[key]
