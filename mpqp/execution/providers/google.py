@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from cirq.circuits.circuit import Circuit as CirqCircuit
     from cirq.sim.sparse_simulator import Simulator
     from cirq_google.engine.simulated_local_engine import SimulatedLocalEngine
+    from cirq_ionq import Job as IonQJob
     from cirq_ionq import Service
 
 from mpqp import Language
@@ -329,6 +330,21 @@ def run_cirq_observable(
     )
 
 
+def _get_ionq_result(ionq_job: IonQJob, job: Job) -> CirqResult:
+    """Retrieve exactly one IonQ result, accepting scalar and list responses."""
+    results = ionq_job.results()
+    if isinstance(results, list):
+        if len(results) != 1:
+            job.status = JobStatus.ERROR
+            raise NotImplementedError(
+                "Can't retrieve remote result for a Google IonQ job with multiple results."
+            )
+        result = results[0]
+    else:
+        result = results
+    return result.to_cirq_result()
+
+
 def run_cirq_observable_remote(
     job: Job, circuit: "CirqCircuit", service: "Service"
 ) -> Result:
@@ -369,14 +385,8 @@ def run_cirq_observable_remote(
         job_ids.append(ionq_job.job_id())
         job.id = job_ids[0] if len(job_ids) == 1 else list(job_ids)
 
-        ionq_results = ionq_job.results()
-        if len(ionq_results) != 1:
-            job.status = JobStatus.ERROR
-            raise NotImplementedError(
-                "Can't retrieve remote result for a Google IonQ job with multiple results."
-            )
         local_result = extract_result_SAMPLE(
-            ionq_results[0].to_cirq_result(),
+            _get_ionq_result(ionq_job, job),
             job,
         )
         assert isinstance(local_result, Result)
@@ -451,13 +461,7 @@ def run_google_remote(job: Job) -> Result:
             )
             job.id = ionq_job.job_id()
 
-            ionq_results = ionq_job.results()
-            if len(ionq_results) != 1:
-                raise NotImplementedError(
-                    "Can't retrieve remote result for a Google IonQ job with multiple results."
-                )
-
-            cirq_result = ionq_results[0].to_cirq_result()
+            cirq_result = _get_ionq_result(ionq_job, job)
 
             job.status = JobStatus.DONE
             return extract_result_SAMPLE(cirq_result, job)
