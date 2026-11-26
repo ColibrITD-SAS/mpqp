@@ -804,8 +804,6 @@ def submit(
         Unlike :func:`run`, you can only submit on one device at a time.
     """
 
-    if values is None:
-        values = {}
     if not device.is_remote():
         raise RemoteExecutionError(
             "submit(...) function is only made for remote device."

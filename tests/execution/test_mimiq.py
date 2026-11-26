@@ -547,3 +547,28 @@ def test_cloud_retrieval_uses_serialized_sdk_inputs(
     assert isinstance(result.job.measure, BasisMeasure)
     assert result.job.measure.targets == [2, 1, 0]
     assert result.job.measure.c_targets == [4, 0, 2]
+
+
+def test_cloud_submission_uses_direct_parameter_binding(cloud: Mock):
+    theta = symbols('theta')
+    device = MIMIQDevice.CLOUD_MPS
+    circuit = QCircuit([Ry(theta, 1), BasisMeasure([1], shots=8)], nb_qubits=3)
+    original = deepcopy(circuit)
+    circuit.bind_parameters(device, {theta: cast(Complex, np.pi)})
+
+    submit(circuit, device)
+
+    translated = cloud.submit.call_args.args[0]
+    assert isinstance(translated, mc.Circuit)
+    assert not translated.is_symbolic()
+    rotation = next(
+        instruction.operation
+        for instruction in translated
+        if isinstance(instruction.operation, mc.GateRY)
+    )
+    np.testing.assert_allclose(
+        np.asarray(rotation.matrix().tolist(), dtype=np.complex128),
+        np.array([[0, -1], [1, 0]]),
+        atol=1e-12,
+    )
+    assert circuit == original

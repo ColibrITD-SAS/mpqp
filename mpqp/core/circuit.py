@@ -219,6 +219,7 @@ class QCircuit:
                 myQLM_Circuit,
                 QuantumCircuit,
                 tket_Circuit,
+                MimiqCircuit,
             ],
         ] = {}
         """A pre-transpiled circuit to skip repeated transpilation when running 

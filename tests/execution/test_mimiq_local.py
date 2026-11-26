@@ -219,3 +219,31 @@ def test_mimiq_local_missing_extra(monkeypatch: pytest.MonkeyPatch):
 def test_mimiq_local_rejects_other_provider_parameters():
     with pytest.raises(TypeError, match='MimiqParams'):
         run(QCircuit([X(0)]), DEVICE, provider_params=QiskitParams())
+
+
+@pytest.mark.parametrize('shots', [0, 8])
+def test_mimiq_local_direct_binding_rebinding_and_overrides(shots: int):
+    theta = symbols('theta')
+    circuit = QCircuit([Ry(theta, 1), BasisMeasure([1], shots=shots)], nb_qubits=2)
+    original = deepcopy(circuit)
+    dimension = 2 if shots else 4
+    zero = np.eye(1, dimension, 0)[0]
+    one = np.eye(1, dimension, 1)[0]
+
+    circuit.bind_parameters(DEVICE, {theta: cast(Complex, np.pi)})
+    np.testing.assert_allclose(run(circuit, DEVICE).probabilities, one, atol=1e-12)
+
+    circuit.bind_parameters(DEVICE, {theta: cast(Complex, 0.0)})
+    np.testing.assert_allclose(run(circuit, DEVICE).probabilities, zero, atol=1e-12)
+    np.testing.assert_allclose(
+        run(circuit, DEVICE, values={theta: cast(Complex, np.pi)}).probabilities,
+        one,
+        atol=1e-12,
+    )
+    np.testing.assert_allclose(run(circuit, DEVICE).probabilities, zero, atol=1e-12)
+    assert circuit == original
+    assert circuit.variables() == {theta}
+
+    circuit.add(X(0))
+    with pytest.raises(ValueError, match='Bind all circuit parameters'):
+        run(circuit, DEVICE)

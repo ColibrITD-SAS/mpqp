@@ -43,7 +43,6 @@ from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.providers.providers_params import MimiqParams
 from mpqp.execution.result import Result, Sample, StateVector
 from mpqp.tools.errors import DeviceJobIncompatibleError, RemoteExecutionError
-from mpqp.translation.mimiq import mpqp_to_mimiq
 
 if TYPE_CHECKING:
     from mimiqcircuits import Circuit, QCSResults
@@ -64,9 +63,9 @@ def _prepare(job: Job) -> Circuit:
         )
     if job.job_type == JobType.SAMPLE and not isinstance(job.measure, BasisMeasure):
         raise ValueError('MIMIQ sampling requires a BasisMeasure.')
-    translated = mpqp_to_mimiq(
-        job.circuit, skip_measurements=job.job_type == JobType.STATE_VECTOR
-    )
+    translated = job.circuit.transpiled_for_device(job.device)
+    if TYPE_CHECKING:
+        assert isinstance(translated, Circuit)
     if translated.is_symbolic():
         raise ValueError('Bind all circuit parameters before MIMIQ execution.')
     return translated
