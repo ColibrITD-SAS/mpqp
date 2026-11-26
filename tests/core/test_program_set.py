@@ -1,3 +1,5 @@
+from math import cos, sin
+
 import pytest
 from sympy import Symbol
 
@@ -282,7 +284,7 @@ def test_multi_observable_measure_returns_one_result():
                 mode=BindingMode.PRODUCT,
                 shots=500,
             ),
-            [0.3, -0.54],
+            [sin(1) - cos(1), -cos(1)],
         ),
         (
             CircuitBinding(
@@ -301,7 +303,7 @@ def test_multi_observable_measure_returns_one_result():
                 mode=BindingMode.ZIP,
                 shots=500,
             ),
-            [1.3, 0],
+            [sin(1) + cos(1), 0],
         ),
     ],
 )
