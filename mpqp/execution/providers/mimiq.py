@@ -9,8 +9,10 @@ required. Both basis sampling and complete statevectors use MPQP qubit order:
     >>> result.amplitudes # doctest: +MIMIQ
     array([0.+0.j, 0.+0.j, 1.+0.j, 0.+0.j])
 
-For cloud execution, install ``mpqp[mimiq]`` and call
-:func:`~mpqp.execution.connection.mimiq_connection.setup_mimiq_account` once.
+For cloud execution, install ``mpqp[mimiq]`` and run ``setup_connections``,
+then choose MIMIQ and your cloud platform. Alternatively, call
+:func:`~mpqp.execution.connection.mimiq_connection.setup_mimiq_account` once
+(defaulting to MIMIQ V2).
 Use ``CLOUD_STATEVECTOR`` or ``CLOUD_MPS`` with :func:`~mpqp.execution.runner.run`,
 or submit a job and retrieve it later:
 

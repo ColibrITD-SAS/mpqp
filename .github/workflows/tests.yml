@@ -118,5 +118,7 @@ jobs:
         run: pip install ".[mimiq]" pytest
       - name: Run offline MIMIQ tests and doctests
         run: >-
-          python -m pytest tests/execution/test_mimiq.py tests/execution/test_mimiq_local.py tests/test_doc.py
+          python -m pytest tests/execution/test_mimiq.py tests/execution/test_mimiq_local.py
+          tests/execution/connection/test_mimiq_connection.py
+          tests/execution/connection/test_setup_connections.py tests/test_doc.py
           -k mimiq --providers mimiq --seed 7

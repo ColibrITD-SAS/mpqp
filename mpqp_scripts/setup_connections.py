@@ -5,7 +5,8 @@ the tokens, passwords, etc... but for now, it is a prerequisite that you already
 have these credentials to use this script.
 
 Information concerning which provider is configured and related credentials are
-stored in the ``~/.mpqp/.env`` file."""
+stored in the ``~/.mpqp/.env`` file. MIMIQ uses browser login and saves its
+session token separately in ``~/.mpqp/mimiq-token.json`` by default."""
 
 import os
 
@@ -19,6 +20,7 @@ def print_config_info():
     import mpqp.execution.connection.azure_connection as azuc
     import mpqp.execution.connection.ibm_connection as ibmqc
     import mpqp.execution.connection.ionq_connection as ionqc
+    import mpqp.execution.connection.mimiq_connection as mimiqc
     import mpqp.execution.connection.quantinuum_connection as quantc
     from mpqp.tools.errors import IBMRemoteExecutionError
 
@@ -26,6 +28,8 @@ def print_config_info():
     print("===== IBM Quantum info : ===== ")
     try:
         print(ibmqc.get_active_account_info())
+    except ModuleNotFoundError:
+        print("IBM Runtime SDK unavailable")
     except IBMRemoteExecutionError as err:
         if "Unable to find account" in str(err) or "No IBM account configured" in str(
             err
@@ -63,6 +67,8 @@ def print_config_info():
         print(quantc.get_quantinuum_account_info())
     except Exception as err:
         print("Error occurred when getting Quantinuum account info: " f"{err}")
+    print("===== MIMIQ info : ===== ")
+    print(mimiqc.get_mimiq_account_info())
     input("Press 'Enter' to continue")
     return "", []
 
@@ -74,6 +80,7 @@ def delete_config():
     from mpqp.execution.connection.azure_connection import delete_azure_account
     from mpqp.execution.connection.ibm_connection import delete_ibm_account
     from mpqp.execution.connection.ionq_connection import delete_ionq_account
+    from mpqp.execution.connection.mimiq_connection import delete_mimiq_account
     from mpqp.execution.connection.qlm_connection import delete_qlm_account
     from mpqp.execution.connection.quantinuum_connection import (
         delete_quantinuum_account,
@@ -94,6 +101,9 @@ def delete_config():
         if get_env_variable("QUANTINUUM_CONFIGURED") == "True":
             delete_quantinuum_account()
 
+        if get_env_variable("MIMIQ_CONFIGURED") == "True":
+            delete_mimiq_account()
+
         return "All accounts deleted", []
 
     delete_tree = QuestionNode(
@@ -105,6 +115,7 @@ def delete_config():
             AnswerNode("IonQ", delete_ionq_account),
             AnswerNode("Azure", delete_azure_account),
             AnswerNode("Quantinuum Nexus", delete_quantinuum_account),
+            AnswerNode("MIMIQ", delete_mimiq_account),
             AnswerNode("All", delete_all),
         ],
         leaf_loop_to_here=True,
@@ -123,6 +134,7 @@ def main_setup():
     from mpqp.execution.connection.azure_connection import config_azure_account
     from mpqp.execution.connection.ibm_connection import setup_ibm_account
     from mpqp.execution.connection.ionq_connection import config_ionq_key
+    from mpqp.execution.connection.mimiq_connection import config_mimiq_account
     from mpqp.execution.connection.qlm_connection import setup_qlm_account
     from mpqp.execution.connection.quantinuum_connection import (
         setup_quantinuum_account,
@@ -138,6 +150,7 @@ def main_setup():
             AnswerNode("IonQ", config_ionq_key),
             AnswerNode("Azure", config_azure_account),
             AnswerNode("Quantinuum Nexus", setup_quantinuum_account),
+            AnswerNode("MIMIQ", config_mimiq_account),
             AnswerNode("Recap", print_config_info),
             AnswerNode("Delete a configuration", delete_config),
         ],
