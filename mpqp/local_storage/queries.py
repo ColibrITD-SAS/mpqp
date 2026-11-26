@@ -259,7 +259,7 @@ def fetch_jobs_with_job(job: Job | list[Job]) -> list[DictDB]:
         Matching job(s) as dictionaries corresponding to the job(s) attributes
 
     Examples:
-        >>> job = Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR)
+        >>> job = Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2), IBMDevice.AER_SIMULATOR)
         >>> jobs = fetch_jobs_with_job(job)
         >>> for job in jobs:
         ...    print("job:", job) # doctest: +ELLIPSIS
@@ -325,7 +325,7 @@ def fetch_jobs_with_result_and_job(
         Matching job(s) as dictionaries corresponding to the result(s) attribute and job attribute of the result(s).
 
     Examples:
-        >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR,), StateVector([1, 0, 0, 0]),0,0)
+        >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2), IBMDevice.AER_SIMULATOR,), StateVector([1, 0, 0, 0]),0,0)
         >>> jobs = fetch_jobs_with_result_and_job(result)
         >>> for job in jobs:
         ...    print("job:", job) # doctest: +ELLIPSIS
@@ -358,10 +358,12 @@ def fetch_jobs_with_result_and_job(
                     json.dumps(repr(res.job.measure)) if res.job.measure else None
                 )
 
-                job_filters.append("""
+                job_filters.append(
+                    """
                     (results.data is ? AND results.error is ? AND results.shots is ? 
                     AND jobs.type is ? AND jobs.circuit is ? AND jobs.device is ? AND jobs.measure is ?)
-                """)
+                """
+                )
                 params.extend(
                     [
                         data_json,
@@ -404,7 +406,7 @@ def fetch_jobs_with_result(result: Result | BatchResult | list[Result]) -> list[
         Matching job(s) as dictionaries corresponding to the result(s) attribute.
 
     Examples:
-        >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR,), StateVector([1, 0, 0, 0]),0,0)
+        >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2), IBMDevice.AER_SIMULATOR,), StateVector([1, 0, 0, 0]),0,0)
         >>> jobs = fetch_jobs_with_result(result)
         >>> for job in jobs:
         ...    print("job:", job) # doctest: +ELLIPSIS
@@ -439,9 +441,11 @@ def fetch_jobs_with_result(result: Result | BatchResult | list[Result]) -> list[
                     json.dumps(repr(res.error)) if res.error is not None else None
                 )
 
-                job_filters.append("""
+                job_filters.append(
+                    """
                     (results.data is ? AND results.error is ? AND results.shots is ?)
-                """)
+                """
+                )
                 params.extend(
                     [
                         data_json,
@@ -489,7 +493,7 @@ def fetch_results_with_result_and_job(
         Matching result(s) as dictionaries corresponding to the result(s) attribute and job attribute of the result(s).
 
     Examples:
-        >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR), StateVector([1, 0, 0, 0]), 0, 0)
+        >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2), IBMDevice.AER_SIMULATOR), StateVector([1, 0, 0, 0]), 0, 0)
         >>> results = fetch_results_with_result_and_job(result)
         >>> for result in results:
         ...    print("result:", result) # doctest: +ELLIPSIS
@@ -521,10 +525,12 @@ def fetch_results_with_result_and_job(
                     json.dumps(repr(res.job.measure)) if res.job.measure else None
                 )
 
-                result_filters.append("""
+                result_filters.append(
+                    """
                     (results.data is ? AND results.error is ? AND results.shots is ? 
                     AND jobs.type is ? AND jobs.circuit is ? AND jobs.device is ? AND jobs.measure is ?)
-                """)
+                """
+                )
                 params.extend(
                     [
                         data_json,
@@ -568,7 +574,7 @@ def fetch_results_with_job(jobs: Job | list[Job]) -> list[DictDB]:
         Matching result(s) as dictionaries corresponding to job attribute of the result(s).
 
     Examples:
-        >>> job = Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR)
+        >>> job = Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2), IBMDevice.AER_SIMULATOR)
         >>> results = fetch_results_with_job(job)
         >>> for result in results:
         ...    print("result:", result) # doctest: +ELLIPSIS
@@ -593,9 +599,11 @@ def fetch_results_with_job(jobs: Job | list[Job]) -> list[DictDB]:
                 circuit_json = json.dumps(repr(job.circuit))
                 measure_json = json.dumps(repr(job.measure)) if job.measure else None
 
-                result_filters.append("""
+                result_filters.append(
+                    """
                     (jobs.type is ? AND jobs.circuit is ? AND jobs.device is ? AND jobs.measure is ?)
-                """)
+                """
+                )
                 params.extend(
                     [
                         job.job_type.name,
@@ -637,7 +645,7 @@ def fetch_results_with_result(
         Matching result(s) as dictionaries corresponding to the result(s) attribute.
 
     Examples:
-        >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR), StateVector([1, 0, 0, 0]), 0, 0)
+        >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2), IBMDevice.AER_SIMULATOR), StateVector([1, 0, 0, 0]), 0, 0)
         >>> results = fetch_results_with_result(result)
         >>> for result in results:
         ...    print("result:", result) # doctest: +ELLIPSIS
@@ -673,9 +681,11 @@ def fetch_results_with_result(
                     json.dumps(repr(res.error)) if res.error is not None else None
                 )
 
-                result_filters.append("""
+                result_filters.append(
+                    """
                     (results.data is ? AND results.error is ? AND results.shots is ?)
-                """)
+                """
+                )
                 params.extend([data_json, error_json, res.shots])
 
             query = f"""

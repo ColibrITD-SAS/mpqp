@@ -305,7 +305,7 @@ class Job:
         Uses :func:`~mpqp.local_storage.load.get_jobs_with_job`.
 
         Example:
-            >>> job = Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR)
+            >>> job = Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2), IBMDevice.AER_SIMULATOR)
             >>> print(job.load_similar()) # doctest: +ELLIPSIS
             [Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR)]
         """
