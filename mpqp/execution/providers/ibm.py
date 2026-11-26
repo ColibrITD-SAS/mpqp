@@ -1063,7 +1063,25 @@ def submit_remote_ibm(
 def submit_remote_ibm_batch(
     jobs: list[Job], qiskit_params: Optional[QiskitParams] = None
 ) -> tuple[list[str], "RuntimeJobV2"]:
-    # TODO: docs
+    """Submit observable jobs together with their individual sampling budgets.
+
+    Args:
+        jobs: Observable jobs targeting the same IBM backend.
+        qiskit_params: IBM instance and Runtime primitive options.
+
+    Returns:
+        One identifier per input job and the shared submitted Runtime job.
+
+    Raises:
+        ValueError: If the job list is empty.
+        DeviceJobIncompatibleError: If a job is incompatible with its device.
+
+    Note:
+        Each computation carries a target precision derived from its positive
+        shot count. Shots are a per-configuration budget, as in IBM Runtime's
+        ``default_shots`` option. Twirling is disabled, consistently with
+        ordinary MPQP IBM execution.
+    """
     if len(jobs) == 0:
         raise ValueError(
             "Can't submit an IBM batch: job list is empty. "
@@ -1077,6 +1095,7 @@ def submit_remote_ibm_batch(
         qiskit_params = QiskitParams()
     backend = get_backend(reference_job.device, qiskit_params.instance)
 
+    from qiskit.primitives.containers.estimator_pub import EstimatorPub
     from qiskit_ibm_runtime import EstimatorV2 as Runtime_Estimator
 
     from mpqp.execution.connection.ibm_connection import get_or_create_ibm_session
@@ -1090,8 +1109,14 @@ def submit_remote_ibm_batch(
         mode=execution_target, options=qiskit_params.get_options()
     )
 
-    per_job_circuits: list[QuantumCircuit] = []
-    per_job_observables: list[list[SparsePauliOp]] = []
+    twirling = getattr(estimator.options, "twirling", None)
+    if twirling is not None:
+        twirling.enable_gates = False
+        twirling.enable_measure = False
+        twirling.num_randomizations = 1
+        twirling.shots_per_randomization = "auto"
+
+    estimator_input: list[EstimatorPub] = []
 
     for job in jobs:
         meas = job.measure
@@ -1107,14 +1132,15 @@ def submit_remote_ibm_batch(
         if TYPE_CHECKING:
             assert isinstance(qc, QuantumCircuit)
 
-        per_job_circuits.append(qc)
-
         if TYPE_CHECKING:
             assert isinstance(meas, ExpectationMeasure)
         obs_list = _observables_for_circuit(meas, job.device, qc)
-        per_job_observables.append(obs_list)
+        precision = math.sqrt(1.0 / meas.shots)
+        # Runtime rounds 1 / precision**2 upward to determine the shot count.
+        if math.ceil(1.0 / precision**2) > meas.shots:
+            precision = math.nextafter(precision, math.inf)
+        estimator_input.append(EstimatorPub.coerce((qc, obs_list), precision=precision))
 
-    estimator_input = list(zip(per_job_circuits, per_job_observables))
     ibm_job = estimator.run(estimator_input)
 
     job_ids = [ibm_job.job_id()] * len(jobs)
