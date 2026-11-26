@@ -317,7 +317,7 @@ class Job:
         Uses :func:`~mpqp.local_storage.load.get_jobs_with_id`.
 
         Args:
-           job_id: Local id of the job you need.
+            job_id: Local id of the job you need.
 
         Example:
             >>> Job.load_by_local_id(1) # doctest: +ELLIPSIS
