@@ -1,6 +1,7 @@
 import sys
 from types import SimpleNamespace
 from typing import Any
+from unittest.mock import Mock
 
 import numpy as np
 import pytest
@@ -37,7 +38,7 @@ from mpqp.execution.providers.providers_params import QiskitParams
 from mpqp.execution.runner import generate_job
 from mpqp.gates import *
 from mpqp.measures import *
-from mpqp.tools.errors import IBMRemoteExecutionError
+from mpqp.tools.errors import DeviceJobIncompatibleError, IBMRemoteExecutionError
 
 
 @pytest.mark.provider("qiskit")
@@ -76,6 +77,171 @@ def test_ibm_circuit_binding_binds_job_id():
     assert isinstance(job.id, str)
     assert len(result.results) == 2
     assert all(execution.job.id == job.id for execution in result.results)
+
+
+@pytest.mark.provider("qiskit")
+@pytest.mark.parametrize("submit_only", [False, True], ids=["run", "submit"])
+@pytest.mark.parametrize("observable", [False, True], ids=["sampler", "estimator"])
+def test_ibm_session_preserves_instance_and_options(
+    monkeypatch: pytest.MonkeyPatch, submit_only: bool, observable: bool
+):
+    import qiskit_ibm_runtime
+
+    from mpqp import submit
+    from mpqp.execution import ExecutionMode
+    from mpqp.execution.connection import ibm_connection
+
+    shots = 32
+    measurement = (
+        ExpectationMeasure(Observable(pZ), shots=shots)
+        if observable
+        else BasisMeasure([0], shots=shots)
+    )
+    circuit = QCircuit([measurement], nb_qubits=1)
+    device = IBMDevice.IBM_BRISBANE
+    options = {
+        "environment": {"private": True, "job_tags": ["session-test"]},
+        "execution": {"init_qubits": False},
+    }
+    params = QiskitParams(instance="requested-instance", options=options)
+    backend = SimpleNamespace(name=device.value)
+    backend_lookup = Mock(return_value=backend)
+    session = object()
+    session_lookup = Mock(return_value=session)
+
+    data = (
+        PubResult(
+            DataBin(evs=np.array([1.0]), stds=np.array([0.0])),
+            metadata={"shots": shots},
+        )
+        if observable
+        else SamplerPubResult(DataBin(c=BitArray.from_counts({"0": shots})))
+    )
+    remote_job = Mock()
+    remote_job.job_id.return_value = "session-job"
+    remote_job.result.return_value = PrimitiveResult([data])
+    primitive = Mock()
+    primitive.options = SimpleNamespace()
+    primitive.run.return_value = remote_job
+    primitive_factory = Mock(return_value=primitive)
+
+    monkeypatch.setattr(ibm_provider, "get_backend", backend_lookup)
+    monkeypatch.setattr(ibm_connection, "get_backend", backend_lookup)
+    monkeypatch.setattr(ibm_connection, "get_or_create_ibm_session", session_lookup)
+    monkeypatch.setattr(qiskit_ibm_runtime, "EstimatorV2", primitive_factory)
+    monkeypatch.setattr(qiskit_ibm_runtime, "SamplerV2", primitive_factory)
+    monkeypatch.setattr(
+        QCircuit, "transpiled_for_device", lambda _self, _device: QuantumCircuit(1)
+    )
+
+    if submit_only:
+        job_id, job = submit(
+            circuit, device, provider_params=params, mode=ExecutionMode.SESSION
+        )
+        assert job_id == "session-job"
+        remote_job.result.assert_not_called()
+    else:
+        result = run(
+            circuit, device, provider_params=params, mode=ExecutionMode.SESSION
+        )
+        assert result.shots == shots
+        if observable:
+            assert result.expectation_values == pytest.approx(1.0)
+        else:
+            assert result.counts == [shots, 0]
+        job = result.job
+    assert job.id == "session-job"
+    assert job.mode == ExecutionMode.SESSION
+    backend_lookup.assert_called_once_with(device, "requested-instance")
+    session_lookup.assert_called_once_with(backend)
+    primitive_factory.assert_called_once_with(mode=session, options=options)
+    assert params.options == options
+
+
+@pytest.mark.provider("qiskit")
+@pytest.mark.filterwarnings(
+    "ignore:Options .* have no effect in local testing mode.:UserWarning"
+)
+@pytest.mark.parametrize("shots", [(1,), (100, 100), (100, 1000, 1571, 100)])
+def test_ibm_batch_preserves_each_shot_count(
+    monkeypatch: pytest.MonkeyPatch, shots: tuple[int, ...]
+):
+    import qiskit_ibm_runtime
+
+    from mpqp.execution import ExecutionMode
+    from mpqp.execution.connection import ibm_connection
+
+    backend = AerSimulator(max_parallel_threads=1)
+    estimators: list[EstimatorV2] = []
+
+    def local_estimator(mode: object, options: dict[str, Any]) -> EstimatorV2:
+        assert mode is backend
+        estimator = EstimatorV2(mode=backend, options=options)
+        estimators.append(estimator)
+        return estimator
+
+    monkeypatch.setattr(ibm_provider, "get_backend", lambda *_args: backend)
+    monkeypatch.setattr(ibm_connection, "get_backend", lambda *_args: backend)
+    monkeypatch.setattr(qiskit_ibm_runtime, "EstimatorV2", local_estimator)
+    options = {
+        "default_shots": 17,
+        "default_precision": 0.25,
+        "twirling": {
+            "enable_gates": True,
+            "enable_measure": True,
+            "num_randomizations": 8,
+            "shots_per_randomization": 13,
+        },
+        "environment": {"job_tags": ["batch-shots"]},
+    }
+    params = QiskitParams(options=options)
+    circuits = [
+        QCircuit(
+            [
+                X(0) if index % 2 == 0 else Id(0),
+                ExpectationMeasure(Observable(pZ), shots=count),
+            ]
+        )
+        for index, count in enumerate(shots)
+    ]
+
+    batch = run(
+        circuits,
+        IBMDevice.IBM_BRISBANE,
+        provider_params=params,
+        mode=ExecutionMode.BATCH,
+    )
+
+    assert [result.shots for result in batch] == list(shots)
+    assert [result.expectation_values for result in batch] == pytest.approx(
+        [-1.0 if index % 2 == 0 else 1.0 for index in range(len(shots))]
+    )
+    assert batch[0].job.id is not None
+    assert all(result.job.id == batch[0].job.id for result in batch)
+    assert len(estimators) == 1
+    twirling = getattr(estimators[0].options, "twirling")
+    assert twirling.enable_gates is False
+    assert twirling.enable_measure is False
+    assert twirling.num_randomizations == 1
+    assert twirling.shots_per_randomization == "auto"
+    assert params.options == options
+
+
+@pytest.mark.provider("qiskit")
+def test_ibm_batch_rejects_zero_shots_without_submission(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    import qiskit_ibm_runtime
+
+    from mpqp.execution import ExecutionMode
+
+    primitive_factory = Mock()
+    monkeypatch.setattr(ibm_provider, "get_backend", lambda *_args: SimpleNamespace())
+    monkeypatch.setattr(qiskit_ibm_runtime, "EstimatorV2", primitive_factory)
+    circuit = QCircuit([ExpectationMeasure(Observable(pZ), shots=0)], nb_qubits=1)
+    with pytest.raises(DeviceJobIncompatibleError, match="cannot be computed exactly"):
+        run([circuit], IBMDevice.IBM_BRISBANE, mode=ExecutionMode.BATCH)
+    primitive_factory.return_value.run.assert_not_called()
 
 
 class _FakeQctrlRun:
@@ -155,12 +321,9 @@ def test_remote_observables_apply_layout_to_cached_logical_translation(
         def run(self, pubs: list[Any]):
             pub = EstimatorPub.coerce(pubs[0])
             submitted.append(pub)
-            circuit, observables = pubs[0]
-            assert circuit.num_qubits == physical_qubits
-            assert observables[0].num_qubits == physical_qubits
-            assert Statevector(circuit).expectation_value(
-                observables[0]
-            ) == pytest.approx(-1)
+            assert pub.circuit.num_qubits == physical_qubits
+            exact = StatevectorEstimator().run([(pub.circuit, pub.observables)])
+            assert exact.result()[0].data["evs"][0] == pytest.approx(-1)
             return SimpleNamespace(job_id=lambda: "mock-ibm-job")
 
     monkeypatch.setattr(qiskit_ibm_runtime, "EstimatorV2", FakeEstimator)
@@ -168,10 +331,9 @@ def test_remote_observables_apply_layout_to_cached_logical_translation(
     monkeypatch.setattr(
         ibm_provider, "get_backend", lambda *_args: SimpleNamespace(name=device.value)
     )
-    monkeypatch.setattr(ibm_provider, "get_env_variable", lambda _name: "")
 
     if batched:
-        ibm_provider.submit_remote_ibm_pubs([job])
+        ibm_provider.submit_remote_ibm_batch([job])
     else:
         ibm_provider.submit_remote_ibm(job)
 

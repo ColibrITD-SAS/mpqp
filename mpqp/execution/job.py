@@ -23,11 +23,12 @@ from mpqp.tools.generics import MessageEnum
 # is a class (probably because Enum does weird things to the Enum class)
 if TYPE_CHECKING:
     from enum import Enum
-    from ..core.circuit import QCircuit
-    from ..core.binding import BindingExecution, CircuitBinding
 
-from mpqp.core.instruction.measurement import BasisMeasure, ExpectationMeasure, Measure
+    from mpqp.core.binding import BindingExecution, CircuitBinding
+    from mpqp.core.circuit import QCircuit
+
 from mpqp.core._types import BindingParameters
+from mpqp.core.instruction.measurement import BasisMeasure, ExpectationMeasure, Measure
 
 from ..tools.errors import IBMRemoteExecutionError, QLMRemoteExecutionError
 from .connection.azure_connection import get_jobs_by_id
@@ -79,6 +80,19 @@ class JobType(Enum):
     retrieve the expectation value in an optimal manner."""
 
 
+class ExecutionMode(Enum):
+    """Execution mode for remote backends.
+    It controls how jobs are submitted (single job, batch and session).
+    """
+
+    JOB = "JOB"
+    BATCH = "BATCH"
+    SESSION = "SESSION"
+
+    def __str__(self):
+        return self.value
+
+
 class Job:
     """Representation of a job, an object regrouping all the information about
     the submission of a computation/measure of a quantum circuit on a
@@ -96,6 +110,7 @@ class Job:
         device: Device (simulator, quantum computer) on which we want to execute
             the job.
         measure: Object representing the measure to perform.
+        mode: Remote execution mode (JOB(single), BATCH(batch/params) and SESSION(IBM Runtime Session)).
 
     Examples:
         >>> circuit = QCircuit(3)
@@ -123,6 +138,8 @@ class Job:
         device: AvailableDevice,
         measurement: Optional[Measure] = None,
         values: Optional[BindingParameters] = None,
+        *,
+        mode: ExecutionMode = ExecutionMode.JOB,
     ):
         self._status = JobStatus.INIT
 
@@ -132,11 +149,20 @@ class Job:
         """See parameter description."""
         self.device = device
         """See parameter description."""
+        self.mode = mode
+        """See parameter description."""
         self.id: Optional[str | list[str]] = None
         """Contains the job id or ids assigned by the execution provider. It can
         take a little while before it is set to the right value (for instance,
         a job submission can require handshake protocols to conclude before
         attributing an id to the job)."""
+        self.values: Optional[BindingParameters] = None
+        """Parameter bindings for circuits containing symbolic variables.
+
+        For local execution, parameters are typically substituted directly into the
+        circuit prior to execution. For remote execution, these bindings are stored in the
+        ``Job`` so the provider can bind them on the transpiled circuit without
+        re-transpiling the circuit each time."""
         self.status_message: Optional[str] = None
         """Optional message associated with the current job status, especially
         for execution errors."""
@@ -228,7 +254,10 @@ class Job:
         self._status = job_status
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}({self.job_type}, {repr(self.circuit)}, {self.device})"
+        return (
+            f"{type(self).__name__}({self.job_type}, {self.circuit!r}, "
+            f"{self.device}, mode=ExecutionMode.{self.mode.name})"
+        )
 
     def __eq__(self, other):  # pyright: ignore[reportMissingParameterType]
         if not isinstance(other, Job):
@@ -245,6 +274,7 @@ class Job:
             "job_type": self.job_type,
             "circuit": self.circuit,
             "device": self.device,
+            "mode": self.mode,
             "measure": self.measure,
             "id": self.id,
             "status": self.status,

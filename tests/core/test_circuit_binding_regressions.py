@@ -268,6 +268,30 @@ def test_zip_broadcast_execution_order_and_values(
 
 
 @pytest.mark.provider("qiskit")
+def test_mixed_register_ibm_pubs_validate_without_submission():
+    from mpqp.execution.providers.ibm import (
+        _normalize_estimator_pubs,  # pyright: ignore[reportPrivateUsage]
+    )
+    from qiskit.primitives.containers.estimator_pub import EstimatorPub
+
+    binding = CircuitBinding(
+        [QCircuit([X(0)], nb_qubits=3), QCircuit([X(0)], nb_qubits=4)],
+        measurements=[
+            ExpectationMeasure(Observable(pI @ pI @ pZ)),
+            ExpectationMeasure(Observable(pI @ pI @ pI @ pZ)),
+        ],
+        mode=BindingMode.ZIP,
+    )
+    translated = binding.to_other_device(IBMDevice.AER_SIMULATOR)
+    # Coercion validates shapes locally without submitting a job.
+    pubs = [
+        EstimatorPub.coerce(pub)
+        for pub in _normalize_estimator_pubs([pub for pub, _ in translated])
+    ]
+    assert [pub.circuit.num_qubits for pub in pubs] == [3, 4]
+
+
+@pytest.mark.provider("qiskit")
 @pytest.mark.parametrize("mode", list(BindingMode))
 @pytest.mark.parametrize("symbol_keys", [False, True])
 def test_parameter_order_and_observable_association(
@@ -328,7 +352,7 @@ def test_provider_parameters_forwarded(many_circuits: bool, many_devices: bool):
     with patch.object(
         runner,
         "_run_single",
-        side_effect=lambda circuit, device, *args: Result(
+        side_effect=lambda circuit, device, *args, **kwargs: Result(
             Job(JobType.STATE_VECTOR, circuit, device),
             StateVector(np.array([1, 0], dtype=np.complex128)),
         ),
@@ -337,7 +361,9 @@ def test_provider_parameters_forwarded(many_circuits: bool, many_devices: bool):
     assert execute.call_count == (2 if many_circuits else 1) * (
         2 if many_devices else 1
     )
-    assert all(call.args[4] is params for call in execute.call_args_list)
+    assert all(
+        call.kwargs["provider_params"] is params for call in execute.call_args_list
+    )
 
 
 def test_binding_runs_on_every_device():

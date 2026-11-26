@@ -23,6 +23,7 @@ from mpqp import (
     CircuitBinding,
     Depolarizing,
     ExpectationMeasure,
+    GOOGLEDevice,
     H,
     IBMDevice,
     Observable,
@@ -229,7 +230,7 @@ def test_runner_keeps_display_names_separate_from_circuit_labels(label: Optional
     before = deepcopy(circuit)
     with patch(
         "mpqp.execution.runner._run_single",
-        side_effect=lambda circ, *args: make_result(circ),
+        side_effect=lambda circ, *args, **kwargs: make_result(circ),
     ):
         batch = run([circuit], IBMDevice.AER_SIMULATOR)
     assert isinstance(batch, BatchResult)
@@ -413,7 +414,7 @@ def test_runner_and_nonstructural_queries_do_not_capture_inputs():
         side_effect=AssertionError("Unnecessary capture"),
     ), patch(
         "mpqp.execution.runner._run_single",
-        side_effect=lambda circ, *args: make_result(circ),
+        side_effect=lambda circ, *args, **kwargs: make_result(circ),
     ):
         batch = run([circuit, circuit], IBMDevice.AER_SIMULATOR)
         assert isinstance(batch, BatchResult)
@@ -534,11 +535,19 @@ def test_binding_matches_input_and_recorded_circuits():
     assert selected.get_matching(circuit=deepcopy(circuits[0])).results == [batch[0]]
 
 
-@pytest.mark.provider("qiskit")
+@pytest.mark.parametrize(
+    "device",
+    [
+        pytest.param(IBMDevice.AER_SIMULATOR, marks=pytest.mark.provider("qiskit")),
+        pytest.param(
+            GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, marks=pytest.mark.provider("cirq")
+        ),
+    ],
+)
 @pytest.mark.parametrize("mode", [BindingMode.PRODUCT, BindingMode.ZIP])
 @pytest.mark.parametrize("embedded", [False, True])
 def test_binding_inputs_follow_nested_sweeps_and_repeated_circuits(
-    mode: BindingMode, embedded: bool
+    mode: BindingMode, embedded: bool, device: AvailableDevice
 ):
     theta = Symbol("theta")
     first, second = QCircuit([Rx(theta, 0)]), QCircuit([Rx(theta, 0), X(0)])
@@ -558,7 +567,7 @@ def test_binding_inputs_follow_nested_sweeps_and_repeated_circuits(
     )
     # The public unroll contract remains a sequence of three-item executions.
     assert all(len(execution) == 3 for execution in binding.unroll())
-    batch = run(binding, IBMDevice.AER_SIMULATOR)
+    batch = run(binding, device)
     first_positions = [0, 1, 4, 5] if mode == BindingMode.PRODUCT else [0, 2]
     second_positions = [2, 3] if mode == BindingMode.PRODUCT else [1]
     assert batch.get_matching(circuit=deepcopy(first)).results == [
@@ -755,7 +764,9 @@ def test_save_and_load_do_not_capture_inputs(isolated_storage: Path):
         side_effect=AssertionError("Unnecessary capture"),
     ), patch(
         "mpqp.execution.runner._run_single",
-        side_effect=lambda circ, dev, values, *args: make_result(circ.subs(values)),
+        side_effect=lambda circ, dev, values, *args, **kwargs: make_result(
+            circ.subs(values)
+        ),
     ):
         batch = run([original], IBMDevice.AER_SIMULATOR, values)
         assert isinstance(batch, BatchResult)
@@ -781,7 +792,7 @@ def test_storage_preserves_generated_result_labels(isolated_storage: Path):
     circuit = QCircuit([X(0)])
     with patch(
         "mpqp.execution.runner._run_single",
-        side_effect=lambda circ, *args: make_result(circ),
+        side_effect=lambda circ, *args, **kwargs: make_result(circ),
     ):
         batch = run([circuit, circuit], IBMDevice.AER_SIMULATOR)
     assert isinstance(batch, BatchResult)
