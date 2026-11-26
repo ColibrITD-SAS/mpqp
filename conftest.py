@@ -87,8 +87,9 @@ def pytest_runtest_setup(item: pytest.Function):
     elif not providers:
         providers = []
 
-    provider_marker = item.get_closest_marker("provider")
-    if provider_marker:
-        required = provider_marker.args[0]
-        if "all" not in providers and required not in providers:
-            pytest.skip(f"Skipping test: provider '{required}' not active")
+    if "all" in providers:
+        return
+    for marker in item.iter_markers("provider"):
+        for required in marker.args:
+            if required not in providers:
+                pytest.skip(f"Skipping test: provider '{required}' not active")

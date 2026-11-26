@@ -305,6 +305,7 @@ def test_multi_observable_measure_returns_one_result():
         ),
     ],
 )
+@pytest.mark.provider("braket")
 def test_run_multiple_monomials_obs(c: CircuitBinding, value: list[float]):
     from mpqp.execution.runner import run
 
