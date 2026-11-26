@@ -2066,9 +2066,12 @@ class QCircuit:
             >>> cirq_circuit.append(cirq.H(q0)) # doctest: +CIRQ
             >>> cirq_circuit.append(cirq.CNOT(q0, q1)) # doctest: +CIRQ
             >>> qcircuit2 = QCircuit.from_other_language(cirq_circuit) # doctest: +CIRQ
-            >>> from mpqp.tools.maths import matrix_eq # doctest: +CIRQ
-            >>> matrix_eq(qcircuit1.to_matrix(), qcircuit2.to_matrix()) # doctest: +CIRQ
-            True
+            >>> print(qcircuit2) # doctest: +NORMALIZE_WHITESPACE, +CIRQ
+                 ┌───┐
+            q_0: ┤ H ├──■──
+                 ├───┤┌─┴─┐
+            q_1: ┤ I ├┤ X ├
+                 └───┘└───┘
 
             >>> from braket.circuits import Circuit # doctest: +BRAKET
             >>> braket_circuit = Circuit().h(0).cnot(0, 1) # doctest: +BRAKET
