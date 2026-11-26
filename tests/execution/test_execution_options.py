@@ -73,7 +73,7 @@ def test_aws_reservation_is_forwarded_through_provider_params(
         runner, "generate_job", lambda *args, **kwargs: SimpleNamespace()
     )
     params = AWSParams(reservation_arn="reservation")
-    result = runner._run_single(
+    result = runner.run(
         circuit(),
         AWSDevice.BRAKET_LOCAL_SIMULATOR,
         provider_params=params,

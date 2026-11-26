@@ -269,7 +269,9 @@ def test_zip_broadcast_execution_order_and_values(
 
 @pytest.mark.provider("qiskit")
 def test_mixed_register_ibm_pubs_validate_without_submission():
-    from mpqp.execution.providers.ibm import _normalize_estimator_pubs
+    from mpqp.execution.providers.ibm import (
+        _normalize_estimator_pubs,  # pyright: ignore[reportPrivateUsage]
+    )
     from qiskit.primitives.containers.estimator_pub import EstimatorPub
 
     binding = CircuitBinding(
@@ -281,10 +283,12 @@ def test_mixed_register_ibm_pubs_validate_without_submission():
         mode=BindingMode.ZIP,
     )
     translated = binding.to_other_device(IBMDevice.AER_SIMULATOR)
-    pubs = _normalize_estimator_pubs([pub for pub, _ in translated])
-    assert [pub[0].num_qubits for pub in pubs] == [3, 4]
-    for pub in pubs:
-        EstimatorPub.coerce(pub)  # Validate shapes locally; never submit a job.
+    # Coercion validates shapes locally without submitting a job.
+    pubs = [
+        EstimatorPub.coerce(pub)
+        for pub in _normalize_estimator_pubs([pub for pub, _ in translated])
+    ]
+    assert [pub.circuit.num_qubits for pub in pubs] == [3, 4]
 
 
 @pytest.mark.provider("qiskit")
