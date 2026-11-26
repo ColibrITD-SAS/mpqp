@@ -23,6 +23,7 @@ from mpqp import (
     CircuitBinding,
     Depolarizing,
     ExpectationMeasure,
+    GOOGLEDevice,
     H,
     IBMDevice,
     Observable,
@@ -534,11 +535,19 @@ def test_binding_matches_input_and_recorded_circuits():
     assert selected.get_matching(circuit=deepcopy(circuits[0])).results == [batch[0]]
 
 
-@pytest.mark.provider("qiskit")
+@pytest.mark.parametrize(
+    "device",
+    [
+        pytest.param(IBMDevice.AER_SIMULATOR, marks=pytest.mark.provider("qiskit")),
+        pytest.param(
+            GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, marks=pytest.mark.provider("cirq")
+        ),
+    ],
+)
 @pytest.mark.parametrize("mode", [BindingMode.PRODUCT, BindingMode.ZIP])
 @pytest.mark.parametrize("embedded", [False, True])
 def test_binding_inputs_follow_nested_sweeps_and_repeated_circuits(
-    mode: BindingMode, embedded: bool
+    mode: BindingMode, embedded: bool, device: AvailableDevice
 ):
     theta = Symbol("theta")
     first, second = QCircuit([Rx(theta, 0)]), QCircuit([Rx(theta, 0), X(0)])
@@ -558,7 +567,7 @@ def test_binding_inputs_follow_nested_sweeps_and_repeated_circuits(
     )
     # The public unroll contract remains a sequence of three-item executions.
     assert all(len(execution) == 3 for execution in binding.unroll())
-    batch = run(binding, IBMDevice.AER_SIMULATOR)
+    batch = run(binding, device)
     first_positions = [0, 1, 4, 5] if mode == BindingMode.PRODUCT else [0, 2]
     second_positions = [2, 3] if mode == BindingMode.PRODUCT else [1]
     assert batch.get_matching(circuit=deepcopy(first)).results == [
@@ -837,7 +846,8 @@ def test_storage_upgrades_legacy_result_labels(
         state,
     )
     with connect(isolated_storage) as connection:
-        connection.executescript("""
+        connection.executescript(
+            """
             DROP TABLE results;
             CREATE TABLE results (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -848,7 +858,8 @@ def test_storage_upgrades_legacy_result_labels(
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP
             );
             UPDATE version SET version = '1.0' WHERE id = 1;
-            """)
+            """
+        )
         if version == "1.1":
             original.label = "legacy display name"
             connection.execute("ALTER TABLE results ADD COLUMN label TEXT")
