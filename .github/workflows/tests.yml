@@ -75,9 +75,9 @@ jobs:
       - name: Run tests
         run: |
           if [[ "${{ github.event.inputs.long }}" == "true" || "${{ github.ref_name }}" == "main" || "${{ github.base_ref }}" == "main" ]]; then
-            python -m pytest --long-local --providers ${{ matrix.provider }} --seed 7
+            python -m pytest --long-local --providers ${{ matrix.provider }}
           else
-            python -m pytest --providers ${{ matrix.provider }} --seed 7
+            python -m pytest --providers ${{ matrix.provider }}
           fi
   typechecks:
     runs-on: ubuntu-latest
