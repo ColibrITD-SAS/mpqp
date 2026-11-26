@@ -254,8 +254,10 @@ class Job:
         self._status = job_status
 
     def __repr__(self) -> str:
-        # TODO: improve repr
-        return f"{type(self).__name__}({self.job_type}, {repr(self.circuit)}, {self.device}, mode={self.mode})"
+        return (
+            f"{type(self).__name__}({self.job_type}, {self.circuit!r}, "
+            f"{self.device}, mode=ExecutionMode.{self.mode.name})"
+        )
 
     def __eq__(self, other):  # pyright: ignore[reportMissingParameterType]
         if not isinstance(other, Job):
