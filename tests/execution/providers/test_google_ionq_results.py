@@ -26,11 +26,8 @@ def ionq_service(monkeypatch: pytest.MonkeyPatch) -> Mock:
 
 @pytest.fixture
 def ionq_sample_job() -> Job:
-    import cirq
-
     measure = BasisMeasure([0], shots=4)
     circuit = QCircuit([measure])
-    circuit.transpiled_circuit = cirq.Circuit(cirq.I(cirq.NamedQubit("q_0")))
     return Job(JobType.SAMPLE, circuit, GOOGLEDevice.IONQ_SIMULATOR, measure)
 
 
