@@ -1,12 +1,11 @@
 #! /usr/bin/env python3
-"""The ``setup_connections`` script helps you configuring the connections for
-all the supported remote backends. In time, it will also guide you to retrieve
-the tokens, passwords, etc... but for now, it is a prerequisite that you already
-have these credentials to use this script.
+"""The ``setup_connections`` script guides you through configuring accounts for
+supported remote backends.
 
-Information concerning which provider is configured and related credentials are
-stored in the ``~/.mpqp/.env`` file. MIMIQ uses browser login and saves its
-session token separately in ``~/.mpqp/mimiq-token.json`` by default."""
+MPQP stores its connection configuration in ``~/.mpqp/.env``. Authentication
+methods and credential storage depend on the provider; consult the corresponding
+connection documentation for details.
+"""
 
 import os
 
