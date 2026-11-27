@@ -1,409 +1,786 @@
-from typing import TYPE_CHECKING, Any, Optional, Union
+from configparser import ConfigParser
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Callable, NamedTuple, Optional
 
 from termcolor import colored
 
 if TYPE_CHECKING:
+    from boto3.session import Session as Boto3Session
     from braket.devices.device import Device as BraketDevice
 
-from mpqp.environment.env_manager import get_env_variable, save_env_variable
+from mpqp.environment.env_manager import (
+    get_env_variable,
+    remove_env_variable,
+    save_env_variable,
+)
 from mpqp.execution.devices import AWSDevice
 from mpqp.tools.errors import AWSBraketRemoteExecutionError
 
 
-def validate_aws_credentials() -> bool:
-    """Validate AWS credentials by calling STS get_caller_identity."""
-    try:
-        import boto3
+class _AWSFileState(NamedTuple):
+    content: bytes
+    mode: int
 
-        session = boto3.Session(profile_name="default")
-        sts_client = session.client("sts")
-        sts_client.get_caller_identity()
+
+def _get_aws_files() -> tuple[Path, Path]:
+    """Return the AWS credentials and config file paths."""
+
+    import os
+
+    default_aws_directory = Path.home() / ".aws"
+    credentials_file = Path(
+        os.environ.get("AWS_SHARED_CREDENTIALS_FILE")
+        or default_aws_directory / "credentials"
+    ).expanduser()
+    config_file = Path(
+        os.environ.get("AWS_CONFIG_FILE") or default_aws_directory / "config"
+    ).expanduser()
+    return credentials_file, config_file
+
+
+def _load_aws_file(path: Path) -> ConfigParser:
+    """Read an AWS credentials or config file."""
+    parser = ConfigParser(interpolation=None)
+    if path.exists():
+        with path.open(encoding="utf-8") as aws_file:
+            parser.read_file(aws_file)
+    return parser
+
+
+def _serialize_aws_file(parser: ConfigParser) -> bytes:
+    """Serialize the AWS configuration so it can be written to a file."""
+
+    from io import StringIO
+
+    serialized_file = StringIO()
+    parser.write(serialized_file)
+    return serialized_file.getvalue().encode("utf-8")
+
+
+def _stage_aws_file(path: Path, content: bytes, mode: int) -> Path:
+    """Write the new AWS file contents to a temporary file before replacing the original."""
+
+    import os
+    import tempfile
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary_file = tempfile.NamedTemporaryFile(
+        "wb",
+        dir=path.parent,
+        delete=False,
+    )
+    temporary_path = Path(temporary_file.name)
+    try:
+        with temporary_file:
+            temporary_file.write(content)
+            temporary_file.flush()
+            os.fsync(temporary_file.fileno())
+        if os.name != "nt":
+            temporary_path.chmod(mode)
+        return temporary_path
+    except BaseException:
+        try:
+            temporary_path.unlink(missing_ok=True)
+        except OSError:
+            pass
+        raise
+
+
+def _read_aws_file_state(path: Path) -> Optional[_AWSFileState]:
+    """Read an AWS file's contents and permissions."""
+
+    import stat
+
+    if not path.exists():
+        return None
+    return _AWSFileState(
+        content=path.read_bytes(),
+        mode=stat.S_IMODE(path.stat().st_mode),
+    )
+
+
+def _aws_file_matches(
+    path: Path,
+    expected: Optional[_AWSFileState],
+) -> bool:
+    """Check whether an AWS file matches the expected contents and permissions.
+
+    File permissions are compared only on POSIX systems.
+    """
+
+    import os
+
+    current = _read_aws_file_state(path)
+    if current is None or expected is None:
+        return current is expected
+    return current.content == expected.content and (
+        os.name == "nt" or current.mode == expected.mode
+    )
+
+
+def _restore_aws_file(
+    path: Path,
+    original: Optional[_AWSFileState],
+    saved: _AWSFileState,
+) -> None:
+    """Restore an AWS file unless another process has changed it."""
+
+    import os
+
+    if _aws_file_matches(path, original):
+        return
+    if not _aws_file_matches(path, saved):
+        raise OSError(
+            f"Cannot restore AWS file '{path}' because it changed after MPQP updated it."
+        )
+    if original is None:
+        path.unlink(missing_ok=True)
+        return
+
+    rollback_file = _stage_aws_file(path, original.content, original.mode)
+    try:
+        # Recheck in case the file changed while preparing the rollback.
+        if _aws_file_matches(path, original):
+            return
+        if not _aws_file_matches(path, saved):
+            raise OSError(
+                f"Cannot restore AWS file '{path}' because it changed after MPQP updated it."
+            )
+        os.replace(rollback_file, path)
+    finally:
+        rollback_file.unlink(missing_ok=True)
+
+
+def _save_aws_files(
+    credentials_file: Path,
+    credentials: Optional[ConfigParser],
+    config_file: Path,
+    config: Optional[ConfigParser],
+    *,
+    complete_update: Optional[Callable[[], None]] = None,
+) -> None:
+    """Save the AWS credentials and config files safely.
+
+    Both files are prepared before they are updated. If something fails during
+    the update, MPQP tries to restore the previous files.
+
+    If an AWS file is a symlink, MPQP updates the file it points to
+    without replacing the symlink.
+    """
+
+    import os
+
+    try:
+        credentials_file = credentials_file.resolve(strict=False)
+    except (OSError, RuntimeError) as error:
+        raise OSError("Could not resolve the AWS credentials file path.") from error
+    try:
+        config_file = config_file.resolve(strict=False)
+    except (OSError, RuntimeError) as error:
+        raise OSError("Could not resolve the AWS config file path.") from error
+
+    if credentials_file == config_file:
+        raise ValueError(
+            "AWS credentials and config files must use different paths. Check "
+            "AWS_SHARED_CREDENTIALS_FILE and AWS_CONFIG_FILE."
+        )
+
+    files = (
+        (credentials_file, credentials),
+        (config_file, config),
+    )
+    originals: dict[Path, Optional[_AWSFileState]] = {}
+    staged_files: dict[Path, Path] = {}
+    staged_states: dict[Path, _AWSFileState] = {}
+    replaced_files: list[Path] = []
+    for path, _ in files:
+        originals[path] = _read_aws_file_state(path)
+
+    try:
+        for path, parser in files:
+            if parser is None:
+                continue
+            content = _serialize_aws_file(parser)
+            staged_states[path] = _AWSFileState(content=content, mode=0o600)
+            staged_files[path] = _stage_aws_file(
+                path,
+                content,
+                0o600,
+            )
+
+        try:
+            for path, temporary_path in staged_files.items():
+                if not _aws_file_matches(path, originals[path]):
+                    raise OSError(
+                        f"AWS file '{path}' changed before MPQP could update it."
+                    )
+                os.replace(temporary_path, path)
+                replaced_files.append(path)
+            if complete_update is not None:
+                complete_update()
+        except Exception as operation_error:
+            rollback_errors: list[str] = []
+            for path in reversed(replaced_files):
+                try:
+                    _restore_aws_file(
+                        path,
+                        originals[path],
+                        staged_states[path],
+                    )
+                except Exception as rollback_error:
+                    rollback_errors.append(f"{path}: {rollback_error}")
+
+            if rollback_errors:
+                raise OSError(
+                    "Could not restore the AWS files after the update failed: "
+                    + ", ".join(rollback_errors)
+                ) from operation_error
+            raise
+    finally:
+        for temporary_path in staged_files.values():
+            temporary_path.unlink(missing_ok=True)
+
+
+def _get_aws_profile_region(profile_name: str) -> Optional[str]:
+    """Return the region set in an AWS profile."""
+
+    from botocore.session import Session as BotocoreSession
+
+    region = BotocoreSession(profile=profile_name).get_scoped_config().get("region")
+    if not isinstance(region, str) or not region.strip():
+        return None
+    return region.strip()
+
+
+def _is_identity_center_profile(profile_name: str) -> bool:
+    """Check whether the AWS profile is configured for IAM Identity Center."""
+
+    from botocore.session import Session as BotocoreSession
+
+    profile = BotocoreSession(profile=profile_name).get_scoped_config()
+    if profile.get("sso_session"):
         return True
-    except Exception as e:
-        print(colored("Invalid AWS credentials or configuration.", "red"))
-        print(colored(str(e), "red"))
-        return False
+    return all(
+        profile.get(key)
+        for key in ("sso_start_url", "sso_region", "sso_account_id", "sso_role_name")
+    )
+
+
+def _get_mpqp_aws_settings() -> dict[str, str]:
+    """Return the AWS connection values currently saved in MPQP."""
+
+    return {
+        "BRAKET_AUTH_METHOD": get_env_variable("BRAKET_AUTH_METHOD"),
+        "BRAKET_PROFILE": get_env_variable("BRAKET_PROFILE"),
+        "BRAKET_CONFIGURED": get_env_variable("BRAKET_CONFIGURED"),
+        "AWS_DEFAULT_REGION": get_env_variable("AWS_DEFAULT_REGION"),
+    }
+
+
+def _save_mpqp_aws_settings(
+    authentication_method: str,
+    profile_name: str,
+    configured: bool,
+    previous_settings: dict[str, str],
+) -> None:
+    """Save MPQP's AWS settings and restore their previous values on failure."""
+
+    new_settings = {
+        "BRAKET_AUTH_METHOD": authentication_method,
+        "BRAKET_PROFILE": profile_name,
+        "BRAKET_CONFIGURED": str(configured),
+    }
+    try:
+        for key, value in new_settings.items():
+            if save_env_variable(key, value) is False:
+                raise OSError(f"Unable to save MPQP configuration value '{key}'.")
+        if remove_env_variable("AWS_DEFAULT_REGION") is False:
+            raise OSError(
+                "Unable to remove MPQP configuration value 'AWS_DEFAULT_REGION'."
+            )
+    except Exception as settings_error:
+        rollback_errors: list[str] = []
+        for key, value in previous_settings.items():
+            try:
+                restored = (
+                    save_env_variable(key, value) if value else remove_env_variable(key)
+                )
+                if restored is False:
+                    rollback_errors.append(key)
+            except Exception:
+                rollback_errors.append(key)
+        if rollback_errors:
+            raise OSError(
+                "Unable to restore MPQP AWS configuration values: "
+                + ", ".join(rollback_errors)
+            ) from settings_error
+        raise
+
+
+def _switch_aws_profile(
+    profile_name: str,
+    previous_settings: dict[str, str],
+) -> None:
+    """Select an AWS profile and remove old credentials managed by MPQP."""
+
+    def save_profile_selection() -> None:
+        _save_mpqp_aws_settings(
+            authentication_method="PROFILE",
+            profile_name=profile_name,
+            configured=True,
+            previous_settings=previous_settings,
+        )
+
+    previous_profile_is_managed = (
+        previous_settings["BRAKET_AUTH_METHOD"] == "TEMPORARY"
+        and previous_settings["BRAKET_PROFILE"] == "mpqp-temporary"
+        and profile_name != "mpqp-temporary"
+    )
+    if not previous_profile_is_managed:
+        save_profile_selection()
+        return
+
+    credentials_file, config_file = _get_aws_files()
+    credentials = (
+        _load_aws_file(credentials_file) if credentials_file.exists() else None
+    )
+    config = _load_aws_file(config_file) if config_file.exists() else None
+    temporary_profile_removed = False
+    if credentials is not None:
+        temporary_profile_removed = credentials.remove_section("mpqp-temporary")
+    if config is not None:
+        temporary_profile_removed = (
+            config.remove_section("profile mpqp-temporary") or temporary_profile_removed
+        )
+
+    if not temporary_profile_removed:
+        save_profile_selection()
+        return
+
+    _save_aws_files(
+        credentials_file,
+        credentials,
+        config_file,
+        config,
+        complete_update=save_profile_selection,
+    )
+
+
+def get_boto3_session(
+    *,
+    profile_name: Optional[str] = None,
+    region_name: Optional[str] = None,
+) -> "Boto3Session":
+    """Create a Boto3 session using MPQP's profile or Boto3's default AWS credentials."""
+
+    import os
+
+    import boto3
+
+    selected_profile = profile_name or get_env_variable("BRAKET_PROFILE") or None
+
+    # AWS_DEFAULT_REGION was previously set to an empty string when the local
+    # AWS configuration was deleted. Remove that old value so Boto3 reads the
+    # region from the selected AWS profile.
+    if os.environ.get("AWS_DEFAULT_REGION") == "":
+        os.environ.pop("AWS_DEFAULT_REGION")
+
+    return boto3.Session(profile_name=selected_profile, region_name=region_name)
 
 
 def setup_aws_braket_account() -> tuple[str, list[Any]]:
-    """Set-up the connection to an Amazon Braket account using user input.
+    """Set up or update the Amazon Braket connection.
 
-    This function checks whether an Amazon Braket account is already configured
-    and prompts the user to update it if needed. The function attempts to configure
-    the Amazon Braket account using two authentication methods:
+    The user can select an existing AWS profile or provide short-term
+    credentials.
 
-    IAM (Identity and Access Management):
-        - The user is guided to enter their AWS access key, secret access key, and region.
-        - Credentials are stored in the default AWS credentials file.
-
-    SSO (Single Sign-On):
-        - The user is guided through the process of configuring SSO authentication.
-        - SSO credentials, including the session token, are retrieved and provided by the user
-            to complete the authentication process.
-
-    It then collects the user's AWS access key, AWS secret key (hidden input),
-    AWS session token (hidden input) in case of SSO auth and the AWS region for Amazon Braket.
+    For an existing AWS profile, MPQP saves only its name and does not modify
+    the profile. Short-term credentials entered in MPQP are stored in an AWS
+    profile used only by MPQP.
 
     Returns:
-        A tuple containing a message indicating the result of the setup (e.g.,
-        success, cancelled, or error, ...) and an empty list. The list is
-        included for consistency with the existing code structure.
+        A tuple containing a message indicating whether the setup finished or
+        was canceled, and an empty list. The list is included for consistency
+        with the other connection setup functions.
     """
 
-    from braket.aws import AwsSession
+    from mpqp.tools.choice_tree import AnswerNode, QuestionNode, run_choice_tree
 
     was_configured = get_env_variable("BRAKET_CONFIGURED") == "True"
 
     if was_configured:
         decision = input(
-            "An Amazon Braket account is already configured. Do you want to update it? [y/N] "
+            "An Amazon Braket account is already configured. Do you want to update "
+            "it? [y/N] "
         )
         if decision.lower().strip() != "y":
             return "Canceled.", []
 
-    print("\nChoose authentication method:")
-    print("  1. IAM (Identity and Access Management)")
-    print("  2. SSO (Single Sign-On)")
-    method = input("Select option [1/2]: ").strip()
-
-    if method == "1":
-        msg, _ = configure_account_iam()
-        print(
-            colored(
-                f"[IAM Authentication] {msg}", "green" if "successful" in msg else "red"
-            )
-        )
-    elif method == "2":
-        msg, _ = configure_account_sso()
-        print(
-            colored(
-                f"[SSO Authentication] {msg}", "green" if "successful" in msg else "red"
-            )
-        )
-    else:
-        print(colored("Invalid selection.", "red"))
-        return "Canceled.", []
-
-    if get_env_variable("BRAKET_CONFIGURED") == "True":
-        try:
-            import boto3
-
-            boto3.setup_default_session()
-            session = AwsSession()
-            save_env_variable("AWS_DEFAULT_REGION", session.region)
-            print(
-                colored(
-                    "[Braket Setup] Amazon Braket account correctly configured.",
-                    "green",
-                )
-            )
-            return "Amazon Braket account correctly configured.", []
-        except Exception as e:
-            print(
-                colored(
-                    "[Braket Setup] Amazon Braket authentication failed: AWS session not initialized properly.",
-                    "red",
-                )
-            )
-            print(colored(str(e), "red"))
-            input("Press 'Enter' to continue")
-            return "Amazon Braket authentication failed.", []
-
-    print(
-        colored(
-            f"[Braket Setup] Amazon Braket configuration failed.",
-            "red",
-        )
+    authentication_tree = QuestionNode(
+        "Choose an Amazon Braket connection method:",
+        [
+            AnswerNode(
+                "Option 1: Existing AWS profile",
+                configure_account_profile,
+            ),
+            AnswerNode(
+                "Option 2: Short-term credentials",
+                configure_account_temporary_credentials,
+            ),
+        ],
     )
-    return (
-        f"Amazon Braket configuration failed.",
-        [],
-    )
+    for answer in authentication_tree.answers:
+        answer.next_question = None
+
+    run_choice_tree(authentication_tree)
+    return "Amazon Braket setup ended.", []
 
 
 def update_aws_credentials_file(
     profile_name: str,
     access_key_id: str,
     secret_access_key: str,
-    session_token: Optional[str],
+    session_token: str,
     region: str,
-):
-    """Create or update the ``~/.aws/credentials`` file with the provided credentials.
-    Ensure that the directory and file exist before making changes.
+    *,
+    overwrite_existing: bool = False,
+    complete_update: Optional[Callable[[], None]] = None,
+) -> None:
+    """Save AWS credentials and configuration under a profile name.
+
+    The access keys are saved in the AWS credentials file, and the region is
+    saved in the AWS config file. Existing profiles are left unchanged unless
+    ``overwrite_existing`` is enabled. If ``complete_update`` fails, both AWS
+    files are restored.
     """
 
-    from configparser import ConfigParser
-    from pathlib import Path
+    credentials_file, config_file = _get_aws_files()
 
-    credentials_file = Path.home() / ".aws" / "credentials"
+    credentials = _load_aws_file(credentials_file)
+    config = _load_aws_file(config_file)
+    config_profile_name = (
+        "default" if profile_name == "default" else f"profile {profile_name}"
+    )
 
-    credentials_dir = credentials_file.parent
-    if not credentials_dir.exists():
-        credentials_dir.mkdir(parents=True, exist_ok=True)
+    profile_exists = credentials.has_section(profile_name) or config.has_section(
+        config_profile_name
+    )
+    if profile_exists and not overwrite_existing:
+        raise ValueError(f"AWS profile '{profile_name}' already exists.")
 
-    config = ConfigParser()
-    if credentials_file.exists():
-        config.read(credentials_file)
+    if credentials.has_section(profile_name):
+        credentials.remove_section(profile_name)
+    credentials.add_section(profile_name)
+    credentials[profile_name]["aws_access_key_id"] = access_key_id
+    credentials[profile_name]["aws_secret_access_key"] = secret_access_key
+    credentials[profile_name]["aws_session_token"] = session_token
 
-        if config.has_section(profile_name):
-            config.remove_section(profile_name)
+    if not config.has_section(config_profile_name):
+        config.add_section(config_profile_name)
+    config[config_profile_name]["region"] = region
 
-    config.add_section(profile_name)
-    config[profile_name]["aws_access_key_id"] = access_key_id
-    config[profile_name]["aws_secret_access_key"] = secret_access_key
-
-    if session_token:
-        config[profile_name]["aws_session_token"] = session_token
-
-    config[profile_name]["region"] = region
-
-    with open(credentials_file, "w") as f:
-        config.write(f)
+    _save_aws_files(
+        credentials_file,
+        credentials,
+        config_file,
+        config,
+        complete_update=complete_update,
+    )
 
 
-def configure_account_iam() -> tuple[str, list[Any]]:
-    """Configure IAM authentication for Amazon Braket."""
+def configure_account_profile(
+    profile_name: Optional[str] = None,
+) -> tuple[str, list[Any]]:
+    """Configure MPQP to use an existing AWS profile."""
+
+    if profile_name is None:
+        profile_name = input("Enter AWS profile name: ").strip()
+    if not profile_name:
+        return "AWS profile name is required.", []
+
+    previous_settings = _get_mpqp_aws_settings()
+
+    identity_center_profile = False
+    try:
+        identity_center_profile = _is_identity_center_profile(profile_name)
+        profile_region = _get_aws_profile_region(profile_name)
+        if profile_region is None:
+            return (
+                f"AWS profile '{profile_name}' has no default region. Add a region "
+                "to the profile before selecting it in MPQP.",
+                [],
+            )
+        session = get_boto3_session(
+            profile_name=profile_name,
+            region_name=profile_region,
+        )
+        session.client("sts").get_caller_identity()
+    except Exception as error:
+        message = (
+            f"Unable to authenticate with AWS profile '{profile_name}'. Verify "
+            "that the profile exists and its credentials are valid."
+        )
+        if identity_center_profile:
+            message += (
+                "\nIf its IAM Identity Center session has expired, run "
+                f"'aws sso login --profile {profile_name}', then try again."
+            )
+        return f"{message}\nTrace: {error}", []
+
+    try:
+        _switch_aws_profile(profile_name, previous_settings)
+    except Exception as error:
+        return (
+            "Unable to select the AWS profile without safely removing the "
+            f"previous configuration.\nTrace: {error}",
+            [],
+        )
+
+    return f"AWS profile '{profile_name}' configured successfully.", []
+
+
+def configure_account_temporary_credentials() -> tuple[str, list[Any]]:
+    """Configure short-term credentials in a profile managed by MPQP."""
+
+    profile_name = "mpqp-temporary"
+    previous_settings = _get_mpqp_aws_settings()
+    configured_profile = previous_settings["BRAKET_PROFILE"]
+    reuse_managed_profile = (
+        previous_settings["BRAKET_AUTH_METHOD"] == "TEMPORARY"
+        and configured_profile == profile_name
+    )
+    credentials_file, config_file = _get_aws_files()
+    credentials = _load_aws_file(credentials_file)
+    config = _load_aws_file(config_file)
+    profile_exists = credentials.has_section(profile_name) or config.has_section(
+        f"profile {profile_name}"
+    )
+    if profile_exists and not reuse_managed_profile:
+        return (
+            f"AWS profile '{profile_name}' already exists and was not created by "
+            "MPQP. Rename or remove it before configuring short-term credentials.",
+            [],
+        )
+
     from getpass import getpass
 
-    print("Please enter your IAM credentials for AWS:")
-
+    print("Please enter your AWS access keys, session token, and region:")
     access_key_id = input("Enter AWS access key ID: ").strip()
     secret_access_key = getpass("Enter AWS secret access key (hidden): ").strip()
+    session_token = getpass("Enter AWS session token (hidden): ").strip()
     region = input("Enter AWS region: ").strip()
+
+    if not access_key_id or not secret_access_key or not session_token or not region:
+        return (
+            "AWS access key, secret access key, session token, and region are "
+            "required.",
+            [],
+        )
 
     import boto3
 
-    session = boto3.Session(
-        aws_access_key_id=access_key_id,
-        aws_secret_access_key=secret_access_key,
-        region_name=region,
-    )
+    try:
+        session = boto3.Session(
+            aws_access_key_id=access_key_id,
+            aws_secret_access_key=secret_access_key,
+            aws_session_token=session_token,
+            region_name=region,
+        )
+        session.client("sts").get_caller_identity()
+    except Exception as error:
+        return f"Invalid or expired AWS credentials.\nTrace: {error}", []
+
+    def save_temporary_selection() -> None:
+        _save_mpqp_aws_settings(
+            authentication_method="TEMPORARY",
+            profile_name=profile_name,
+            configured=True,
+            previous_settings=previous_settings,
+        )
 
     try:
-        sts = session.client("sts")
-        sts.get_caller_identity()
-    except Exception as e:
-        save_env_variable("BRAKET_CONFIGURED", "False")
-        print(f"Error occurred: {e}")
-        return "Invalid AWS IAM credentials.", []
+        update_aws_credentials_file(
+            profile_name=profile_name,
+            access_key_id=access_key_id,
+            secret_access_key=secret_access_key,
+            session_token=session_token,
+            region=region,
+            overwrite_existing=reuse_managed_profile,
+            complete_update=save_temporary_selection,
+        )
+    except Exception as error:
+        return f"Unable to save the AWS profile.\nTrace: {error}", []
 
-    update_aws_credentials_file(
-        profile_name="default",
-        access_key_id=access_key_id,
-        secret_access_key=secret_access_key,
-        session_token=None,
-        region=region,
-    )
-
-    save_env_variable("BRAKET_AUTH_METHOD", "IAM")
-    save_env_variable("BRAKET_CONFIGURED", "True")
-
-    return "IAM configuration successful.", []
+    return "AWS temporary credentials configured successfully.", []
 
 
 def delete_aws_braket_account() -> tuple[str, list[Any]]:
-    """Deletes the locally stored AWS Braket configuration."""
-    import configparser
-    from pathlib import Path
+    """Remove the Amazon Braket configuration saved in MPQP.
 
+    The local profile created by MPQP for temporary credentials is deleted.
+    If the user selected an existing AWS profile, only its name is removed from
+    MPQP's configuration. The AWS profile and account are kept.
+
+    Returns:
+        A tuple containing a message describing the result and an empty list.
+    """
+
+    previous_settings = _get_mpqp_aws_settings()
+    authentication_method = previous_settings["BRAKET_AUTH_METHOD"]
+    configured_profile = previous_settings["BRAKET_PROFILE"]
+    profile_name = configured_profile or "default"
+    profile_is_managed = (
+        authentication_method == "TEMPORARY" and configured_profile == "mpqp-temporary"
+    )
+    if profile_is_managed:
+        deletion_description = (
+            "This will delete the temporary AWS credentials stored in the "
+            f"'{profile_name}' profile."
+        )
+    else:
+        deletion_description = (
+            "This will remove the AWS configuration saved in MPQP. "
+            f"The AWS '{profile_name}' profile will not be deleted."
+        )
     decision = input(
         colored(
-            "This will delete the local AWS Braket configuration (default profile). Continue? [y/N] ",
+            f"{deletion_description} Continue? [y/N] ",
             "yellow",
         )
     )
     if decision.lower().strip() != "y":
         return "Canceled.", []
 
-    credentials_file = Path.home() / ".aws" / "credentials"
-    config_file = Path.home() / ".aws" / "config"
-
-    try:
-        if credentials_file.exists():
-            parser = configparser.ConfigParser()
-            parser.read(credentials_file)
-
-            if parser.has_section("default"):
-                parser.remove_section("default")
-                with open(credentials_file, "w") as f:
-                    parser.write(f)
-    except Exception as err:
-        print(colored(f"Failed to update AWS credentials file: {err}", "red"))
-
-    try:
-        if config_file.exists():
-            parser = configparser.ConfigParser()
-            parser.read(config_file)
-
-            if parser.has_section("default"):
-                parser.remove_section("default")
-                with open(config_file, "w") as f:
-                    parser.write(f)
-    except Exception as err:
-        print(colored(f"Failed to update AWS config file: {err}", "red"))
-
-    save_env_variable("BRAKET_CONFIGURED", "False")
-    save_env_variable("BRAKET_AUTH_METHOD", "")
-    save_env_variable("AWS_DEFAULT_REGION", "")
-
-    print(colored("AWS Braket account deleted.", "green"))
-    input("Press 'Enter' to continue")
-    return "AWS Braket account deleted.", []
-
-
-def get_user_sso_credentials() -> Union[dict[str, str], None]:
-
-    from getpass import getpass
-
-    print("Please enter your AWS SSO credentials:")
-
-    try:
-        access_key_id = input("Enter AWS access key ID: ").strip()
-        secret_access_key = getpass("Enter AWS secret access key (hidden): ").strip()
-        session_token = getpass("Enter SSO session token (hidden): ").strip()
-        region = input("Enter SSO region: ").strip()
-
-        return {
-            "access_key_id": access_key_id,
-            "secret_access_key": secret_access_key,
-            "session_token": session_token,
-            "region": region,
-        }
-
-    except Exception as e:
-        print(f"An error occurred while getting credentials: {e}")
-        return None
-
-
-def configure_account_sso() -> tuple[str, list[Any]]:
-    """Configure SSO authentication for Amazon Braket."""
-
-    sso_credentials = get_user_sso_credentials()
-    if not sso_credentials:
-        save_env_variable("BRAKET_CONFIGURED", "False")
-        return "Failed to retrieve SSO credentials.", []
-
-    import os
-
-    import boto3
-
-    configured_region = os.environ.get("AWS_DEFAULT_REGION")
-    other_region = sso_credentials["region"]
-
-    if configured_region and configured_region != other_region:
-        save_env_variable("BRAKET_CONFIGURED", "False")
-        return (
-            f"Failed: SSO token is region-based.\n"
-            "Once a token is configured for a specific region, it becomes bound to that region."
-            "However, once authenticated, you can still access devices and services in other regions.",
-            [],
+    def clear_mpqp_settings() -> None:
+        _save_mpqp_aws_settings(
+            authentication_method="",
+            profile_name="",
+            configured=False,
+            previous_settings=previous_settings,
         )
 
-    session = boto3.Session(
-        aws_access_key_id=sso_credentials["access_key_id"],
-        aws_secret_access_key=sso_credentials["secret_access_key"],
-        aws_session_token=sso_credentials["session_token"],
-        region_name=sso_credentials["region"],
-    )
-
     try:
-        sts = session.client("sts")
-        sts.get_caller_identity()
-    except Exception as e:
-        save_env_variable("BRAKET_CONFIGURED", "False")
-        print(f"Error occurred: {e}")
-        return "Invalid AWS SSO credentials.", []
+        if profile_is_managed:
+            credentials_file, config_file = _get_aws_files()
+            config_profile = f"profile {profile_name}"
+            credentials = (
+                _load_aws_file(credentials_file) if credentials_file.exists() else None
+            )
+            config = _load_aws_file(config_file) if config_file.exists() else None
+            profile_removed = False
+            if credentials is not None:
+                profile_removed = credentials.remove_section(profile_name)
+            if config is not None:
+                profile_removed = (
+                    config.remove_section(config_profile) or profile_removed
+                )
+            if profile_removed:
+                _save_aws_files(
+                    credentials_file,
+                    credentials,
+                    config_file,
+                    config,
+                    complete_update=clear_mpqp_settings,
+                )
+            else:
+                clear_mpqp_settings()
+        else:
+            clear_mpqp_settings()
+    except Exception as error:
+        action = (
+            "delete the AWS profile"
+            if profile_is_managed
+            else "remove the Amazon Braket configuration"
+        )
+        return f"Unable to {action}.\nTrace: {error}", []
 
-    update_aws_credentials_file(
-        profile_name="default",
-        access_key_id=sso_credentials["access_key_id"],
-        secret_access_key=sso_credentials["secret_access_key"],
-        session_token=sso_credentials["session_token"],
-        region=sso_credentials["region"],
+    if profile_is_managed:
+        return (
+            f"AWS profile '{profile_name}' deleted and its MPQP configuration "
+            "removed.",
+            [],
+        )
+    return (
+        "Amazon Braket configuration removed from MPQP. "
+        f"AWS profile '{profile_name}' remains available.",
+        [],
     )
-
-    os.environ["AWS_DEFAULT_REGION"] = sso_credentials["region"]
-
-    save_env_variable("BRAKET_AUTH_METHOD", "SSO")
-    save_env_variable("BRAKET_CONFIGURED", "True")
-
-    return "SSO configuration successful.", []
 
 
 def get_aws_braket_account_info() -> str:
-    """Retrieves AWS Braket credentials information including access key ID, secret access key,
-    and region. For SSO authentication, the session token is also included.
+    """Retrieve information about the AWS configuration used for Amazon Braket.
+
+    The selected AWS credentials are validated before their information is
+    returned.
 
     Returns:
-        A formatted string containing AWS credentials information with an
-        obfuscated secret access key.
+        A formatted string containing the credential source, profile details
+        when applicable, region, and connection status.
+
+    Raises:
+        AWSBraketRemoteExecutionError: If Amazon Braket is not configured or the
+            AWS credentials cannot be validated.
 
     Examples:
         >>> print(get_aws_braket_account_info())
-            Authentication method: IAM
-            Access Key ID: 'AKIA26JFZI8JFZ18FI4N'
-            Secret Access Key: 'E9oF9*********************************'
+            Credential source: Existing AWS profile
+            Profile name: 'aws-sso-profile'
+            Profile authentication: IAM Identity Center (SSO)
             Region: 'us-east-1'
+            Connection status: Connected
 
         >>> print(get_aws_braket_account_info())
-            Authentication method: SSO
-            Access Key ID: 'ASIA26JFEZ6JEOZ9JC7K'
-            Secret Access Key: 'FiZp3***********************************'
-            SSO Session Token: 'EfGkf2kbI3nfC5V...IIZUf79jofZNF=='
+            Credential source: Short-term credentials
+            Profile name: 'mpqp-temporary'
             Region: 'us-east-1'
-
-    Note:
-        This function assumes that the AWS credentials are already configured
-        in the AWS credentials/config file ``~/.aws/credentials``.
-
+            Connection status: Connected
     """
 
-    from braket.aws import AwsSession
+    if get_env_variable("BRAKET_CONFIGURED") != "True":
+        raise AWSBraketRemoteExecutionError("No AWS Braket account configured.")
 
     try:
-        import boto3
-
-        boto3_session = boto3.Session(profile_name="default")
-        session = AwsSession(boto_session=boto3_session)
-
-        credentials = session.boto_session.get_credentials()
-        if credentials is None:
-            raise AWSBraketRemoteExecutionError("Could not retrieve AWS credentials")
-
-        access_key_id = credentials.access_key
-        secret_access_key = credentials.secret_key
-        obfuscated_key = secret_access_key[:5] + "*" * (len(secret_access_key) - 5)
-
-        session_token = credentials.token
-        if session_token:
-            auth_method = "SSO"
-            token_length = len(session_token)
-            obfuscated_token = (
-                f"{session_token[:15]}...{session_token[-15:]}"
-                if token_length > 30
-                else session_token
-            )
-
-        else:
-            obfuscated_token = ""
-            auth_method = "IAM"
-
-        region_name = session.boto_session.region_name
-
-    except Exception as e:
+        session = get_boto3_session()
+        session.client("sts").get_caller_identity()
+    except Exception as error:
         raise AWSBraketRemoteExecutionError(
-            "Error when trying to get AWS credentials. Possibly no AWS Braket account configured.\n Trace:"
-            + str(e)
-        )
+            "Error when validating the configured AWS credentials. Possibly no AWS "
+            "Braket account is configured.\nTrace: " + str(error)
+        ) from error
 
-    result = f"""    Authentication method: {auth_method}  
-    Access Key ID: '{access_key_id}'
-    Secret Access Key: '{obfuscated_key}'"""
-    if session_token:
-        result += f"\n    SSO Session Token: '{obfuscated_token}'"
+    profile_name = get_env_variable("BRAKET_PROFILE")
+    stored_auth_method = get_env_variable("BRAKET_AUTH_METHOD")
+    if profile_name:
+        credential_source = {
+            "PROFILE": "Existing AWS profile",
+            "TEMPORARY": "Short-term credentials",
+        }.get(stored_auth_method, "Unknown")
+    else:
+        credential_source = "Other AWS credentials"
 
-    result += f"\n    Region: '{region_name}'"
-    return result
+    information = [f"    Credential source: {credential_source}"]
+    if profile_name:
+        information.append(f"    Profile name: '{profile_name}'")
+    if stored_auth_method == "PROFILE" and profile_name:
+        credentials = session.get_credentials()
+        credential_method = getattr(credentials, "method", "")
+        if not isinstance(credential_method, str):
+            credential_method = ""
+        authentication_type = {
+            "sso": "IAM Identity Center (SSO)",
+            "assume-role": "Assume role",
+            "shared-credentials-file": "Access keys",
+            "config-file": "Access keys",
+            "custom-process": "Credential process",
+        }.get(credential_method, "Other")
+        information.append(f"    Profile authentication: {authentication_type}")
+    information.extend(
+        [
+            f"    Region: '{session.region_name}'",
+            "    Connection status: Connected",
+        ]
+    )
+    return "\n".join(information)
 
 
 def get_braket_device(
@@ -411,16 +788,22 @@ def get_braket_device(
     is_noisy: bool = False,
     is_gate_model: bool = True,
 ) -> "BraketDevice":
-    """Returns the AwsDevice device associate with the AWSDevice in parameter.
+    """Return the Braket device associated with the selected MPQP device.
 
     Args:
-        device: AWSDevice element describing which remote/local AwsDevice we want.
-        is_noisy: If the expected device is noisy or not.
-        is_gate_model: If the expected device supports gate-based circuits or not.
+        device: AWS device selected for execution.
+        is_noisy: Whether to use a simulator that supports noise.
+        is_gate_model: Whether to require a device that supports gate-based
+            circuits.
+
+    Returns:
+        The associated Braket device.
 
     Raises:
-        AWSBraketRemoteExecutionError: If the device or the region could not be
-            retrieved.
+        AWSBraketRemoteExecutionError: If the remote device or its region cannot
+            be retrieved.
+        DeviceJobIncompatibleError: If the selected device is retired or does
+            not support gate-based circuits.
 
     Example:
         >>> device = get_braket_device(AWSDevice.RIGETTI_ANKAA_3)
@@ -429,14 +812,25 @@ def get_braket_device(
          ResultType(name='Expectation', observables=['x', 'y', 'z', 'h', 'i'], minShots=10, maxShots=50000),
          ResultType(name='Variance', observables=['x', 'y', 'z', 'h', 'i'], minShots=10, maxShots=50000),
          ResultType(name='Probability', observables=None, minShots=10, maxShots=50000)]
-
     """
-    from braket.devices import LocalSimulator
 
     from mpqp.tools.errors import (
         AWSBraketRemoteExecutionError,
         DeviceJobIncompatibleError,
     )
+
+    if device.is_retired():
+        raise DeviceJobIncompatibleError(
+            f"{device.name} has been retired by Amazon Braket and cannot run new "
+            "jobs."
+        )
+    if is_gate_model and not device.is_gate_based():
+        raise DeviceJobIncompatibleError(
+            f"{device.name} supports Analog Hamiltonian Simulation, not MPQP "
+            "QCircuit jobs."
+        )
+
+    from braket.devices import LocalSimulator
 
     if not device.is_remote():
         if is_noisy:
@@ -444,53 +838,49 @@ def get_braket_device(
         else:
             return LocalSimulator()
 
-    from botocore.exceptions import NoRegionError
+    from botocore.exceptions import BotoCoreError, ClientError, NoRegionError
     from braket.aws import AwsDevice, AwsSession
 
     import mpqp
 
     try:
-        import boto3
+        boto3_session = get_boto3_session()
+        if device.is_simulator() and not boto3_session.region_name:
+            raise NoRegionError()
+        region = device.get_region(boto3_session.region_name)
 
-        braket_client = boto3.client("braket", region_name=device.get_region())
-        aws_session = AwsSession(braket_client=braket_client)
+        if boto3_session.region_name != region:
+            boto3_session = get_boto3_session(region_name=region)
+        braket_client = boto3_session.client("braket", region_name=region)
+
+        aws_session = AwsSession(
+            boto_session=boto3_session,
+            braket_client=braket_client,
+        )
         aws_session.add_braket_user_agent(
             user_agent="APN/1.0 ColibriTD/1.0 MPQP/" + mpqp.__version__
         )
         braket_device = AwsDevice(device.get_arn(), aws_session=aws_session)
 
-    except ValueError as ve:
+    except NoRegionError as error:
         raise AWSBraketRemoteExecutionError(
-            "Failed to retrieve remote AWS device. Please check the arn, or if the "
-            "device is accessible from your region.\nTrace: " + str(ve)
-        )
-    except NoRegionError as err:
+            "Failed to find the region associated with your AWS credentials. Make "
+            "sure your AWS account is correctly configured using "
+            "'setup_connections'."
+            "\nTrace: " + str(error)
+        ) from error
+    except (BotoCoreError, ClientError, ValueError) as error:
         raise AWSBraketRemoteExecutionError(
-            "Failed to find the region related with your aws credentials. Make sure you"
-            "configured correctly your AWS account with 'setup_connections.py' script."
-            "\nTrace: " + str(err)
-        )
-
-    if is_gate_model:
-        actions = getattr(getattr(braket_device, "properties", None), "action", None)
-        if actions is not None:
-            supported = [getattr(k, "value", str(k)) for k in actions.keys()]
-            supports_gate_model = any(
-                ("openqasm" in action.lower()) or ("jaqcd" in action.lower())
-                for action in supported
-            )
-            if not supports_gate_model:
-                raise DeviceJobIncompatibleError(
-                    f"{device.name} does not support gate-model workloads. "
-                    f"Supported Braket action types: {supported}. "
-                    "This is an AHS device, which cannot run MPQP QCircuit."
-                )
+            "Failed to retrieve the remote AWS device. Verify that the selected "
+            "AWS profile and region are valid and that the device is accessible."
+            "\nTrace: " + str(error)
+        ) from error
 
     return braket_device
 
 
 def get_all_task_ids() -> list[str]:
-    """Retrieves all the task ids of this account/group from AWS.
+    """Retrieve all Braket task IDs as full ARNs for the selected AWS profile.
 
     Example:
         >>> get_all_task_ids()
@@ -500,25 +890,23 @@ def get_all_task_ids() -> list[str]:
          'arn:aws:braket:us-east-1:752542621531:quantum-task/4b94c703-2ce8-480b-b3f3-ecb2580dbb82',
          'arn:aws:braket:us-east-1:752542621531:quantum-task/edc094aa-23e8-4a8c-87be-f2e09281d79d',
          'arn:aws:braket:us-east-1:752542621531:quantum-task/af9e623a-dd1c-4ecb-9db6-dbbd1af08110']
-
     """
-    from braket.aws import AwsSession
 
     if get_env_variable("BRAKET_CONFIGURED") == "True":
+        boto3_session = get_boto3_session()
+        braket_client = boto3_session.client("braket")
+        pages = braket_client.get_paginator("search_quantum_tasks").paginate(filters=[])
         return [
             task["quantumTaskArn"]
-            for task in (
-                AwsSession().braket_client.search_quantum_tasks(filters=[])[
-                    "quantumTasks"
-                ]
-            )
+            for page in pages
+            for task in page.get("quantumTasks", [])
         ]
     return []
 
 
 def get_all_partial_ids() -> list[str]:
-    """Retrieves all the task ids of this account/group from AWS and extracts the
-    significant part.
+    """Retrieve all Braket task IDs for the selected AWS profile without their
+    ARN prefixes.
 
     Example:
         >>> get_all_partial_ids()
@@ -528,6 +916,6 @@ def get_all_partial_ids() -> list[str]:
          '4b94c703-2ce8-480b-b3f3-ecb2580dbb82',
          'edc094aa-23e8-4a8c-87be-f2e09281d79d',
          'af9e623a-dd1c-4ecb-9db6-dbbd1af08110']
-
     """
-    return [id.split("/")[-1] for id in get_all_task_ids()]
+
+    return [task_id.split("/")[-1] for task_id in get_all_task_ids()]
