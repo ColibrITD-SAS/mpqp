@@ -485,86 +485,38 @@ class AWSDevice(AvailableDevice):
         The gate sets are based on Amazon Braket's QPU documentation:
         https://docs.aws.amazon.com/braket/latest/developerguide/braket-submit-tasks.html
         """
-        aqt_iqm_supported_gates: set[type[Gate]] = {
-            TOF,
-            CNOT,
-            SWAP,
-            CZ,
-            H,
-            Id,
-            Rx,
-            Rxx,
-            Ry,
-            Ryy,
-            Rz,
-            Rzz,
-            S,
-            S_dagger,
-            T,
-            X,
-            Y,
-            Z,
+        if native_set:
+            iqm_native_gates: set[type[Gate]] = {CZ, PRX}
+            ionq_native_gates: set[type[Gate]] = {Rzz}
+
+            native_gates: dict[AWSDevice, set[type[Gate]]] = {
+                AWSDevice.IQM_GARNET: iqm_native_gates,
+                AWSDevice.IQM_EMERALD: iqm_native_gates,
+                AWSDevice.AQT_IBEX_Q1: {PRX, Rxx, Rz},
+                AWSDevice.IONQ_FORTE_1: ionq_native_gates,
+                AWSDevice.IONQ_FORTE_ENTERPRISE_1: ionq_native_gates,
+                AWSDevice.RIGETTI_ANKAA_3: {Rx, Rz},
+            }
+
+            return native_gates.get(self, set())
+
+        base_gates: set[type[Gate]]
+        base_gates = {CNOT, H, Rx, Ry, Rz, S, SWAP, S_dagger, T, X, Y, Z}
+        iqm_gates: set[type[Gate]] = base_gates | {CZ, Id, Rxx, Ryy, Rzz, TOF}
+        ionq_gates: set[type[Gate]] = base_gates | {Rxx, Ryy, Rzz}
+        rigetti_gates: set[type[Gate]] = base_gates | {CZ, Id, TOF}
+
+        supported_gates: dict[AWSDevice, set[type[Gate]]] = {
+            AWSDevice.IQM_GARNET: iqm_gates,
+            AWSDevice.IQM_EMERALD: iqm_gates,
+            AWSDevice.AQT_IBEX_Q1: iqm_gates | {PRX},
+            AWSDevice.IONQ_FORTE_1: ionq_gates,
+            AWSDevice.IONQ_FORTE_ENTERPRISE_1: ionq_gates,
+            AWSDevice.RIGETTI_ANKAA_3: rigetti_gates,
+            AWSDevice.RIGETTI_CEPHEUS_1_108Q: rigetti_gates,
         }
 
-        if self in {AWSDevice.IQM_GARNET, AWSDevice.IQM_EMERALD}:
-            if native_set:
-                return {CZ, PRX}
-            return aqt_iqm_supported_gates
-
-        elif self == AWSDevice.AQT_IBEX_Q1:
-            if native_set:
-                return {PRX, Rxx, Rz}
-            return aqt_iqm_supported_gates | {PRX}
-
-        elif self in {
-            AWSDevice.IONQ_FORTE_1,
-            AWSDevice.IONQ_FORTE_ENTERPRISE_1,
-        }:
-            if native_set:
-                return {Rzz}
-            return {
-                CNOT,
-                SWAP,
-                H,
-                Rx,
-                Rxx,
-                Ry,
-                Ryy,
-                Rz,
-                Rzz,
-                S,
-                S_dagger,
-                T,
-                X,
-                Y,
-                Z,
-            }
-
-        elif self in {
-            AWSDevice.RIGETTI_ANKAA_3,
-            AWSDevice.RIGETTI_CEPHEUS_1_108Q,
-        }:
-            if native_set:
-                return {Rx, Rz} if self == AWSDevice.RIGETTI_ANKAA_3 else set()
-            return {
-                TOF,
-                CNOT,
-                SWAP,
-                CZ,
-                H,
-                Id,
-                Rx,
-                Ry,
-                Rz,
-                S,
-                S_dagger,
-                T,
-                X,
-                Y,
-                Z,
-            }
-
-        return set()
+        return supported_gates.get(self, set())
 
     @staticmethod
     def from_arn(arn: str):
