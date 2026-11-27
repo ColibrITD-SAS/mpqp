@@ -426,15 +426,21 @@ def get_ibm_job_status(job_id: str) -> JobStatus:
 
 
 def get_aws_job_status(job_id: str) -> JobStatus:
-    """Retrieves the status of a AWS Braket from the id in parameter, and
-    returns the corresponding JobStatus of this library.
+    """Retrieve a Braket task's status using the configured AWS credentials.
+
+    The task ARN determines the AWS region, independently of the profile's
+    default region.
 
     Args:
-        job_id: Id of the job for which we want to retrieve the status.
+        job_id: ARN of the task for which we want to retrieve the status.
     """
-    from braket.aws import AwsQuantumTask
+    from braket.aws import AwsQuantumTask, AwsSession
 
-    task = AwsQuantumTask(job_id)
+    from .connection.aws_connection import get_boto3_session
+
+    task_region = job_id.split(":")[3]
+    aws_session = AwsSession(boto_session=get_boto3_session(region_name=task_region))
+    task = AwsQuantumTask(job_id, aws_session=aws_session)
     state = task.state()
     if state == "FAILED":
         return JobStatus.ERROR
