@@ -60,3 +60,6 @@ Quantinuum,H1_1LE                           ,      ,✓      ,             ,✓ 
 Quantinuum,H2_1LE                           ,      ,✓      ,             ,✓          ,
 Quantinuum,H1_EMULATOR                      ,      ,✓      ,             ,✓          ,
 Quantinuum,H2_EMULATOR                      ,      ,✓      ,             ,✓          ,
+MIMIQ    ,CLOUD_STATEVECTOR                 ,      ,✓      ,             ,           ,
+MIMIQ    ,CLOUD_MPS                         ,      ,✓      ,             ,           ,
+MIMIQ    ,LOCAL_STATEVECTOR                 ,✓     ,✓      ,✓            ,           ,

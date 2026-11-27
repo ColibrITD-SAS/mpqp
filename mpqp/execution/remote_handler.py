@@ -11,6 +11,7 @@ from mpqp.execution.connection.aws_connection import get_all_task_ids as aws_ids
 from mpqp.execution.connection.azure_connection import get_all_job_ids as azure_ids
 from mpqp.execution.connection.google_connection import get_all_job_ids as cirq_ids
 from mpqp.execution.connection.ibm_connection import get_all_job_ids as ibm_ids
+from mpqp.execution.connection.mimiq_connection import get_all_job_ids as mimiq_ids
 from mpqp.execution.connection.qlm_connection import get_all_job_ids as qlm_ids
 from mpqp.execution.connection.quantinuum_connection import (
     get_all_job_ids as quantinuum_ids,
@@ -22,6 +23,7 @@ from mpqp.execution.devices import (
     AZUREDevice,
     GOOGLEDevice,
     IBMDevice,
+    MIMIQDevice,
     QUANTINUUMDevice,
 )
 from mpqp.execution.job import Job
@@ -29,6 +31,7 @@ from mpqp.execution.providers.atos import get_result_from_qlm_job_id
 from mpqp.execution.providers.aws import get_result_from_aws_task_arn
 from mpqp.execution.providers.azure import get_result_from_azure_job_id
 from mpqp.execution.providers.ibm import get_result_from_ibm_job_id
+from mpqp.execution.providers.mimiq import get_result_from_mimiq_job_id
 from mpqp.execution.providers.quantinuum import get_result_from_quantinuum_job_id
 
 
@@ -118,6 +121,12 @@ def get_remote_result(
             "Trying to retrieve a remote result while the device of the job was local."
         )
 
+    if isinstance(job_device, MIMIQDevice):
+        return get_result_from_mimiq_job_id(
+            job_id,
+            job=job_data if isinstance(job_data, Job) else None,
+            device=job_device,
+        )
     if isinstance(job_device, IBMDevice):
         return get_result_from_ibm_job_id(job_id)
     elif isinstance(job_device, ATOSDevice):
@@ -148,6 +157,7 @@ def get_all_remote_job_ids() -> dict[type[AvailableDevice], list[str]]:
         (ATOSDevice, AWSDevice, IBMDevice, ...).
     """
     job_ids: dict[type[AvailableDevice], list[str]] = {
+        MIMIQDevice: mimiq_ids(),
         AWSDevice: aws_ids(),
         ATOSDevice: qlm_ids(),
         IBMDevice: ibm_ids(),

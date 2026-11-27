@@ -6,6 +6,7 @@ from .devices import (
     AZUREDevice,
     GOOGLEDevice,
     IBMDevice,
+    MIMIQDevice,
     QUANTINUUMDevice,
 )
 from .job import Job, JobStatus, JobType

@@ -9,7 +9,8 @@ Each supported provider has its available devices listed as these enums:
 - :class:`AWSDevice`,
 - :class:`GOOGLEDevice`,
 - :class:`AZUREDevice`,
-- :class:`QUANTINUUMDevice`.
+- :class:`QUANTINUUMDevice`,
+- :class:`MIMIQDevice`.
 
 Not all combinations of :class:`AvailableDevice` and
 :class:`~mpqp.execution.job.JobType` are possible. Here is the list of
@@ -710,3 +711,45 @@ class QUANTINUUMDevice(AvailableDevice):
             QUANTINUUMDevice.TKET_AER_STATEVECTOR_SIMULATOR,
             QUANTINUUMDevice.TKET_QULACS_SIMULATOR,
         }
+
+
+class MIMIQDevice(AvailableDevice):
+    """Local and cloud MIMIQ simulators.
+
+    All devices support noiseless basis sampling. ``LOCAL_STATEVECTOR`` uses
+    Exaqt without an account and also returns complete statevectors, including
+    zero-shot basis measurements. Cloud devices support sampling only. General
+    observable jobs and MPQP noise models are not supported.
+
+    MPS sampling may involve truncation; use
+    :class:`~mpqp.execution.providers.providers_params.MimiqParams` to set its
+    bond dimension. Install ``mpqp[mimiq]`` for local and cloud execution.
+    """
+
+    LOCAL_STATEVECTOR = "local-statevector"
+    CLOUD_STATEVECTOR = "cloud-statevector"
+    CLOUD_MPS = "cloud-mps"
+
+    def is_remote(self) -> bool:
+        return self != MIMIQDevice.LOCAL_STATEVECTOR
+
+    def is_gate_based(self) -> bool:
+        return True
+
+    def is_simulator(self) -> bool:
+        return True
+
+    def is_noisy_simulator(self) -> bool:
+        return False
+
+    def supports_samples(self) -> bool:
+        return True
+
+    def supports_state_vector(self) -> bool:
+        return self == MIMIQDevice.LOCAL_STATEVECTOR
+
+    def supports_observable(self) -> bool:
+        return False
+
+    def supports_observable_ideal(self) -> bool:
+        return False

@@ -124,6 +124,19 @@ _________
 
 .. automodule:: mpqp.execution.providers.quantinuum
 
+MIMIQ
+^^^^^
+
+Connection
+__________
+
+.. automodule:: mpqp.execution.connection.mimiq_connection
+
+Execution
+_________
+
+.. automodule:: mpqp.execution.providers.mimiq
+
 .. _con-setup:
 
 Connection setup

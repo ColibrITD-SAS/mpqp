@@ -73,6 +73,7 @@ from mpqp.tools.maths import matrix_eq
 if TYPE_CHECKING:
     from braket.circuits import Circuit as braket_Circuit
     from cirq.circuits.circuit import Circuit as cirq_Circuit
+    from mimiqcircuits import Circuit as MimiqCircuit
     from pytket import Circuit as tket_Circuit
     from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
     from qiskit.circuit import QuantumCircuit
@@ -87,6 +88,7 @@ if TYPE_CHECKING:
         AZUREDevice,
         GOOGLEDevice,
         IBMDevice,
+        MIMIQDevice,
         QUANTINUUMDevice,
     )
     from mpqp.execution.job import JobType
@@ -217,6 +219,7 @@ class QCircuit:
                 myQLM_Circuit,
                 QuantumCircuit,
                 tket_Circuit,
+                MimiqCircuit,
             ],
         ] = {}
         """A pre-transpiled circuit to skip repeated transpilation when running 
@@ -1465,6 +1468,15 @@ class QCircuit:
     @overload
     def to_other_language(
         self,
+        language: Literal[Language.MIMIQ],
+        skip_pre_measure: bool = False,
+        skip_measurements: bool = False,
+        printing: bool = False,
+    ) -> MimiqCircuit: ...
+
+    @overload
+    def to_other_language(
+        self,
         language: Language,
         skip_pre_measure: bool = False,
         skip_measurements: bool = False,
@@ -1475,6 +1487,7 @@ class QCircuit:
         | braket_Circuit
         | cirq_Circuit
         | tket_Circuit
+        | MimiqCircuit
         | str
     ): ...
 
@@ -1490,6 +1503,7 @@ class QCircuit:
         | braket_Circuit
         | cirq_Circuit
         | tket_Circuit
+        | MimiqCircuit
         | str
     ):
         """Transforms this circuit into the corresponding circuit in the language
@@ -1569,6 +1583,11 @@ class QCircuit:
 
             return mpqp_to_qiskit(self, skip_pre_measure, skip_measurements, printing)
 
+        elif language == Language.MIMIQ:
+            from mpqp.translation.mimiq import mpqp_to_mimiq
+
+            return mpqp_to_mimiq(self, skip_pre_measure, skip_measurements)
+
         elif language == Language.MY_QLM:
             qasm2_code = self.to_other_language(
                 Language.QASM2,
@@ -1624,6 +1643,15 @@ class QCircuit:
     @overload
     def to_other_device(
         self,
+        device: MIMIQDevice,
+        skip_pre_measure: bool = False,
+        native_gate_set: bool = False,
+        backend_sim: Optional["AerSimulator"] = None,
+    ) -> MimiqCircuit: ...
+
+    @overload
+    def to_other_device(
+        self,
         device: ATOSDevice,
         skip_pre_measure: bool = False,
         native_gate_set: bool = False,
@@ -1673,7 +1701,9 @@ class QCircuit:
         skip_pre_measure: bool = False,
         native_gate_set: bool = False,
         backend_sim: Optional["AerSimulator"] = None,
-    ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit: ...
+    ) -> (
+        QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit | MimiqCircuit
+    ): ...
 
     def to_other_device(
         self,
@@ -1681,7 +1711,14 @@ class QCircuit:
         skip_pre_measure: bool = False,
         native_gate_set: bool = False,
         backend_sim: Optional["AerSimulator"] = None,
-    ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit | tket_Circuit:
+    ) -> (
+        QuantumCircuit
+        | myQLM_Circuit
+        | braket_Circuit
+        | cirq_Circuit
+        | tket_Circuit
+        | MimiqCircuit
+    ):
         """Transforms this circuit into the corresponding device specified
         in the ``device`` arg.
 
@@ -1738,10 +1775,21 @@ class QCircuit:
             AZUREDevice,
             GOOGLEDevice,
             IBMDevice,
+            MIMIQDevice,
             QUANTINUUMDevice,
         )
         from mpqp.execution.providers.ibm import JobType
         from mpqp.execution.simulated_devices import StaticIBMSimulatedDevice
+
+        if isinstance(device, MIMIQDevice):
+            skip_measurements = not self.measurements or (
+                len(self.measurements) == 1
+                and isinstance(self.measurements[0], BasisMeasure)
+                and self.measurements[0].shots == 0
+            )
+            return self.to_other_language(
+                Language.MIMIQ, skip_pre_measure, skip_measurements
+            )
 
         if isinstance(device, AZUREDevice):
             return self.to_other_device(

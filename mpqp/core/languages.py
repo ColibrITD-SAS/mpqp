@@ -18,3 +18,4 @@ class Language(Enum):
     TKET = auto()
     QASM2 = auto()
     QASM3 = auto()
+    MIMIQ = auto()

@@ -1,1 +1,2 @@
 mimiqcircuits==0.32.0
+mimiq-exaqt==0.6.0

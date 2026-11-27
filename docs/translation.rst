@@ -88,3 +88,8 @@ Cirq
 ----
 
 .. automodule:: mpqp.translation.cirq
+
+MIMIQ
+-----
+
+.. automodule:: mpqp.translation.mimiq

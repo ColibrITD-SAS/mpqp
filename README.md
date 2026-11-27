@@ -43,7 +43,13 @@ Provider integrations are available as optional extras:
 | Google Cirq          | `pip install "mpqp[cirq]"`   |
 | Azure Quantum        | `pip install "mpqp[azure]"`  |
 | Eviden myQLM/Qaptiva | `pip install "mpqp[myqlm]"`  |
+| MIMIQ                | `pip install "mpqp[mimiq]"`  |
 | All providers        | `pip install "mpqp[all]"`    |
+
+The `mimiq` extra includes cloud execution and Exaqt for offline sampling and
+statevectors on Windows x86-64, Linux x86-64, and macOS Apple Silicon. It is
+included in `all`. Use `MIMIQDevice.LOCAL_STATEVECTOR` for local execution
+without an account.
 
 Extras can be combined, for example:
 
@@ -65,6 +71,7 @@ Python-version-specific constraints.
 | Cirq                 | 1.7.0                                                           | [provider](requirements_providers/cirq.txt)                             |
 | Azure Quantum        | 3.6.1                                                           | [provider](requirements_providers/azure.txt)                            |
 | myQLM/Qaptiva        | 1.12.4                                                          | [provider](requirements_providers/myqlm.txt)                            |
+| MIMIQ                | MimiqCircuits 0.32.0, Exaqt 0.6.0                               | [provider](requirements_providers/mimiq.txt)                            |
 
 </details>
 
