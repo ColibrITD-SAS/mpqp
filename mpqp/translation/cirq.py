@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from mpqp.core.instruction.gates.gate import Gate
 from mpqp.core.instruction.gates.gate_decomposition import resolve_gate
@@ -9,6 +9,24 @@ from mpqp.environment.var_cache import (
     InstalledProviders,
 )
 
+if TYPE_CHECKING:
+    from typing import Protocol
+
+    from sympy import Expr
+
+    # Cirq's value_equality decorator erases the decorated classes' static types.
+    class _CirqEigenGate(Protocol):
+        @property
+        def exponent(self) -> float | Expr: ...
+
+        @property
+        def global_shift(self) -> float: ...
+
+    class _CirqGlobalPhaseGate(Protocol):
+        @property
+        def coefficient(self) -> complex | Expr: ...
+
+
 if InstalledProviders.CIRQ in _INSTALLED_MPQP_PROVIDERS:
 
     from cirq.circuits.circuit import Circuit as cirq_Circuit
@@ -17,23 +35,32 @@ if InstalledProviders.CIRQ in _INSTALLED_MPQP_PROVIDERS:
     from mpqp.core.circuit import QCircuit
 
     def cirq_to_mpqp(qcircuit: cirq_Circuit | Moment) -> QCircuit:
-        """Translate a cirq Circuit to a MPQP QCircuit.
-        Note:
-            If the provided qcircuit is a Moment it will be translated to a fully fledged cirq circuit.
-            Also since we use cirq's to_qasm method some edge cases are limited by the original library.
-        Args:
-            qcircuit: Any cirq Circuit, or for simpler circuits could be a sole Moment.
-        """
-        from copy import deepcopy
+        """Translate a Cirq circuit or moment to an MPQP circuit.
 
-        from cirq import MatrixGate, ops
+        Args:
+            qcircuit: Circuit or moment to translate.
+
+        Note:
+            XX, YY, and ZZ rotations retain their native representation and global
+            phase. Other gates use Cirq's QASM export and share its limitations.
+        """
+        import numpy as np
+
+        from cirq import (
+            EigenGate,
+            GlobalPhaseGate,
+            MatrixGate,
+            Operation,
+            QasmOutput,
+            ops,
+            unitary,
+        )
         from cirq.circuits.circuit import Circuit as cirq_Circuit
         from cirq.circuits.moment import Moment
 
         from mpqp import QCircuit
-        from mpqp.gates import CustomGate
+        from mpqp.gates import CustomGate, Rxx, Ryy, Rzz
 
-        qcircuit = deepcopy(qcircuit)
         from mpqp.translation.qasm.qasm_to_mpqp import (
             parse_qasm2_gates,
             qasm2_parse,
@@ -42,47 +69,52 @@ if InstalledProviders.CIRQ in _INSTALLED_MPQP_PROVIDERS:
         if isinstance(qcircuit, Moment):
             qcircuit = cirq_Circuit([qcircuit])
 
-        c = QCircuit()
         qubits = ops.QubitOrder.as_qubit_order(ops.QubitOrder.DEFAULT).order_for(
             qcircuit.all_qubits()
         )
-        split_index = 0
-        for i, moment in enumerate(qcircuit):
-            for operation in moment.operations:
-                # Cut the moments of the circuit if a matrixGate is encountered
-                if isinstance(operation.gate, MatrixGate):
-                    matrix = (
-                        operation.gate._matrix  # pyright: ignore[reportPrivateUsage]
-                    )
-                    targets = [qubits.index(qubit) for qubit in operation.qubits]
-                    qcircuit.batch_remove([(i, operation)])
-                    cir, phase = parse_qasm2_gates(
-                        qcircuit.from_moments(qcircuit[split_index:i]).to_qasm()
-                    )
-                    c += qasm2_parse(cir)
-                    c.input_g_phase += phase
-                    c.add(CustomGate(matrix, targets))
+        c = QCircuit(nb_qubits=len(qubits))
+        pending_operations: list[Operation] = []
+        rotations = {rotation.cirq_gate: rotation for rotation in (Rxx, Ryy, Rzz)}
 
-                    split_index = i
-                else:
-                    moment_ = moment.expand_to(qubits)
-
-                    qcircuit._moments.pop(i)  # type: ignore[reportPrivateUsage]
-
-                    qcircuit._moments.insert(  # pyright: ignore[reportPrivateUsage]
-                        i, moment_
-                    )
-
-        if split_index != 0:
-            cir, phase = parse_qasm2_gates(
-                qcircuit.from_moments(qcircuit[split_index:]).to_qasm()
+        def append_pending_operations() -> None:
+            if not pending_operations:
+                return
+            # Keep one qubit order across QASM segments and native operations.
+            code, phase = parse_qasm2_gates(
+                str(QasmOutput(pending_operations, qubits=qubits))
             )
-            c += qasm2_parse(cir)
+            c.add(qasm2_parse(code).instructions)
             c.input_g_phase += phase
-        else:
-            qasm2_code, gphase = parse_qasm2_gates(qcircuit.to_qasm())
-            c = qasm2_parse(qasm2_code)
-            c.input_g_phase = gphase
+            pending_operations.clear()
+
+        for operation in qcircuit.all_operations():
+            gate = operation.gate
+            if isinstance(gate, GlobalPhaseGate):
+                phase_gate = cast("_CirqGlobalPhaseGate", gate)
+                c.input_g_phase += float(np.angle(complex(phase_gate.coefficient)))
+            elif isinstance(gate, EigenGate) and isinstance(gate, tuple(rotations)):
+                append_pending_operations()
+                targets = [qubits.index(qubit) for qubit in operation.qubits]
+                rotation = next(
+                    rotation
+                    for cirq_gate, rotation in rotations.items()
+                    if isinstance(gate, cirq_gate)
+                )
+                eigen_gate = cast("_CirqEigenGate", gate)
+                angle = (
+                    eigen_gate.exponent * np.pi  # pyright: ignore[reportOperatorIssue]
+                )
+                c.add(rotation(angle, targets[0], targets[1]))
+                if eigen_gate.global_shift != -0.5:
+                    c.input_g_phase += float(angle * (eigen_gate.global_shift + 0.5))
+            elif isinstance(gate, MatrixGate):
+                append_pending_operations()
+                targets = [qubits.index(qubit) for qubit in operation.qubits]
+                c.add(CustomGate(unitary(gate), targets))
+            else:
+                pending_operations.append(operation)
+
+        append_pending_operations()
         return c
 
     def get_cirq_gate_set() -> set[type[Gate]]:

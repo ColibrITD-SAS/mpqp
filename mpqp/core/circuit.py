@@ -2069,9 +2069,9 @@ class QCircuit:
             >>> print(qcircuit2) # doctest: +NORMALIZE_WHITESPACE, +CIRQ
                  ┌───┐
             q_0: ┤ H ├──■──
-                 ├───┤┌─┴─┐
-            q_1: ┤ I ├┤ X ├
-                 └───┘└───┘
+                 └───┘┌─┴─┐
+            q_1: ─────┤ X ├
+                      └───┘
 
             >>> from braket.circuits import Circuit # doctest: +BRAKET
             >>> braket_circuit = Circuit().h(0).cnot(0, 1) # doctest: +BRAKET

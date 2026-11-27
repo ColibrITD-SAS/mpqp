@@ -7,9 +7,8 @@ Installation
 .. TODO: grab the compatibility matrix from MyQLM and relax our requirements 
 .. when possible, test on many different configurations (tox or other ?)
 
-For now, we support Python versions 3.10 to 3.13, and all of Windows, Linux and 
-MacOS (specifically, Linux was validated on Ubuntu LTS 20.04, while Ubuntu 18.04 
-is not supported, so your milage may vary).
+MPQP supports Python 3.11 through 3.13 on Windows, Linux, and macOS. Additional
+platform requirements depend on the optional provider SDKs installed.
 
 To install mpqp, you can run in a terminal:
 
@@ -105,18 +104,13 @@ You can also combine extras, for example, to install both Qiskit and Braket supp
         $ pip install mpqp[qiskit,braket]
 
 .. note::
-    For Mac users, additional steps are required before installation, 
-    specifically because of the ``myqlm`` library. To run these steps, you can 
-    either follow their instructions on 
-    `this page <https://myqlm.github.io/01_getting_started/%3Amyqlm%3Amacos.html#macos>`_
-    or run the script we created to facilitate this step:
+    If you use zsh on macOS and encounter a ``no matches found`` error, quote the
+    package name and extras, for example: ``pip install "mpqp[all]"``.
 
-    .. code-block:: console
-
-        $ curl -L https://raw.githubusercontent.com/ColibrITD-SAS/mpqp/main/mac-install.sh | bash -s -- <your-python-bin>
-        
-    where ``<your-python-bin>`` is the binary you use to invoke python. For instance, it could
-    be ``python``, ``python3``, or ``python3.10``.
+    If you encounter installation issues with ``mpqp[myqlm]`` or ``mpqp[all]``
+    on macOS, see the
+    `myQLM macOS installation guide <https://myqlm.github.io/01_getting_started/%3Amyqlm%3Amacos.html#macos>`_
+    for troubleshooting and any additional requirements for your environment.
 
 .. warning::
     The migration from ``qiskit`` version ``0.x`` to ``1.x`` caused a few issues. 
