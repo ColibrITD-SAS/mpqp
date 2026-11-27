@@ -586,6 +586,16 @@ def _run_circuit_binding(
                 f"not `{type(provider_params).__name__}`."
             )
         result = run_braket(job, provider_params)
+    elif isinstance(device, MIMIQDevice):
+        binding_results: list[Result] = []
+        for circuit, values, measurement in plan.executions:
+            prepared = circuit.without_measurements(deep_copy=False)
+            if measurement is not None:
+                prepared.add(deepcopy(measurement))
+            binding_results.append(
+                _run_single(prepared, device, values, False, provider_params)
+            )
+        result = BatchResult(binding_results)
     elif isinstance(device, GOOGLEDevice):
         raise NotImplementedError(f"Device {device} not handled")
         result = run_google(jobs)  # TODO

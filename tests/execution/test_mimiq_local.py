@@ -8,12 +8,15 @@ from unittest.mock import Mock
 
 import numpy as np
 import pytest
-from sympy import symbols
+from sympy import Symbol, symbols
 
 from mpqp import (
     CNOT,
     TOF,
     BasisMeasure,
+    BatchResult,
+    BindingMode,
+    CircuitBinding,
     CustomControlledGate,
     CustomGate,
     Depolarizing,
@@ -247,3 +250,66 @@ def test_mimiq_local_direct_binding_rebinding_and_overrides(shots: int):
     circuit.add(X(0))
     with pytest.raises(ValueError, match='Bind all circuit parameters'):
         run(circuit, DEVICE)
+
+
+@pytest.mark.parametrize('mode', [BindingMode.PRODUCT, BindingMode.ZIP])
+@pytest.mark.parametrize('nested', [False, True])
+def test_mimiq_binding_order_and_input_ownership(mode: BindingMode, nested: bool):
+    theta = Symbol('theta')
+    first = QCircuit([Ry(theta, 0)], nb_qubits=2)
+    second = QCircuit([Ry(theta, 1)], nb_qubits=2)
+    measure = BasisMeasure([1, 0], c_targets=[2, 0], shots=8)
+    originals = deepcopy([first, second, measure])
+    binding = CircuitBinding(
+        [first, second],
+        values=[{theta: cast(Complex, 0.0)}, {theta: cast(Complex, np.pi)}],
+        measurements=measure,
+        mode=mode,
+    )
+    if nested:
+        binding = CircuitBinding(binding)
+
+    result = run(binding, DEVICE, provider_params=MimiqParams(seed=3))
+
+    assert isinstance(result, BatchResult)
+    expected = ['00', '01', '00', '10'] if mode == BindingMode.PRODUCT else ['00', '10']
+    assert [
+        [(sample.bin_str, sample.count) for sample in item.samples] for item in result
+    ] == [[(bits, 8)] for bits in expected]
+    expected_inputs = (
+        [first, first, second, second]
+        if mode == BindingMode.PRODUCT
+        else [first, second]
+    )
+    assert all(
+        item.input_circuit is original
+        for item, original in zip(result, expected_inputs)
+    )
+    assert [first, second, measure] == originals
+
+
+def test_mimiq_binding_preserves_measurement_basis():
+    circuit = QCircuit([H(0)])
+    measure = BasisMeasure([0], shots=8, basis=HadamardBasis())
+    original = deepcopy(measure)
+    result = run(CircuitBinding(circuit, measurements=measure), DEVICE)
+    assert result[0].counts == [8, 0]
+    assert measure == original
+    assert circuit.measurements == []
+
+
+def test_mimiq_binding_statevectors_override_prepared_values():
+    theta = Symbol('theta')
+    circuit = QCircuit([Ry(theta, 1)], nb_qubits=2)
+    original = deepcopy(circuit)
+    circuit.bind_parameters(DEVICE, {theta: cast(Complex, np.pi)})
+    binding = CircuitBinding(
+        circuit,
+        values=[{theta: cast(Complex, 0.0)}, {theta: cast(Complex, np.pi)}],
+    )
+    result = run(binding, DEVICE)
+    assert isinstance(result, BatchResult)
+    np.testing.assert_allclose(result[0].amplitudes, [1, 0, 0, 0], atol=1e-12)
+    np.testing.assert_allclose(result[1].amplitudes, [0, 1, 0, 0], atol=1e-12)
+    assert circuit == original
+    assert circuit.variables() == {theta}

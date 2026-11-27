@@ -12,7 +12,7 @@ from unittest.mock import Mock, create_autospec
 import numpy as np
 import pytest
 from numpy.typing import NDArray
-from sympy import symbols
+from sympy import Symbol, symbols
 
 from mpqp import (
     CNOT,
@@ -22,6 +22,8 @@ from mpqp import (
     SWAP,
     TOF,
     BasisMeasure,
+    BatchResult,
+    CircuitBinding,
     CustomControlledGate,
     CustomGate,
     ExpectationMeasure,
@@ -572,3 +574,50 @@ def test_cloud_submission_uses_direct_parameter_binding(cloud: Mock):
         atol=1e-12,
     )
     assert circuit == original
+
+
+@pytest.mark.parametrize(
+    'device', [MIMIQDevice.CLOUD_MPS, MIMIQDevice.CLOUD_STATEVECTOR]
+)
+def test_mimiq_cloud_binding_preserves_jobs_and_options(
+    cloud: Mock, device: MIMIQDevice
+):
+    theta = Symbol('theta')
+    circuit = QCircuit([Ry(theta, 0)])
+    binding = CircuitBinding(
+        circuit,
+        values=[{theta: cast(Complex, 0.0)}, {theta: cast(Complex, np.pi)}],
+        measurements=BasisMeasure([0], shots=8),
+    )
+    raw_results = []
+    for bit in [0, 1]:
+        raw = mc.QCSResults()
+        raw.cstates = [mc.BitString([bit]) for _ in range(8)]
+        raw.fidelities = [1.0]
+        raw_results.append(raw)
+    cloud.submit.side_effect = ['binding-zero', 'binding-one']
+    cloud.get_result.side_effect = raw_results
+    result = run(
+        binding,
+        device,
+        provider_params=MimiqParams(seed=3, bonddim=4, entdim=4, timelimit=1),
+    )
+    assert isinstance(result, BatchResult)
+    assert [item.counts for item in result] == [[8, 0], [0, 8]]
+    assert [item.job.id for item in result] == ['binding-zero', 'binding-one']
+    assert all(item.input_circuit is circuit for item in result)
+    assert cloud.submit.call_count == 2
+    for call in cloud.submit.call_args_list:
+        assert call.kwargs['nsamples'] == 8
+        assert call.kwargs['seed'] == 3
+        assert call.kwargs['timelimit'] == 1
+        assert call.kwargs['algorithm'] == (
+            'mps' if device == MIMIQDevice.CLOUD_MPS else 'statevector'
+        )
+
+
+def test_mimiq_binding_rejects_other_provider_settings_before_cloud(cloud: Mock):
+    binding = CircuitBinding(QCircuit([H(0)]), measurements=BasisMeasure([0], shots=8))
+    with pytest.raises(TypeError, match='MimiqParams'):
+        run(binding, MIMIQDevice.CLOUD_MPS, provider_params=QiskitParams())
+    cloud.submit.assert_not_called()

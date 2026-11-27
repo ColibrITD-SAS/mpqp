@@ -21,6 +21,10 @@ or submit a job and retrieve it later:
     >>> job_id, job = submit(circuit, MIMIQDevice.CLOUD_MPS) # doctest: +SKIP
     >>> result = get_remote_result(job) # doctest: +SKIP
 
+``CircuitBinding`` inputs to :func:`~mpqp.execution.runner.run` execute in
+unroll order. Each expansion produces a separate simulator execution, including
+a separate cloud job when using a cloud device.
+
 Sample bitstrings follow ``BasisMeasure.targets`` in their declared order,
 independently of the classical register indices. Complete statevectors are
 available locally. Cloud statevectors, general observable jobs, and MPQP noise
