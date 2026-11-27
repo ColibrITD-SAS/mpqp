@@ -39,13 +39,17 @@ on:
           - "braket"
           - "myqlm"
           - "quantinuum"
+          - "azure"
 jobs:
   tests:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix: 
         python-version: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('["{0}"]', github.event.inputs.python_v) || '["3.11", "3.12", "3.13"]') }}
-        provider: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('["{0}"]', github.event.inputs.providers) || ((github.ref_name == 'main' || github.base_ref == 'main') && '["all", "qiskit", "cirq", "braket", "myqlm", "quantinuum"]' || '["all"]')) }}
+        provider: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('["{0}"]', github.event.inputs.providers) || ((github.ref_name == 'main' || github.base_ref == 'main') && '["all", "qiskit", "cirq", "braket", "myqlm", "quantinuum", "azure"]' || '["all"]')) }}
+        # Exercise each extra on PRs; main already covers every supported Python.
+        include: ${{ fromJSON(github.event_name == 'workflow_dispatch' && '[]' || '[{"python-version":"3.12","provider":"qiskit"},{"python-version":"3.12","provider":"cirq"},{"python-version":"3.12","provider":"braket"},{"python-version":"3.12","provider":"myqlm"},{"python-version":"3.12","provider":"quantinuum"},{"python-version":"3.12","provider":"azure"}]') }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -60,7 +64,7 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install ".[${{ matrix.provider }}]"
-          pip install -r requirements-dev.txt
+          pip install -r requirements-dev-tools.txt
       - name: Install os specific dependencies
         if: ${{ github.event.inputs.long == 'true' || github.ref_name == 'main' || github.base_ref == 'main'}}
         run: |
@@ -92,7 +96,6 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install -r requirements-all.txt
           pip install -r requirements-dev.txt
       - name: Run type checker
         run: pyright

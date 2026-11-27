@@ -1218,6 +1218,7 @@ def exec_validity_optim_ideal_single_diag_obs_and_regular_run(
         ),
     ],
 )
+@pytest.mark.provider("qiskit", "cirq", "braket", "myqlm", "quantinuum")
 def test_validity_optim_ideal_multi_diag_obs_and_regular_run(
     circuit: QCircuit, o1: Observable, o2: Observable
 ):
@@ -1273,6 +1274,7 @@ def test_validity_optim_ideal_multi_diag_obs_and_regular_run(
         (rand_unitary_matrix(8), 10),
     ],
 )
+@pytest.mark.provider("qiskit", "cirq", "braket", "myqlm", "quantinuum")
 def test_global_phase_statevector(matrix: Matrix, gphase: float):
     from itertools import pairwise
     from math import log2

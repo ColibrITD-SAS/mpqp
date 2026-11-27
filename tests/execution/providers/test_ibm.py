@@ -16,7 +16,6 @@ from qiskit.primitives.containers.estimator_pub import EstimatorPub
 from qiskit.primitives.containers.sampler_pub import SamplerPub
 from qiskit.quantum_info import SparsePauliOp, Statevector
 from qiskit_aer import AerSimulator
-from qiskit_ibm_runtime import EstimatorV2, SamplerV2
 from sympy import Symbol
 
 from mpqp import (
@@ -580,6 +579,8 @@ def test_extract_result_accepts_estimator_primitive_result():
     This test produces locally a PrimitiveResult and pass to extract result
     to test that the extraction is happening correctly."""
 
+    from qiskit_ibm_runtime import EstimatorV2
+
     qc = QuantumCircuit(1)
     qc.x(0)
     backend = AerSimulator()
@@ -602,6 +603,8 @@ def test_extract_result_accepts_estimator_primitive_result():
 
 @pytest.mark.provider("qiskit")
 def test_extract_result_accepts_sampler_primitive_result():
+
+    from qiskit_ibm_runtime import SamplerV2
 
     qc = QuantumCircuit(1, 1)  # classical register named "c", as produced by MPQP
     qc.x(0)
