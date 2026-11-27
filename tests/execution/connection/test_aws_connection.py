@@ -259,9 +259,11 @@ def test_short_term_credentials_update_mpqp_profile(
     assert config["profile mpqp-temporary"]["region"] == "eu-west-2"
 
 
+@pytest.mark.parametrize("assume_role", [False, True], ids=["access-keys", "role"])
 def test_select_profile_removes_short_term_credentials(
     mpqp_config: None,
     aws_files: tuple[Path, Path],
+    assume_role: bool,
 ):
     import boto3
 
@@ -281,7 +283,13 @@ def test_select_profile_removes_short_term_credentials(
     )
     config_file.write_text(
         "[profile mpqp-temporary]\nregion = us-east-1\n"
-        "[profile team-profile]\nregion = eu-west-1\n",
+        "[profile team-profile]\nregion = eu-west-1\n"
+        + (
+            "role_arn = arn:aws:iam::123456789012:role/team\n"
+            "source_profile = user-profile\n"
+            if assume_role
+            else ""
+        ),
         encoding="utf-8",
     )
     boto3_session = Mock(region_name="eu-west-1")
@@ -304,6 +312,57 @@ def test_select_profile_removes_short_term_credentials(
         "BRAKET_PROFILE": "team-profile",
         "AWS_DEFAULT_REGION": "",
     }
+
+
+@pytest.mark.parametrize("indirect", [False, True], ids=["direct", "transitive"])
+def test_select_dependent_role_preserves_short_term_credentials(
+    mpqp_config: None,
+    aws_files: tuple[Path, Path],
+    indirect: bool,
+):
+    import boto3
+
+    _save_mpqp_aws_config(
+        authentication_method="TEMPORARY",
+        profile_name="mpqp-temporary",
+    )
+    previous_settings = _get_mpqp_aws_config()
+    previous_mpqp_file = env_manager.MPQP_ENV.read_bytes()
+    credentials_file, config_file = aws_files
+    credentials_file.write_text(
+        "[mpqp-temporary]\n"
+        "aws_access_key_id = temporary-key\n"
+        "aws_secret_access_key = temporary-secret\n"
+        "aws_session_token = temporary-token\n",
+        encoding="utf-8",
+    )
+    source_profile = "intermediate" if indirect else "mpqp-temporary"
+    config_file.write_text(
+        "[profile mpqp-temporary]\nregion = us-east-1\n"
+        "[profile team-profile]\n"
+        "region = eu-west-1\n"
+        "role_arn = arn:aws:iam::123456789012:role/team\n"
+        f"source_profile = {source_profile}\n"
+        + (
+            "[profile intermediate]\n"
+            "role_arn = arn:aws:iam::123456789012:role/intermediate\n"
+            "source_profile = mpqp-temporary\n"
+            if indirect
+            else ""
+        ),
+        encoding="utf-8",
+    )
+    previous_credentials = credentials_file.read_bytes()
+    previous_config = config_file.read_bytes()
+
+    with patch.object(boto3, "Session", return_value=Mock()):
+        message, _ = aws_connection.configure_account_profile("team-profile")
+
+    assert "depends on MPQP-managed profile 'mpqp-temporary'" in message
+    assert credentials_file.read_bytes() == previous_credentials
+    assert config_file.read_bytes() == previous_config
+    assert env_manager.MPQP_ENV.read_bytes() == previous_mpqp_file
+    assert _get_mpqp_aws_config() == previous_settings
 
 
 def test_delete_short_term_credentials_preserves_other_profiles(

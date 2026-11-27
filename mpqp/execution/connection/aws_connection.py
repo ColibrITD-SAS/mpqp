@@ -266,6 +266,27 @@ def _is_identity_center_profile(profile_name: str) -> bool:
     )
 
 
+def _aws_profile_depends_on(profile_name: str, source_profile_name: str) -> bool:
+    """Check an assume-role profile's chain of source profiles."""
+
+    from botocore.session import Session as BotocoreSession
+
+    profiles = BotocoreSession().full_config["profiles"]
+    visited: set[str] = set()
+    while profile_name not in visited:
+        visited.add(profile_name)
+        profile = profiles.get(profile_name, {})
+        if not profile.get("role_arn") or profile.get("web_identity_token_file"):
+            return False
+        source_profile = profile.get("source_profile")
+        if not isinstance(source_profile, str):
+            return False
+        if source_profile == source_profile_name:
+            return True
+        profile_name = source_profile
+    return False
+
+
 def _get_mpqp_aws_settings() -> dict[str, str]:
     """Return the AWS connection values currently saved in MPQP."""
 
@@ -339,6 +360,13 @@ def _switch_aws_profile(
     if not previous_profile_is_managed:
         save_profile_selection()
         return
+
+    if _aws_profile_depends_on(profile_name, "mpqp-temporary"):
+        raise ValueError(
+            f"AWS profile '{profile_name}' depends on MPQP-managed profile "
+            "'mpqp-temporary'. Configure its source credentials independently "
+            "before selecting it in MPQP. The current configuration was preserved."
+        )
 
     credentials_file, config_file = _get_aws_files()
     credentials = (
@@ -491,7 +519,11 @@ def update_aws_credentials_file(
 def configure_account_profile(
     profile_name: Optional[str] = None,
 ) -> tuple[str, list[Any]]:
-    """Configure MPQP to use an existing AWS profile."""
+    """Configure MPQP to use an existing AWS profile.
+
+    When replacing MPQP-managed temporary credentials, profiles that depend on
+    those credentials are rejected without changing the current configuration.
+    """
 
     if profile_name is None:
         profile_name = input("Enter AWS profile name: ").strip()
