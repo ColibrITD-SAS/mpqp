@@ -44,8 +44,16 @@ if TYPE_CHECKING:
     from qiskit.primitives.containers import EstimatorPubLike
     from qiskit_aer import AerSimulator
 
-    from mpqp.execution._execution_context import ExecutionContext
-    from mpqp.execution.devices import AvailableDevice, AWSDevice, IBMDevice
+    from mpqp.execution._execution_context import (
+        ExecutionContext,
+        TranslatedBindingExecutionGroup,
+    )
+    from mpqp.execution.devices import (
+        AvailableDevice,
+        AWSDevice,
+        IBMDevice,
+        QUANTINUUMDevice,
+    )
 
 
 BindingExecution = tuple[QCircuit, Optional[BindingParameters], Optional[Measure]]
@@ -76,6 +84,16 @@ class BindingMode(Enum):
     ZIP = auto()
     """Associates elements positionally and broadcasts an axis containing a
     single element to the length of the longest axis."""
+
+
+def _binding_contains_measurements(binding: CircuitBinding) -> bool:
+    """Return whether this binding contains a measurement, directly or in a nested binding."""
+    if binding.measurements is not None:
+        return True
+    return any(
+        isinstance(circuit, CircuitBinding) and _binding_contains_measurements(circuit)
+        for circuit in binding.circuits
+    )
 
 
 class CircuitBinding:
@@ -200,10 +218,8 @@ class CircuitBinding:
         )
         from mpqp.execution.job import JobType
 
-        if circuits == []:
-            raise ValueError(
-                "At least one Circuit/CircuitBinding must be provided to a CircuitBinding."
-            )
+        if isinstance(circuits, Sequence) and len(circuits) == 0:
+            raise ValueError("CircuitBinding requires at least one circuit.")
 
         if mode == BindingMode.ZIP:
             lengths = [
@@ -252,6 +268,8 @@ class CircuitBinding:
 
         if isinstance(values, Sequence):
             parameters = list(values)
+            if not parameters:
+                raise ValueError("CircuitBinding values cannot be empty.")
         elif values is not None:
             parameters = [values]
         else:
@@ -270,16 +288,10 @@ class CircuitBinding:
         self.job_type = circuits[0].job_type
         self.nb_qubits = circuits[0].nb_qubits
         for circ in circuits:
-            if circ.job_type != self.job_type:
-                if (
-                    circ.job_type == JobType.STATE_VECTOR
-                    or self.job_type == JobType.STATE_VECTOR
-                ):
-                    self.job_type = circ.job_type
-                else:
-                    raise ValueError(
-                        "All circuits in CircuitBinding must have the same job type."
-                    )
+            if circ.job_type != self.job_type and measurements is None:
+                raise ValueError(
+                    "All circuits in CircuitBinding must have the same job type."
+                )
             if circ.is_noisy:
                 if isinstance(circ, CircuitBinding) and self.noises is None:
                     self.noises = circ.noises
@@ -310,6 +322,8 @@ class CircuitBinding:
                 if isinstance(measurements, Measure)
                 else list(measurements)
             )
+            if not measurements:
+                raise ValueError("CircuitBinding measurements cannot be empty.")
             measurements = [copy(measure) for measure in measurements]
             is_expectation = isinstance(measurements[0], ExpectationMeasure)
 
@@ -358,6 +372,15 @@ class CircuitBinding:
                 if is_expectation
                 else JobType.STATE_VECTOR if self.shots == 0 else JobType.SAMPLE
             )
+            if any(
+                isinstance(circuit, CircuitBinding)
+                and _binding_contains_measurements(circuit)
+                and circuit.job_type != self.job_type
+                for circuit in circuits
+            ):
+                raise ValueError(
+                    "Nested CircuitBindings cannot combine different job types."
+                )
 
         if (
             self.job_type != JobType.STATE_VECTOR
@@ -573,16 +596,22 @@ class CircuitBinding:
     ) -> list[tuple[EstimatorPubLike, list[ExecutionContext]]]: ...
     @overload
     def to_other_device(
+        self, device: QUANTINUUMDevice, backend_sim: Optional[AerSimulator] = None
+    ) -> list[TranslatedBindingExecutionGroup]: ...
+    @overload
+    def to_other_device(
         self, device: AvailableDevice, backend_sim: Optional[AerSimulator] = None
     ) -> (
         list[tuple[EstimatorPubLike, list[ExecutionContext]]]
         | tuple[ProgramSet, list[Any]]
+        | list[TranslatedBindingExecutionGroup]
     ): ...
     def to_other_device(
         self, device: AvailableDevice, backend_sim: Optional[AerSimulator] = None
     ) -> (
         list[tuple[EstimatorPubLike, list[ExecutionContext]]]
         | tuple[ProgramSet, list[Any]]
+        | list[TranslatedBindingExecutionGroup]
     ):
         """Translate a binding for the selected provider.
 
@@ -594,7 +623,9 @@ class CircuitBinding:
             For AWS devices, a Braket ``ProgramSet`` and the MPQP context used
             to reconstruct results. For IBM devices, a list pairing each
             Qiskit estimator PUB with execution contexts containing each job
-            and its unroll index before provider grouping.
+            and its unroll index before provider grouping. For Quantinuum, a
+            list pairing each symbolic TKET circuit with the execution contexts
+            that reuse it after provider compilation.
 
         Raises:
             ValueError: If IBM translation is requested for a binding that
@@ -605,6 +636,9 @@ class CircuitBinding:
             For IBM, PRODUCT/ZIP combinations are resolved before executions
             are grouped by circuit. PUB fields are circuit, observables and
             parameter values; absent trailing fields are omitted.
+            Quantinuum similarly groups executions by circuit and measurement,
+            compiles each symbolic TKET circuit once, and assigns numerical
+            parameters to copies of the compiled circuit.
             This method prepares provider input and execution context; it does
             not submit jobs. Prefer :func:`~mpqp.execution.runner.run` when
             execution results are needed.
@@ -612,6 +646,7 @@ class CircuitBinding:
         from mpqp.execution.devices import (
             AWSDevice,
             IBMDevice,
+            QUANTINUUMDevice,
         )
 
         if isinstance(device, IBMDevice):
@@ -623,6 +658,10 @@ class CircuitBinding:
             from mpqp.translation.braket import circuitbinding_to_programset
 
             return circuitbinding_to_programset(self, device)
+        elif isinstance(device, QUANTINUUMDevice):
+            from mpqp.translation.tket import circuitbinding_to_tket
+
+            return circuitbinding_to_tket(self, device)
         else:
             raise NotImplementedError(
                 f"Translation to {device} is not supported yet on CircuitBindings"

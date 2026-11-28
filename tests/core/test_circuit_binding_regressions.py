@@ -142,6 +142,33 @@ def test_shared_measure_is_embedded_per_resolved_circuit(
     assert measurement == original
 
 
+@pytest.mark.provider("qiskit")
+def test_binding_measurement_with_empty_targets():
+    from qiskit import QuantumCircuit
+
+    from mpqp.tools.binding_utils import translate_binding_measurements
+
+    measurement = BasisMeasure(shots=10)
+    binding = CircuitBinding(
+        [QCircuit([X(0)]), QCircuit([X(1)], nb_qubits=2)],
+        measurements=measurement,
+    )
+
+    translated = translate_binding_measurements(binding, IBMDevice.AER_SIMULATOR)
+    measurement_circuits = list(translated.values())
+
+    assert all(isinstance(circuit, QuantumCircuit) for circuit in measurement_circuits)
+    assert [circuit.num_qubits for circuit in measurement_circuits] == [1, 2]
+    assert [circuit.num_clbits for circuit in measurement_circuits] == [1, 2]
+    assert [circuit.count_ops()["measure"] for circuit in measurement_circuits] == [
+        1,
+        2,
+    ]
+    assert measurement.targets == []
+    assert binding.measurements is not None
+    assert binding.measurements[0].targets == []
+
+
 def test_product_rejects_measurement_too_wide_for_one_circuit():
     binding = CircuitBinding(
         [QCircuit(3), QCircuit(4)],
@@ -482,6 +509,68 @@ def test_binding_rejects_mixed_measurement_types(expectation_first: bool):
         measurements.reverse()
     with pytest.raises(ValueError, match="same type"):
         CircuitBinding(QCircuit(1), measurements=measurements)
+
+
+def test_binding_rejects_different_circuit_job_types():
+    state_circuit = QCircuit(1)
+    sample_circuit = QCircuit([X(0), BasisMeasure(shots=10)])
+
+    with pytest.raises(
+        ValueError,
+        match="All circuits in CircuitBinding must have the same job type",
+    ):
+        CircuitBinding([state_circuit, sample_circuit])
+
+
+@pytest.mark.parametrize(
+    ("child_measurement", "parent_measurement"),
+    [
+        (
+            BasisMeasure(shots=10),
+            ExpectationMeasure(Observable(pZ), shots=10),
+        ),
+        (
+            ExpectationMeasure(Observable(pZ), shots=10),
+            BasisMeasure(shots=10),
+        ),
+    ],
+)
+def test_nested_binding_rejects_different_job_types(
+    child_measurement: Measure,
+    parent_measurement: Measure,
+):
+    child_binding = CircuitBinding(QCircuit(1), measurements=child_measurement)
+    nested_binding = CircuitBinding(child_binding)
+
+    with pytest.raises(
+        ValueError,
+        match="Nested CircuitBindings cannot combine different job types",
+    ):
+        CircuitBinding(nested_binding, measurements=parent_measurement)
+
+
+def test_binding_rejects_empty_circuits():
+    with pytest.raises(
+        ValueError,
+        match="CircuitBinding requires at least one circuit",
+    ):
+        CircuitBinding(())
+
+
+def test_binding_rejects_empty_values():
+    with pytest.raises(
+        ValueError,
+        match="CircuitBinding values cannot be empty",
+    ):
+        CircuitBinding(QCircuit(1), values=())
+
+
+def test_binding_rejects_empty_measurements():
+    with pytest.raises(
+        ValueError,
+        match="CircuitBinding measurements cannot be empty",
+    ):
+        CircuitBinding(QCircuit(1), measurements=())
 
 
 @pytest.mark.provider("qiskit")

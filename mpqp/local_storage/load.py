@@ -191,7 +191,7 @@ def get_jobs_with_job(job: Job | list[Job]) -> list[Job]:
         Matching job(s) corresponding to the job(s) attributes
 
     Example:
-        >>> job = Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR)
+        >>> job = Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2), IBMDevice.AER_SIMULATOR)
         >>> print(get_jobs_with_job(job)) # doctest: +ELLIPSIS
         [Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR)]
 
@@ -215,7 +215,7 @@ def get_jobs_with_result(result: Result | list[Result] | BatchResult) -> list[Jo
 
     Example:
         >>> result = Result(
-        ...     Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR),
+        ...     Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2), IBMDevice.AER_SIMULATOR),
         ...     StateVector([1, 0, 0, 0]),
         ...     0,
         ...     0,
@@ -260,7 +260,7 @@ def get_results_with_result_and_job(
 
     Example:
         >>> result = Result(
-        ...     Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR),
+        ...     Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2), IBMDevice.AER_SIMULATOR),
         ...     StateVector([1, 0, 0, 0]),
         ...     0,
         ...     0,
@@ -292,7 +292,7 @@ def get_results_with_result(
 
     Example:
         >>> result = Result(
-        ...     Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR),
+        ...     Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2), IBMDevice.AER_SIMULATOR),
         ...     StateVector([1, 0, 0, 0]),
         ...     0,
         ...     0,

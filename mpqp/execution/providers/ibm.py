@@ -694,7 +694,10 @@ def run_aer(job: Job) -> Result | BatchResult:
                 shots=binding.shots,
             )
         elif job.job_type in (JobType.SAMPLE, JobType.STATE_VECTOR):
-            from mpqp.tools.binding_utils import translate_binding_circuits
+            from mpqp.tools.binding_utils import (
+                create_binding_execution_circuit,
+                translate_binding_circuits,
+            )
 
             unrolled_items = resolved
             bound_circuits = []
@@ -719,9 +722,7 @@ def run_aer(job: Job) -> Result | BatchResult:
                 else:
                     b_c = q_c.copy()
 
-                c_context = c.without_measurements(deep_copy=False)
-                if m is not None:
-                    c_context.add(deepcopy(m))
+                c_context = create_binding_execution_circuit(c, m)
                 if job.job_type == JobType.STATE_VECTOR:
                     b_c.save_statevector()  # pyright: ignore[reportAttributeAccessIssue]
                 elif job.job_type == JobType.SAMPLE:

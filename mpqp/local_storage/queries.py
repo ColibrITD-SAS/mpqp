@@ -259,7 +259,7 @@ def fetch_jobs_with_job(job: Job | list[Job]) -> list[DictDB]:
         Matching job(s) as dictionaries corresponding to the job(s) attributes
 
     Examples:
-        >>> job = Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR)
+        >>> job = Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2), IBMDevice.AER_SIMULATOR)
         >>> jobs = fetch_jobs_with_job(job)
         >>> for job in jobs:
         ...    print("job:", job) # doctest: +ELLIPSIS
@@ -325,7 +325,7 @@ def fetch_jobs_with_result_and_job(
         Matching job(s) as dictionaries corresponding to the result(s) attribute and job attribute of the result(s).
 
     Examples:
-        >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR,), StateVector([1, 0, 0, 0]),0,0)
+        >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2), IBMDevice.AER_SIMULATOR,), StateVector([1, 0, 0, 0]),0,0)
         >>> jobs = fetch_jobs_with_result_and_job(result)
         >>> for job in jobs:
         ...    print("job:", job) # doctest: +ELLIPSIS
@@ -404,7 +404,7 @@ def fetch_jobs_with_result(result: Result | BatchResult | list[Result]) -> list[
         Matching job(s) as dictionaries corresponding to the result(s) attribute.
 
     Examples:
-        >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR,), StateVector([1, 0, 0, 0]),0,0)
+        >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2), IBMDevice.AER_SIMULATOR,), StateVector([1, 0, 0, 0]),0,0)
         >>> jobs = fetch_jobs_with_result(result)
         >>> for job in jobs:
         ...    print("job:", job) # doctest: +ELLIPSIS
@@ -489,7 +489,7 @@ def fetch_results_with_result_and_job(
         Matching result(s) as dictionaries corresponding to the result(s) attribute and job attribute of the result(s).
 
     Examples:
-        >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR), StateVector([1, 0, 0, 0]), 0, 0)
+        >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2), IBMDevice.AER_SIMULATOR), StateVector([1, 0, 0, 0]), 0, 0)
         >>> results = fetch_results_with_result_and_job(result)
         >>> for result in results:
         ...    print("result:", result) # doctest: +ELLIPSIS
@@ -568,7 +568,7 @@ def fetch_results_with_job(jobs: Job | list[Job]) -> list[DictDB]:
         Matching result(s) as dictionaries corresponding to job attribute of the result(s).
 
     Examples:
-        >>> job = Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR)
+        >>> job = Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2), IBMDevice.AER_SIMULATOR)
         >>> results = fetch_results_with_job(job)
         >>> for result in results:
         ...    print("result:", result) # doctest: +ELLIPSIS
@@ -637,7 +637,7 @@ def fetch_results_with_result(
         Matching result(s) as dictionaries corresponding to the result(s) attribute.
 
     Examples:
-        >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR), StateVector([1, 0, 0, 0]), 0, 0)
+        >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2), IBMDevice.AER_SIMULATOR), StateVector([1, 0, 0, 0]), 0, 0)
         >>> results = fetch_results_with_result(result)
         >>> for result in results:
         ...    print("result:", result) # doctest: +ELLIPSIS

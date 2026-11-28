@@ -1,21 +1,26 @@
 import numpy as np
 import pytest
+from sympy import Symbol
 
 from mpqp import (
-    ExpectationMeasure,
+    AWSDevice,
     BasisMeasure,
-    X,
+    CircuitBinding,
+    ExpectationMeasure,
     H,
+    IBMDevice,
     Observable,
     QCircuit,
+    QUANTINUUMDevice,
     Rx,
+    Ry,
+    X,
     pI,
     pX,
     pY,
     pZ,
     run,
-    IBMDevice,
-    AWSDevice,
+    submit,
 )
 from mpqp.core.instruction.measurement import PauliString
 from mpqp.execution import adjust_measure
@@ -225,3 +230,39 @@ def test_run_batch_order_is_circuit_major():
         ("c2", devices[0]),
         ("c2", devices[1]),
     ]
+
+
+@pytest.mark.provider("quantinuum")
+def test_submit_rejects_separate_values_for_circuit_binding():
+    theta = Symbol("theta")
+    binding = CircuitBinding(
+        QCircuit([Ry(theta, 0)]),
+        measurements=BasisMeasure(shots=10),
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="values must be specified in CircuitBinding",
+    ):
+        submit(  # pyright: ignore[reportCallIssue]
+            binding,
+            QUANTINUUMDevice.NEXUS_AER_SIMULATOR,
+            values={theta: 0.5},  # pyright: ignore[reportArgumentType]
+        )
+
+
+@pytest.mark.provider("quantinuum")
+def test_submit_rejects_circuit_binding_on_unsupported_device():
+    binding = CircuitBinding(
+        QCircuit([X(0)]),
+        measurements=BasisMeasure(shots=10),
+    )
+
+    with pytest.raises(
+        NotImplementedError,
+        match="currently only supported on Quantinuum Nexus",
+    ):
+        submit(  # pyright: ignore[reportCallIssue]
+            binding,
+            IBMDevice.IBM_FEZ,  # pyright: ignore[reportArgumentType]
+        )

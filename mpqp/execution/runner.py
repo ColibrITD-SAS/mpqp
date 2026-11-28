@@ -500,7 +500,7 @@ def _run_single(
                 "`provider_params` must be a `QuantinuumParams` instance, "
                 f"not `{type(provider_params).__name__}`."
             )
-        return run_quantinuum(job, provider_params)
+        result = run_quantinuum(job, provider_params)
     else:
         raise NotImplementedError(f"Device {device} not handled")
 
@@ -585,6 +585,15 @@ def _run_circuit_binding(
     elif isinstance(device, AZUREDevice):
         raise NotImplementedError(f"Device {device} not handled")
         result = run_azure(jobs)  # TODO
+    elif isinstance(device, QUANTINUUMDevice):
+        if provider_params is not None and not isinstance(
+            provider_params, QuantinuumParams
+        ):
+            raise TypeError(
+                "`provider_params` must be a `QuantinuumParams` instance, "
+                f"not `{type(provider_params).__name__}`."
+            )
+        result = run_quantinuum(job, provider_params)
     else:
         raise NotImplementedError(f"Device {device} not handled")
 
@@ -757,17 +766,37 @@ def run(
     return _run_single(circuit, device, values, display_breakpoints, provider_params)
 
 
+@overload
 def submit(
     circuit: QCircuit,
     device: AvailableDevice,
     values: Optional[BindingParameters] = None,
     provider_params: Optional[ProviderParams] = None,
+) -> tuple[str | list[str], Job]: ...
+
+
+@overload
+def submit(
+    circuit: CircuitBinding,
+    device: QUANTINUUMDevice,
+    values: None = None,
+    provider_params: Optional[QuantinuumParams] = None,
+) -> tuple[str, Job]: ...
+
+
+def submit(
+    circuit: QCircuit | CircuitBinding,
+    device: AvailableDevice,
+    values: Optional[BindingParameters] = None,
+    provider_params: Optional[ProviderParams] = None,
 ) -> tuple[str | list[str], Job]:
     """Submit the job related to the circuit on the remote backend provided in
-    parameter. The submission returns a ``job_id`` that can be used to retrieve
-    the :class:`~mpqp.execution.result.Result` later using the
-    :func:`~mpqp.execution.remote_handler.get_remote_result`
-    function.
+    parameter. The submission returns the provider's ``job_id`` and the
+    associated MPQP :class:`~mpqp.execution.job.Job`.
+
+    For Quantinuum CircuitBinding and observable submissions, retrieve the
+    result with the returned MPQP job: ``get_remote_result(job)``. The job ID
+    alone does not contain enough information for MPQP to rebuild these results.
 
     If the circuit contains symbolic variables (see section :ref:`VQA` for more
     information), the ``values`` parameter is used perform the necessary
@@ -776,14 +805,16 @@ def submit(
     Note that this function only supports single device submissions.
 
     Args:
-        circuit: QCircuit to be run.
+        circuit: Circuit or circuit binding to be run. Circuit-binding
+            submission is currently supported on Quantinuum Nexus.
         device: Remote device to which the circuit will be submitted.
         values: Values to substitute for symbolic variables. Defaults to ``{}``.
         provider_params: Provider's specific parameters for remote submissions
 
     Returns:
         The job id or ids provided by the remote device after
-        submission and the associated MPQP job.
+        submission and the associated MPQP job. Keep the returned job when
+        submitting a Quantinuum CircuitBinding or observable job.
 
     Example:
         >>> circuit = QCircuit([H(0), CNOT(0,1), BasisMeasure([0,1], shots=10)])
@@ -797,12 +828,24 @@ def submit(
         Unlike :func:`run`, you can only submit on one device at a time.
     """
 
-    if values is None:
-        values = {}
     if not device.is_remote():
         raise RemoteExecutionError(
             "submit(...) function is only made for remote device."
         )
+
+    from mpqp.core.binding import CircuitBinding
+
+    if isinstance(circuit, CircuitBinding):
+        if values is not None:
+            raise ValueError("values must be specified in CircuitBinding")
+        if not isinstance(device, QUANTINUUMDevice):
+            raise NotImplementedError(
+                "CircuitBinding submission is currently only supported on "
+                "Quantinuum Nexus."
+            )
+
+    if isinstance(circuit, QCircuit) and values is None:
+        values = {}
 
     job = generate_job(circuit, device, values)
     job.status = JobStatus.INIT

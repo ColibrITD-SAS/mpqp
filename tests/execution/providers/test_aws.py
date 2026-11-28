@@ -268,6 +268,7 @@ def test_retrieve_sampled_braket_observables(
     retrieved = get_remote_result(job)
 
     assert isinstance(original, Result)
+    assert isinstance(retrieved, Result)
     assert original.expectation_values == pytest.approx(expected, abs=0.1)
     assert retrieved.expectation_values == pytest.approx(original.expectation_values)
     assert retrieved.job is job
@@ -341,6 +342,7 @@ def test_retrieve_exact_braket_observables(
     retrieved = get_remote_result(job)
 
     assert isinstance(original, Result)
+    assert isinstance(retrieved, Result)
     assert original.expectation_values == pytest.approx(expected)
     assert retrieved.expectation_values == pytest.approx(expected)
     assert retrieved.job is job
@@ -372,6 +374,7 @@ def test_retrieve_exact_braket_observables_with_cached_result_types(
     run_braket(job)
     retrieved = get_remote_result(job)
 
+    assert isinstance(retrieved, Result)
     assert retrieved.expectation_values == pytest.approx(2)
     assert cached.result_types == original_result_types
 
@@ -386,6 +389,7 @@ def test_retrieve_unmarked_braket_observable_by_arn(local_braket_remote: Mock):
 
     retrieved = get_remote_result(local_braket_remote.id, job.device)
 
+    assert isinstance(retrieved, Result)
     assert retrieved.expectation_values == pytest.approx(2)
 
 
@@ -399,6 +403,7 @@ def test_retrieve_braket_samples_by_arn(local_braket_remote: Mock):
 
     retrieved = get_remote_result(local_braket_remote.id, job.device)
 
+    assert isinstance(retrieved, Result)
     assert retrieved.counts == [0, 10]
     assert retrieved.job.id == local_braket_remote.id
 

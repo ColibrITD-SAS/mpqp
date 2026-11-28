@@ -278,19 +278,21 @@ def run_pseudo_circuit_binding(
         assert isinstance(cb, CircuitBinding)
         assert isinstance(job.device, AWSDevice)
 
+    resolved = job._get_binding_executions()  # pyright: ignore[reportPrivateUsage]
     translated_circuit = translate_binding_circuits(cb, job.device)
-    translated_measurement = translate_binding_measurements(cb, job.device)
+    translated_measurement = translate_binding_measurements(
+        cb, job.device, executions=resolved
+    )
     device = get_braket_device(job.device, is_noisy=cb.is_noisy)
     reservation_arn = provider_params.reservation_arn if provider_params else None
     results = []
     job_ids: list[str] = []
 
     job.status = JobStatus.RUNNING
-    resolved = job._get_binding_executions()  # pyright: ignore[reportPrivateUsage]
     for c, v, m in resolved:
         transpiled_circuit = translated_circuit[id(c)]
         transpiled_measurement = (
-            translated_measurement[id(m)] if m is not None else None
+            translated_measurement[(id(m), c.nb_qubits)] if m is not None else None
         )
         braket_inputs = (
             {str(key): value for key, value in v.items()} if v is not None else None
@@ -1090,7 +1092,6 @@ def submit_job_braket(
         # TODO : [multi-obs] update this to take into account the case when we have list of Observables
         if TYPE_CHECKING:
             assert isinstance(job.measure, ExpectationMeasure)
-
         if job.device not in job.measure.observables[0].pre_transpiled:
             herm_op = job.measure.observables[0].to_other_language(Language.BRAKET)
         else:

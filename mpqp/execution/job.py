@@ -26,8 +26,8 @@ if TYPE_CHECKING:
     from ..core.circuit import QCircuit
     from ..core.binding import BindingExecution, CircuitBinding
 
-from mpqp.core.instruction.measurement import BasisMeasure, ExpectationMeasure, Measure
 from mpqp.core._types import BindingParameters
+from mpqp.core.instruction.measurement import BasisMeasure, ExpectationMeasure, Measure
 
 from ..tools.errors import IBMRemoteExecutionError, QLMRemoteExecutionError
 from .connection.azure_connection import get_jobs_by_id
@@ -153,9 +153,9 @@ class Job:
 
         if not isinstance(self.circuit, CircuitBinding):
             raise TypeError("Binding executions require a CircuitBinding job.")
-        if self._binding_executions is not None:
-            return self._binding_executions
-        return self.circuit.unroll()
+        if self._binding_executions is None:
+            self._binding_executions = self.circuit.unroll()
+        return self._binding_executions
 
     @property
     def measure(self) -> Optional[Measure]:
@@ -305,7 +305,7 @@ class Job:
         Uses :func:`~mpqp.local_storage.load.get_jobs_with_job`.
 
         Example:
-            >>> job = Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR)
+            >>> job = Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2), IBMDevice.AER_SIMULATOR)
             >>> print(job.load_similar()) # doctest: +ELLIPSIS
             [Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR)]
         """

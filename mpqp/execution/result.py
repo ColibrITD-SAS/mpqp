@@ -806,7 +806,7 @@ class Result:
         Example:
             >>> result = Result(Job(
             ...     JobType.STATE_VECTOR,
-            ...     QCircuit([], nb_qubits=2, label="circuit 1"),
+            ...     QCircuit([], nb_qubits=2),
             ...     IBMDevice.AER_SIMULATOR
             ... ), StateVector([1, 0, 0, 0]), 0, 0)
             >>> for result in result.load_similar(): # doctest: +ELLIPSIS

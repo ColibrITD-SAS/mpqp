@@ -219,9 +219,9 @@ class QCircuit:
                 tket_Circuit,
             ],
         ] = {}
-        """A pre-transpiled circuit to skip repeated transpilation when running 
-        the circuit. Useful when working with a symbolic circuit that needs to
-        be executed with different parameters."""
+        """Provider circuits cached for each device to avoid translating and
+        transpiling the same circuit again.
+        """
         self._transpilation_templates = self.transpiled_circuit.copy()
         """Original provider circuits retained when a cached circuit is bound."""
         self._transpilation_key: Optional[ObjectKey] = None
@@ -1612,12 +1612,13 @@ class QCircuit:
             self._generated_g_phase = 0
             return qasm3_code
         elif language == Language.TKET:
-            circuit_qiskit = self.to_other_language(
-                Language.QISKIT, skip_measurements, skip_pre_measure
-            )
-            from pytket.extensions.qiskit.qiskit_convert import qiskit_to_tk
+            from mpqp.translation.tket import mpqp_to_tket
 
-            return qiskit_to_tk(circuit_qiskit)
+            return mpqp_to_tket(
+                self,
+                skip_pre_measure=skip_pre_measure,
+                skip_measurements=skip_measurements,
+            )
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
 
@@ -1673,7 +1674,9 @@ class QCircuit:
         skip_pre_measure: bool = False,
         native_gate_set: bool = False,
         backend_sim: Optional["AerSimulator"] = None,
-    ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit: ...
+    ) -> (
+        QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit | tket_Circuit
+    ): ...
 
     def to_other_device(
         self,
@@ -2013,15 +2016,13 @@ class QCircuit:
             if job_type == JobType.STATE_VECTOR:
                 skip_measurements = True
 
-            qiskit_circuit = self.to_other_language(
-                Language.QISKIT,
-                skip_pre_measure,
-                skip_measurements,
+            from mpqp.translation.tket import mpqp_to_tket
+
+            return mpqp_to_tket(
+                translated_circuit,
+                skip_pre_measure=skip_pre_measure,
+                skip_measurements=skip_measurements,
             )
-
-            from pytket.extensions.qiskit.qiskit_convert import qiskit_to_tk
-
-            return qiskit_to_tk(qiskit_circuit)
         else:
             raise NotImplementedError(f"Error: {device} is not supported")
 
@@ -2532,14 +2533,11 @@ class QCircuit:
             from pytket import Circuit as tket_Circuit
 
             assert isinstance(transpiled, tket_Circuit)
-            bound = transpiled.copy()
-            bound.symbol_substitution(
-                {  # pyright: ignore[reportArgumentType]
-                    symbol: param_values[str(symbol)]
-                    for symbol in bound.free_symbols()
-                    if str(symbol) in param_values
-                }
+            from mpqp.translation.tket import bind_tket_parameters
+
+            return bind_tket_parameters(
+                transpiled,
+                param_values,
             )
-            return bound
         else:
             return self.subs(values).transpiled_for_device(device)
